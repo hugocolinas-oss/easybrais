@@ -7,9 +7,13 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"],
+      "@easybrais/types": ["./src/packages/types/src/index.ts"],
+      "@easybrais/types/*": ["./src/packages/types/src/*"],
+      "@easybrais/ui": ["./src/packages/ui/src/index.ts"],
+      "@easybrais/ui/*": ["./src/packages/ui/src/*"],
+      "@easybrais/utils": ["./src/packages/utils/src/index.ts"],
+      "@easybrais/utils/*": ["./src/packages/utils/src/*"]
     },
     "allowJs": true,
     "noEmit": true

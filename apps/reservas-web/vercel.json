@@ -1,4 +1,0 @@
-{
-  "installCommand": "cd ../.. && npx -y pnpm@9 install",
-  "buildCommand": "cd ../.. && npx -y pnpm@9 turbo build --filter=reservas-web"
-}

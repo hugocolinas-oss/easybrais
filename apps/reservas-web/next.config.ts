@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@easybrais/ui", "@easybrais/utils", "@easybrais/types"],
   headers: async () => [
     {
       source: "/(.*)",
