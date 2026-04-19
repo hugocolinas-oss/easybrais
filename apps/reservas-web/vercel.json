@@ -1,4 +1,4 @@
 {
-  "installCommand": "pnpm install",
-  "buildCommand": "pnpm turbo build --filter=reservas-web"
+  "installCommand": "cd ../.. && corepack enable && pnpm install",
+  "buildCommand": "cd ../.. && pnpm turbo build --filter=reservas-web"
 }
