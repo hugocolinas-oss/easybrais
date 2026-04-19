@@ -1,0 +1,11 @@
+[project]
+id = "easybrais"
+name = "Easy Brais"
+
+[db]
+# Migrations directory relative to supabase/
+migrations_dir = "migrations"
+
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3001"]

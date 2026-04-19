@@ -1,0 +1,20 @@
+{
+  "name": "easybrais",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev --filter=reservas-web",
+    "build": "turbo build --filter=reservas-web",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
+    "clean": "turbo clean && rm -rf node_modules",
+    "db:verify": "tsx --env-file=.env.local scripts/verify-schema.ts"
+  },
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "turbo": "^2.8.20"
+  }
+}
