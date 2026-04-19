@@ -1,4 +1,4 @@
 {
-  "installCommand": "npm i -g pnpm@9 && cd ../.. && pnpm install --frozen-lockfile",
+  "installCommand": "npm i -g pnpm@9 && cd ../.. && pnpm install",
   "buildCommand": "cd ../.. && pnpm turbo build --filter=reservas-web"
 }
