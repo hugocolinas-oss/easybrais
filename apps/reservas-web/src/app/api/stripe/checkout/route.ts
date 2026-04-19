@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
         stripe_session_id: session.id,
         payment_method: "online_stripe",
         payment_expires_at: paymentExpiresAt,
-      } as Record<string, unknown>)
+      } as any)
       .eq("id", booking.id);
 
     if (updateErr) {

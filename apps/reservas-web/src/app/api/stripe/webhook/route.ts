@@ -100,7 +100,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       stripe_payment_intent: paymentIntent,
       paid_at: now,
       payment_method: "online_stripe",
-    } as Record<string, unknown>)
+    } as any)
     .eq("id", bookingId);
 
   if (updateErr) {
@@ -182,7 +182,7 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
     .from("bookings")
     .update({
       status: "payment_expired",
-    } as Record<string, unknown>)
+    } as any)
     .eq("id", bookingId);
 
   if (updateErr) {
