@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { getAccommodations, getDistinctStages, type AccommodationFilters } from "@/lib/gestion/accommodation-queries";
+import { getAccommodations, getStagesInfo, type AccommodationFilters } from "@/lib/gestion/accommodation-queries";
 import { AccommodationFilters as Filters } from "@/components/gestion/alojamientos/accommodation-filters";
+import { StageManager } from "@/components/gestion/alojamientos/stage-manager";
 import { ToggleActiveButton, ToggleVisibleButton } from "@/components/gestion/alojamientos/toggle-buttons";
 
 export const dynamic = "force-dynamic";
@@ -20,10 +21,12 @@ export default async function AlojamientosPage({
     page: params.page ? Number(params.page) : 1,
   };
 
-  const [{ rows, total, page, totalPages }, stages] = await Promise.all([
+  const [{ rows, total, page, totalPages }, stagesInfo] = await Promise.all([
     getAccommodations(filters),
-    getDistinctStages(),
+    getStagesInfo(),
   ]);
+
+  const stageNames = stagesInfo.map((s) => s.name);
 
   function pageHref(p: number) {
     const sp = new URLSearchParams();
@@ -34,6 +37,12 @@ export default async function AlojamientosPage({
     if (p > 1) sp.set("page", String(p));
     const qs = sp.toString();
     return `/gestion/alojamientos${qs ? `?${qs}` : ""}`;
+  }
+
+  function stageNumber(code: string | null): number | null {
+    if (!code) return null;
+    const n = parseInt(code.split(".")[0], 10);
+    return Number.isNaN(n) ? null : n;
   }
 
   return (
@@ -55,7 +64,9 @@ export default async function AlojamientosPage({
         </Link>
       </div>
 
-      <Filters stages={stages} />
+      <StageManager stages={stagesInfo} />
+
+      <Filters stages={stageNames} />
 
       {rows.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-sm text-gray-400">
@@ -65,31 +76,44 @@ export default async function AlojamientosPage({
         <>
           {/* Mobile: card list */}
           <div className="space-y-2 sm:hidden">
-            {rows.map((a) => (
-              <Link
-                key={a.id}
-                href={`/gestion/alojamientos/${a.id}`}
-                className="block rounded-lg border border-gray-200 bg-white p-3 active:bg-gray-50"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-sm font-medium text-gray-900">
-                    {a.display_name ?? a.name}
-                  </p>
-                  <div className="flex shrink-0 gap-1">
-                    <ToggleActiveButton id={a.id} active={a.active} />
-                    <ToggleVisibleButton id={a.id} visible={a.visible_in_reservations} />
+            {rows.map((a) => {
+              const sn = stageNumber(a.external_code);
+              return (
+                <Link
+                  key={a.id}
+                  href={`/gestion/alojamientos/${a.id}`}
+                  className={`block rounded-lg border bg-white p-3 active:bg-gray-50 ${
+                    !a.active ? "border-red-100 opacity-60" : "border-gray-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {a.external_code && (
+                        <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs font-bold text-gray-700">
+                          {a.external_code}
+                        </span>
+                      )}
+                      <p className="truncate text-sm font-medium text-gray-900">
+                        {a.display_name ?? a.name}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <ToggleActiveButton id={a.id} active={a.active} />
+                      <ToggleVisibleButton id={a.id} visible={a.visible_in_reservations} />
+                    </div>
                   </div>
-                </div>
-                <div className="mt-1.5 flex items-center gap-2 text-xs text-gray-500">
-                  {a.external_code && <span className="font-mono">{a.external_code}</span>}
-                  {a.stage_name && <span>· {a.stage_name}</span>}
-                  {a.town && <span>· {a.town}</span>}
-                </div>
-                {a.internal_notes && (
-                  <p className="mt-1 truncate text-[11px] text-amber-600">{a.internal_notes}</p>
-                )}
-              </Link>
-            ))}
+                  <div className="mt-1.5 flex items-center gap-2 text-xs text-gray-500">
+                    {sn != null && (
+                      <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold text-brand-700">
+                        E{sn}
+                      </span>
+                    )}
+                    {a.stage_name && <span>{a.stage_name}</span>}
+                    {a.town && <span>· {a.town}</span>}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
 
           {/* Desktop: table */}
@@ -98,51 +122,65 @@ export default async function AlojamientosPage({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                    <th className="px-4 py-3">Código</th>
+                    <th className="px-4 py-3 w-20">Cod.</th>
+                    <th className="px-4 py-3 w-10 text-center">Etapa</th>
                     <th className="px-4 py-3">Nombre</th>
-                    <th className="px-4 py-3">Etapa</th>
                     <th className="px-4 py-3">Localidad</th>
-                    <th className="px-4 py-3 text-center">Orden</th>
                     <th className="px-4 py-3 text-center">Estado</th>
                     <th className="px-4 py-3 text-center">Visible</th>
-                    <th className="px-4 py-3">Verificado</th>
+                    <th className="px-4 py-3 text-center">Verificado</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {rows.map((a) => (
-                    <tr key={a.id} className="group hover:bg-gray-50/60">
-                      <td className="whitespace-nowrap px-4 py-3">
-                        <Link
-                          href={`/gestion/alojamientos/${a.id}`}
-                          className="font-mono text-xs font-semibold text-brand-700 underline-offset-2 group-hover:underline"
-                        >
-                          {a.external_code ?? "—"}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Link href={`/gestion/alojamientos/${a.id}`} className="block">
-                          <p className="font-medium text-gray-900">{a.display_name ?? a.name}</p>
-                          {a.display_name && a.display_name !== a.name && (
-                            <p className="text-[11px] text-gray-400">orig: {a.name}</p>
+                  {rows.map((a) => {
+                    const sn = stageNumber(a.external_code);
+                    return (
+                      <tr
+                        key={a.id}
+                        className={`group transition-colors hover:bg-gray-50/60 ${!a.active ? "bg-red-50/30" : ""}`}
+                      >
+                        <td className="whitespace-nowrap px-4 py-2.5">
+                          <Link
+                            href={`/gestion/alojamientos/${a.id}`}
+                            className="font-mono text-xs font-bold text-brand-700 underline-offset-2 group-hover:underline"
+                          >
+                            {a.external_code ?? "—"}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          {sn != null ? (
+                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-brand-50 text-[10px] font-bold text-brand-700">
+                              {sn}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300">—</span>
                           )}
-                        </Link>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-gray-600">{a.stage_name ?? "—"}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-gray-600">{a.town ?? "—"}</td>
-                      <td className="px-4 py-3 text-center text-gray-500">{a.sort_order}</td>
-                      <td className="px-4 py-3 text-center">
-                        <ToggleActiveButton id={a.id} active={a.active} />
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <ToggleVisibleButton id={a.id} visible={a.visible_in_reservations} />
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-400">
-                        {a.last_verified_at
-                          ? new Date(a.last_verified_at).toLocaleDateString("es-ES")
-                          : "—"}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <Link href={`/gestion/alojamientos/${a.id}`} className="block">
+                            <p className={`font-medium ${!a.active ? "text-gray-400 line-through" : "text-gray-900"}`}>
+                              {a.display_name ?? a.name}
+                            </p>
+                            {a.stage_name && (
+                              <p className="text-[11px] text-gray-400">{a.stage_name}</p>
+                            )}
+                          </Link>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">{a.town ?? "—"}</td>
+                        <td className="px-4 py-2.5 text-center">
+                          <ToggleActiveButton id={a.id} active={a.active} />
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          <ToggleVisibleButton id={a.id} visible={a.visible_in_reservations} />
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-center text-xs text-gray-400">
+                          {a.last_verified_at
+                            ? new Date(a.last_verified_at).toLocaleDateString("es-ES")
+                            : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -152,7 +190,7 @@ export default async function AlojamientosPage({
           {totalPages > 1 && (
             <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
               <p className="text-xs text-gray-500">
-                Pág. {page}/{totalPages}
+                Pág. {page}/{totalPages} &middot; {total} registros
               </p>
               <div className="flex gap-2">
                 {page > 1 && (

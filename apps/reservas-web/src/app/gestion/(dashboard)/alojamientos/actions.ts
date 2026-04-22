@@ -207,3 +207,58 @@ export async function markVerified(
     return { error: "Error inesperado." };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Bulk stage toggle
+// ---------------------------------------------------------------------------
+
+export async function toggleStageActive(
+  stageName: string,
+  active: boolean,
+): Promise<{ ok: true; count: number } | { error: string }> {
+  try {
+    const supabase = await getServerSupabase();
+    const { data, error } = await supabase
+      .from("accommodations")
+      .update({ active })
+      .eq("stage_name", stageName)
+      .select("id");
+
+    if (error) {
+      console.error("[alojamientos] toggleStageActive error:", error.message);
+      return { error: "No se pudo cambiar el estado de la etapa." };
+    }
+
+    revalidatePath("/gestion/alojamientos");
+    return { ok: true, count: data?.length ?? 0 };
+  } catch (err) {
+    console.error("[alojamientos] toggleStageActive unexpected:", err);
+    return { error: "Error inesperado." };
+  }
+}
+
+export async function toggleStageVisibility(
+  stageName: string,
+  visible: boolean,
+): Promise<{ ok: true; count: number } | { error: string }> {
+  try {
+    const supabase = await getServerSupabase();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await supabase
+      .from("accommodations")
+      .update({ visible_in_reservations: visible } as any)
+      .eq("stage_name", stageName)
+      .select("id");
+
+    if (error) {
+      console.error("[alojamientos] toggleStageVisibility error:", error.message);
+      return { error: "No se pudo cambiar la visibilidad de la etapa." };
+    }
+
+    revalidatePath("/gestion/alojamientos");
+    return { ok: true, count: data?.length ?? 0 };
+  } catch (err) {
+    console.error("[alojamientos] toggleStageVisibility unexpected:", err);
+    return { error: "Error inesperado." };
+  }
+}

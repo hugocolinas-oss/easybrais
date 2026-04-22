@@ -32,10 +32,33 @@ export interface AccommodationFilters {
   page?: number;
 }
 
-const PAGE_SIZE = 25;
+export interface StageInfo {
+  name: string;
+  stageNumber: number;
+  total: number;
+  active: number;
+  visible: number;
+}
+
+const PAGE_SIZE = 50;
 
 const SELECT_FIELDS =
   "id, external_code, name, display_name, stage_name, town, route_name, address, lat, lng, contact_phone, contact_email, active, visible_in_reservations, internal_notes, reservation_notes, sort_order, last_verified_at, created_at, updated_at";
+
+function parseCode(code: string | null): [number, number] {
+  if (!code) return [9999, 9999];
+  const parts = code.split(".");
+  const a = parseInt(parts[0], 10);
+  const b = parseInt(parts[1] ?? "0", 10);
+  return [Number.isNaN(a) ? 9999 : a, Number.isNaN(b) ? 9999 : b];
+}
+
+function compareByCode(a: AccommodationRow, b: AccommodationRow): number {
+  const [a1, a2] = parseCode(a.external_code);
+  const [b1, b2] = parseCode(b.external_code);
+  if (a1 !== b1) return a1 - b1;
+  return a2 - b2;
+}
 
 export async function getAccommodations(filters: AccommodationFilters) {
   const supabase = await getServerSupabase();
@@ -58,22 +81,20 @@ export async function getAccommodations(filters: AccommodationFilters) {
   if (filters.stage) query = query.eq("stage_name", filters.stage);
   if (filters.town) query = query.ilike("town", `%${filters.town}%`);
 
-  const page = Math.max(1, filters.page ?? 1);
-  const from = (page - 1) * PAGE_SIZE;
-
-  query = query
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true })
-    .range(from, from + PAGE_SIZE - 1);
-
-  const { data, count, error } = await query;
+  const { data: allData, count, error } = await query;
 
   if (error) {
     console.error("[accommodation-queries] getAccommodations error:", error.message);
   }
 
+  const sorted = ((allData ?? []) as unknown as AccommodationRow[]).sort(compareByCode);
+
+  const page = Math.max(1, filters.page ?? 1);
+  const from = (page - 1) * PAGE_SIZE;
+  const rows = sorted.slice(from, from + PAGE_SIZE);
+
   return {
-    rows: (data ?? []) as unknown as AccommodationRow[],
+    rows,
     total: count ?? 0,
     page,
     totalPages: Math.ceil((count ?? 0) / PAGE_SIZE),
@@ -97,19 +118,34 @@ export async function getAccommodationById(id: string): Promise<AccommodationRow
   return data as unknown as AccommodationRow;
 }
 
-export async function getDistinctStages(): Promise<string[]> {
+export async function getStagesInfo(): Promise<StageInfo[]> {
   const supabase = await getServerSupabase();
 
   const { data } = await supabase
     .from("accommodations")
-    .select("stage_name")
-    .not("stage_name", "is", null)
-    .order("stage_name", { ascending: true });
+    .select("stage_name, external_code, active, visible_in_reservations")
+    .not("stage_name", "is", null);
 
-  const unique = new Set<string>();
-  (data ?? []).forEach((r) => {
-    if (r.stage_name) unique.add(r.stage_name);
-  });
+  const map = new Map<string, StageInfo>();
 
-  return Array.from(unique);
+  for (const row of (data ?? []) as { stage_name: string; external_code: string | null; active: boolean; visible_in_reservations: boolean }[]) {
+    const name = row.stage_name;
+    if (!name) continue;
+    let info = map.get(name);
+    if (!info) {
+      const [num] = parseCode(row.external_code);
+      info = { name, stageNumber: num, total: 0, active: 0, visible: 0 };
+      map.set(name, info);
+    }
+    info.total++;
+    if (row.active) info.active++;
+    if (row.visible_in_reservations) info.visible++;
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.stageNumber - b.stageNumber);
+}
+
+export async function getDistinctStages(): Promise<string[]> {
+  const info = await getStagesInfo();
+  return info.map((s) => s.name);
 }
