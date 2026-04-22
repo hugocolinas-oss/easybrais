@@ -102,28 +102,23 @@ export async function createBooking(
 
     const { data: accRows } = await supabase
       .from("accommodations")
-      .select("id, stage_name, sort_order")
+      .select("id, external_code")
       .in("id", uniqueAccIds);
 
-    const accLookup = new Map((accRows ?? []).map((a: { id: string; stage_name: string | null; sort_order: number }) => [a.id, a]));
+    type AccRow = { id: string; external_code: string | null };
+    const accLookup = new Map((accRows ?? []).map((a: AccRow) => [a.id, a]));
 
-    const stageMinOrder = new Map<string, number>();
-    for (const a of (accRows ?? []) as Array<{ stage_name: string | null; sort_order: number }>) {
-      if (!a.stage_name) continue;
-      const cur = stageMinOrder.get(a.stage_name);
-      if (cur === undefined || a.sort_order < cur) stageMinOrder.set(a.stage_name, a.sort_order);
+    function stageNumber(code: string | null): number | null {
+      if (!code) return null;
+      const n = parseInt(code.split(".")[0], 10);
+      return Number.isNaN(n) ? null : n;
     }
-    const sortedStages = Array.from(stageMinOrder.entries()).sort((a, b) => a[1] - b[1]);
-    const stageIndex = new Map(sortedStages.map(([name], i) => [name, i]));
 
     function getStagesCount(pickupId: string, dropoffId: string): number {
-      const p = accLookup.get(pickupId);
-      const d = accLookup.get(dropoffId);
-      if (!p?.stage_name || !d?.stage_name) return 1;
-      const pi = stageIndex.get(p.stage_name);
-      const di = stageIndex.get(d.stage_name);
-      if (pi === undefined || di === undefined) return 1;
-      return Math.max(1, Math.abs(di - pi));
+      const p = stageNumber(accLookup.get(pickupId)?.external_code ?? null);
+      const d = stageNumber(accLookup.get(dropoffId)?.external_code ?? null);
+      if (p === null || d === null) return 1;
+      return Math.max(1, Math.abs(d - p));
     }
 
     const pricing = calculatePricing(

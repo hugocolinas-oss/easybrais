@@ -38,32 +38,21 @@ const EMPTY_CUSTOMER = {
   notes: "",
 };
 
-function buildStageIndex(accommodations: Accommodation[]): Map<string, number> {
-  const stageMinOrder = new Map<string, number>();
-  for (const a of accommodations) {
-    if (!a.stage_name) continue;
-    const cur = stageMinOrder.get(a.stage_name);
-    if (cur === undefined || a.sort_order < cur) {
-      stageMinOrder.set(a.stage_name, a.sort_order);
-    }
-  }
-
-  const sorted = Array.from(stageMinOrder.entries()).sort((a, b) => a[1] - b[1]);
-  const idx = new Map<string, number>();
-  sorted.forEach(([name], i) => idx.set(name, i));
-  return idx;
+function stageNumberFromCode(acc: Accommodation): number | null {
+  if (!acc.external_code) return null;
+  const n = parseInt(acc.external_code.split(".")[0], 10);
+  return Number.isNaN(n) ? null : n;
 }
 
 function getStagesCount(
   pickupAcc: Accommodation | undefined,
   dropoffAcc: Accommodation | undefined,
-  stageIndex: Map<string, number>,
 ): number {
-  if (!pickupAcc?.stage_name || !dropoffAcc?.stage_name) return 1;
-  const pickupIdx = stageIndex.get(pickupAcc.stage_name);
-  const dropoffIdx = stageIndex.get(dropoffAcc.stage_name);
-  if (pickupIdx === undefined || dropoffIdx === undefined) return 1;
-  return Math.max(1, Math.abs(dropoffIdx - pickupIdx));
+  if (!pickupAcc || !dropoffAcc) return 1;
+  const p = stageNumberFromCode(pickupAcc);
+  const d = stageNumberFromCode(dropoffAcc);
+  if (p === null || d === null) return 1;
+  return Math.max(1, Math.abs(d - p));
 }
 
 export function BookingForm({ allAccommodations }: Props) {
@@ -81,11 +70,6 @@ export function BookingForm({ allAccommodations }: Props) {
 
   const accMap = useMemo(
     () => new Map(allAccommodations.map((a) => [a.id, a])),
-    [allAccommodations],
-  );
-
-  const stageIndex = useMemo(
-    () => buildStageIndex(allAccommodations),
     [allAccommodations],
   );
 
@@ -108,11 +92,11 @@ export function BookingForm({ allAccommodations }: Props) {
           return {
             bagsCount: l.bagsCount,
             overweightBagsCount: l.overweightBagsCount,
-            stagesCount: getStagesCount(pickup, dropoff, stageIndex),
+            stagesCount: getStagesCount(pickup, dropoff),
           };
         }),
       ),
-    [legs, accMap, stageIndex],
+    [legs, accMap],
   );
 
   const handleTypeChange = useCallback(
@@ -300,7 +284,7 @@ export function BookingForm({ allAccommodations }: Props) {
               {legs.map((leg, i) => {
                 const pickup = accMap.get(leg.pickupAccommodationId);
                 const dropoff = accMap.get(leg.dropoffAccommodationId);
-                const stages = getStagesCount(pickup, dropoff, stageIndex);
+                const stages = getStagesCount(pickup, dropoff);
                 return (
                   <LegForm
                     key={leg.id}
@@ -398,7 +382,7 @@ export function BookingForm({ allAccommodations }: Props) {
                   const pickup = accMap.get(leg.pickupAccommodationId);
                   const dropoff = accMap.get(leg.dropoffAccommodationId);
                   const hasData = pickup || dropoff || leg.serviceDate;
-                  const stages = getStagesCount(pickup, dropoff, stageIndex);
+                  const stages = getStagesCount(pickup, dropoff);
 
                   return (
                     <div key={leg.id} className={`${i > 0 ? "pt-3" : ""} ${i < legs.length - 1 ? "pb-3" : ""}`}>
