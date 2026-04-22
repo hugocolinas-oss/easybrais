@@ -15,6 +15,8 @@ interface Props {
 
 const FULL_CAMINO_LEGS = 8;
 
+type PaymentMethod = "online" | "cash";
+
 function createLeg(): StageLeg {
   return {
     id: crypto.randomUUID(),
@@ -36,10 +38,39 @@ const EMPTY_CUSTOMER = {
   notes: "",
 };
 
+function buildStageIndex(accommodations: Accommodation[]): Map<string, number> {
+  const stageMinOrder = new Map<string, number>();
+  for (const a of accommodations) {
+    if (!a.stage_name) continue;
+    const cur = stageMinOrder.get(a.stage_name);
+    if (cur === undefined || a.sort_order < cur) {
+      stageMinOrder.set(a.stage_name, a.sort_order);
+    }
+  }
+
+  const sorted = Array.from(stageMinOrder.entries()).sort((a, b) => a[1] - b[1]);
+  const idx = new Map<string, number>();
+  sorted.forEach(([name], i) => idx.set(name, i));
+  return idx;
+}
+
+function getStagesCount(
+  pickupAcc: Accommodation | undefined,
+  dropoffAcc: Accommodation | undefined,
+  stageIndex: Map<string, number>,
+): number {
+  if (!pickupAcc?.stage_name || !dropoffAcc?.stage_name) return 1;
+  const pickupIdx = stageIndex.get(pickupAcc.stage_name);
+  const dropoffIdx = stageIndex.get(dropoffAcc.stage_name);
+  if (pickupIdx === undefined || dropoffIdx === undefined) return 1;
+  return Math.max(1, Math.abs(dropoffIdx - pickupIdx));
+}
+
 export function BookingForm({ allAccommodations }: Props) {
   const [bookingType, setBookingType] = useState<BookingType>("single_stage");
   const [legs, setLegs] = useState<StageLeg[]>([createLeg()]);
   const [customer, setCustomer] = useState(EMPTY_CUSTOMER);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("online");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [submitting, setSubmitting] = useState(false);
@@ -50,6 +81,11 @@ export function BookingForm({ allAccommodations }: Props) {
 
   const accMap = useMemo(
     () => new Map(allAccommodations.map((a) => [a.id, a])),
+    [allAccommodations],
+  );
+
+  const stageIndex = useMemo(
+    () => buildStageIndex(allAccommodations),
     [allAccommodations],
   );
 
@@ -66,12 +102,17 @@ export function BookingForm({ allAccommodations }: Props) {
   const pricing = useMemo(
     () =>
       calculatePricing(
-        legs.map((l) => ({
-          bagsCount: l.bagsCount,
-          overweightBagsCount: l.overweightBagsCount,
-        })),
+        legs.map((l) => {
+          const pickup = accMap.get(l.pickupAccommodationId);
+          const dropoff = accMap.get(l.dropoffAccommodationId);
+          return {
+            bagsCount: l.bagsCount,
+            overweightBagsCount: l.overweightBagsCount,
+            stagesCount: getStagesCount(pickup, dropoff, stageIndex),
+          };
+        }),
       ),
-    [legs],
+    [legs, accMap, stageIndex],
   );
 
   const handleTypeChange = useCallback(
@@ -189,7 +230,12 @@ export function BookingForm({ allAccommodations }: Props) {
     setSubmitting(true);
 
     try {
-      const data: BookingFormData = { bookingType, legs, customer };
+      const data: BookingFormData = {
+        bookingType,
+        legs,
+        customer,
+        paymentMethod: paymentMethod === "cash" ? "cash" : "online",
+      };
       const res = await createBooking(data, idempotencyKeyRef.current);
 
       if (!res.ok) {
@@ -197,7 +243,7 @@ export function BookingForm({ allAccommodations }: Props) {
         return;
       }
 
-      if (res.stripeEnabled) {
+      if (res.stripeEnabled && paymentMethod === "online") {
         const checkoutRes = await fetch("/api/stripe/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -228,6 +274,7 @@ export function BookingForm({ allAccommodations }: Props) {
     setLegs([createLeg()]);
     setCustomer(EMPTY_CUSTOMER);
     setBookingType("single_stage");
+    setPaymentMethod("online");
     setErrors({});
     setServerError(null);
     idempotencyKeyRef.current = crypto.randomUUID();
@@ -250,20 +297,26 @@ export function BookingForm({ allAccommodations }: Props) {
           {/* Section 2: Transport Legs */}
           <FormSection step={2} title="Detalles del servicio" subtitle="Configura cada transporte">
             <div className="space-y-4">
-              {legs.map((leg, i) => (
-                <LegForm
-                  key={leg.id}
-                  leg={leg}
-                  index={i}
-                  towns={towns}
-                  allAccommodations={allAccommodations}
-                  canRemove={legs.length > 1}
-                  pickupLocked={i > 0 && !!legs[i - 1]?.dropoffAccommodationId}
-                  onUpdate={(updated) => updateLeg(i, updated)}
-                  onRemove={() => removeLeg(i)}
-                  errors={errors}
-                />
-              ))}
+              {legs.map((leg, i) => {
+                const pickup = accMap.get(leg.pickupAccommodationId);
+                const dropoff = accMap.get(leg.dropoffAccommodationId);
+                const stages = getStagesCount(pickup, dropoff, stageIndex);
+                return (
+                  <LegForm
+                    key={leg.id}
+                    leg={leg}
+                    index={i}
+                    towns={towns}
+                    allAccommodations={allAccommodations}
+                    canRemove={legs.length > 1}
+                    pickupLocked={i > 0 && !!legs[i - 1]?.dropoffAccommodationId}
+                    stagesCount={stages}
+                    onUpdate={(updated) => updateLeg(i, updated)}
+                    onRemove={() => removeLeg(i)}
+                    errors={errors}
+                  />
+                );
+              })}
 
               {(bookingType === "multi_stage" || bookingType === "full_camino") && (
                 <button
@@ -289,6 +342,11 @@ export function BookingForm({ allAccommodations }: Props) {
                 errors={errors}
               />
             </div>
+          </FormSection>
+
+          {/* Section 4: Payment Method */}
+          <FormSection step={4} title="Método de pago" subtitle="Elige cómo prefieres pagar">
+            <PaymentMethodSelector value={paymentMethod} onChange={setPaymentMethod} />
           </FormSection>
 
           {/* Validation errors */}
@@ -319,6 +377,7 @@ export function BookingForm({ allAccommodations }: Props) {
               accMap={accMap}
               pricing={pricing}
               submitting={submitting}
+              paymentMethod={paymentMethod}
             />
           </div>
         </div>
@@ -339,6 +398,7 @@ export function BookingForm({ allAccommodations }: Props) {
                   const pickup = accMap.get(leg.pickupAccommodationId);
                   const dropoff = accMap.get(leg.dropoffAccommodationId);
                   const hasData = pickup || dropoff || leg.serviceDate;
+                  const stages = getStagesCount(pickup, dropoff, stageIndex);
 
                   return (
                     <div key={leg.id} className={`${i > 0 ? "pt-3" : ""} ${i < legs.length - 1 ? "pb-3" : ""}`}>
@@ -347,6 +407,11 @@ export function BookingForm({ allAccommodations }: Props) {
                           {i + 1}
                         </span>
                         <span className="text-xs font-semibold text-brand-900">Transporte {i + 1}</span>
+                        {stages > 1 && (
+                          <span className="rounded bg-gold-100 px-1.5 py-0.5 text-[9px] font-bold text-gold-700">
+                            {stages} etapas
+                          </span>
+                        )}
                       </div>
                       {hasData ? (
                         <div className="ml-7 mt-1.5 space-y-1">
@@ -374,6 +439,12 @@ export function BookingForm({ allAccommodations }: Props) {
                   <span>Transportes</span>
                   <span className="font-semibold text-brand-900">{legs.length}</span>
                 </div>
+                {pricing.totalTransportUnits > pricing.totalBags && (
+                  <div className="mt-1 flex justify-between text-[13px] text-brand-800/70">
+                    <span>Unidades de transporte</span>
+                    <span className="font-semibold text-gold-700">{pricing.totalTransportUnits}</span>
+                  </div>
+                )}
 
                 <div className="mt-4 flex items-baseline justify-between border-t border-cream-300/60 pt-4">
                   <span className="text-sm font-bold text-brand-900">Precio total</span>
@@ -401,7 +472,7 @@ export function BookingForm({ allAccommodations }: Props) {
 
               {/* Submit button */}
               <div className="px-6 pb-5 pt-1">
-                <SubmitButton submitting={submitting} total={pricing.totalAmount} />
+                <SubmitButton submitting={submitting} total={pricing.totalAmount} paymentMethod={paymentMethod} />
               </div>
 
               {/* Guarantee */}
@@ -422,6 +493,76 @@ export function BookingForm({ allAccommodations }: Props) {
 }
 
 /* ── Sub-components ────────────────────────────────────────────────────── */
+
+function PaymentMethodSelector({ value, onChange }: { value: PaymentMethod; onChange: (v: PaymentMethod) => void }) {
+  const options: { id: PaymentMethod; label: string; desc: string; icon: React.ReactNode }[] = [
+    {
+      id: "online",
+      label: "Pago online",
+      desc: "Tarjeta de crédito/débito (Stripe)",
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+        </svg>
+      ),
+    },
+    {
+      id: "cash",
+      label: "Pago en efectivo",
+      desc: "Paga al recoger el equipaje",
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {options.map((opt) => {
+        const selected = value === opt.id;
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onChange(opt.id)}
+            className={[
+              "group relative flex items-center gap-3 rounded-2xl border-2 px-4 py-4 text-left transition-all",
+              selected
+                ? "border-brand-900 bg-white shadow-card ring-1 ring-brand-900/10"
+                : "border-cream-300/80 bg-white/60 hover:border-cream-400 hover:bg-white hover:shadow-card",
+            ].join(" ")}
+          >
+            {selected && (
+              <span className="absolute -top-2 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-brand-900 shadow-sm">
+                <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              </span>
+            )}
+            <span
+              className={[
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors",
+                selected
+                  ? "bg-gold-500/15 text-gold-700"
+                  : "bg-cream-200/60 text-brand-800/30 group-hover:bg-cream-200 group-hover:text-brand-800/50",
+              ].join(" ")}
+            >
+              {opt.icon}
+            </span>
+            <div className="min-w-0">
+              <span className={["block text-sm font-bold", selected ? "text-brand-900" : "text-brand-900/70"].join(" ")}>
+                {opt.label}
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-relaxed text-brand-800/40">{opt.desc}</span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function PriceBreakdown({ pricing }: { pricing: ReturnType<typeof calculatePricing> }) {
   const { BASE_PRICE, REDUCED_PRICE, OVERWEIGHT_FEE } = PRICING_RULES;
@@ -478,7 +619,11 @@ function FormSection({
   );
 }
 
-function SubmitButton({ submitting, total }: { submitting: boolean; total: number }) {
+function SubmitButton({ submitting, total, paymentMethod }: { submitting: boolean; total: number; paymentMethod: PaymentMethod }) {
+  const label = paymentMethod === "cash"
+    ? `Confirmar reserva${total > 0 ? ` — ${formatEUR(total)}` : ""}`
+    : `Reservar y pagar${total > 0 ? ` — ${formatEUR(total)}` : ""}`;
+
   return (
     <button
       type="submit"
@@ -495,7 +640,7 @@ function SubmitButton({ submitting, total }: { submitting: boolean; total: numbe
         </>
       ) : (
         <>
-          <span className="truncate">Reservar y pagar{total > 0 ? ` — ${formatEUR(total)}` : ""}</span>
+          <span className="truncate">{label}</span>
           <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
           </svg>
@@ -510,11 +655,13 @@ function MobileSummary({
   accMap,
   pricing,
   submitting,
+  paymentMethod,
 }: {
   legs: StageLeg[];
   accMap: Map<string, Accommodation>;
   pricing: ReturnType<typeof calculatePricing>;
   submitting: boolean;
+  paymentMethod: PaymentMethod;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-cream-300/80 bg-white shadow-soft">
@@ -530,6 +677,12 @@ function MobileSummary({
           <span>Transportes</span>
           <span className="font-semibold text-brand-900">{legs.length}</span>
         </div>
+        {pricing.totalTransportUnits > pricing.totalBags && (
+          <div className="flex justify-between text-[13px] text-brand-800/70">
+            <span>Uds. transporte</span>
+            <span className="font-semibold text-gold-700">{pricing.totalTransportUnits}</span>
+          </div>
+        )}
         <PriceBreakdown pricing={pricing} />
         <div className="flex items-baseline justify-between border-t border-cream-200 pt-3">
           <span className="text-sm font-bold text-brand-900">Total</span>
@@ -537,7 +690,7 @@ function MobileSummary({
         </div>
       </div>
       <div className="px-5 pb-5">
-        <SubmitButton submitting={submitting} total={pricing.totalAmount} />
+        <SubmitButton submitting={submitting} total={pricing.totalAmount} paymentMethod={paymentMethod} />
       </div>
       <div className="border-t border-cream-200 px-5 py-3">
         <div className="flex items-center justify-center gap-2 text-[11px] text-brand-800/35">

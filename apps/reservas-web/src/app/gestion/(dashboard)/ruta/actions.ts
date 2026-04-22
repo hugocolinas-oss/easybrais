@@ -14,7 +14,7 @@ interface RawBookingItem {
   dropoff_accommodation_id: string | null;
   pickup: { name: string; town: string | null } | null;
   dropoff: { name: string; town: string | null } | null;
-  bookings: { booking_code: string; customers: { full_name: string } | null } | null;
+  bookings: { booking_code: string; status: string; customers: { full_name: string } | null } | null;
 }
 
 export async function generateRoute(date: string) {
@@ -38,11 +38,12 @@ export async function generateRoute(date: string) {
       .from("booking_items")
       .select(
         `id, bags_count, pickup_accommodation_id, dropoff_accommodation_id,
-         pickup:pickup_accommodation_id(name, town),
-         dropoff:dropoff_accommodation_id(name, town),
-         bookings!inner(booking_code, customers(full_name))`,
+         pickup:accommodations!booking_items_pickup_accommodation_id_fkey(name, town),
+         dropoff:accommodations!booking_items_dropoff_accommodation_id_fkey(name, town),
+         bookings!inner(booking_code, status, customers(full_name))`,
       )
-      .eq("service_date", date);
+      .eq("service_date", date)
+      .not("bookings.status", "in", "(cancelled,payment_expired)");
 
     if (fetchErr) {
       console.error("[generateRoute] fetch items failed:", fetchErr.message);
@@ -133,7 +134,7 @@ export async function generateRoute(date: string) {
       return { error: "Error al crear las paradas." };
     }
 
-    revalidatePath("/ruta");
+    revalidatePath("/gestion/ruta");
     return { ok: true };
   } catch (err) {
     console.error("[generateRoute] unexpected:", err instanceof Error ? err.message : err);
@@ -158,7 +159,7 @@ export async function deleteRoute(routeId: string) {
       return { error: "Error al eliminar la ruta." };
     }
 
-    revalidatePath("/ruta");
+    revalidatePath("/gestion/ruta");
     return { ok: true };
   } catch (err) {
     console.error("[deleteRoute] unexpected:", err instanceof Error ? err.message : err);
@@ -232,7 +233,7 @@ export async function swapStopPositions(
       return { error: "Error al reordenar las paradas. Posible estado inconsistente." };
     }
 
-    revalidatePath("/ruta");
+    revalidatePath("/gestion/ruta");
     return { ok: true };
   } catch (err) {
     console.error("[swapStopPositions] unexpected:", err instanceof Error ? err.message : err);
@@ -262,7 +263,7 @@ export async function toggleStopCompleted(stopId: string, completed: boolean) {
       return { error: "Error al actualizar." };
     }
 
-    revalidatePath("/ruta");
+    revalidatePath("/gestion/ruta");
     return { ok: true };
   } catch (err) {
     console.error("[toggleStopCompleted] unexpected:", err instanceof Error ? err.message : err);
@@ -289,7 +290,7 @@ export async function updateRouteStatus(routeId: string, status: string) {
       return { error: "Error al actualizar estado." };
     }
 
-    revalidatePath("/ruta");
+    revalidatePath("/gestion/ruta");
     return { ok: true };
   } catch (err) {
     console.error("[updateRouteStatus] unexpected:", err instanceof Error ? err.message : err);

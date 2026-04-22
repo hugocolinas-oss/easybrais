@@ -4,7 +4,7 @@ export default function GestionLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gray-50" style={{ color: "#171717", background: "#ffffff" }}>
+    <div className="min-h-screen bg-gray-50 text-gray-900">
       {children}
     </div>
   );

@@ -60,10 +60,10 @@ export async function advanceItemStatus(itemId: string, newStatus: string) {
 
     await syncBookingStatus(supabase, bookingId, userId);
 
-    revalidatePath("/operativa");
-    revalidatePath("/reservas");
-    revalidatePath(`/reservas/${bookingId}`);
-    revalidatePath("/");
+    revalidatePath("/gestion/operativa");
+    revalidatePath("/gestion/reservas");
+    revalidatePath(`/gestion/reservas/${bookingId}`);
+    revalidatePath("/gestion");
     return { ok: true };
   } catch (err) {
     console.error("[advanceItemStatus] unexpected:", err instanceof Error ? err.message : err);
@@ -116,10 +116,10 @@ export async function reportIncident(
       console.error("[reportIncident] event insert failed:", eventErr.message);
     }
 
-    revalidatePath("/operativa");
-    revalidatePath("/reservas");
-    revalidatePath(`/reservas/${bookingId}`);
-    revalidatePath("/");
+    revalidatePath("/gestion/operativa");
+    revalidatePath("/gestion/reservas");
+    revalidatePath(`/gestion/reservas/${bookingId}`);
+    revalidatePath("/gestion");
     return { ok: true };
   } catch (err) {
     console.error("[reportIncident] unexpected:", err instanceof Error ? err.message : err);

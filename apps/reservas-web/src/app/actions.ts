@@ -93,14 +93,46 @@ export async function createBooking(
   if (!idempotencyKey?.trim()) return fail("Solicitud inválida.");
 
   try {
+    const supabase = createAdminClient();
+
+    /* ── Resolve stage distances for pricing ─────────────────────────── */
+
+    const allAccIds = data.legs.flatMap((l) => [l.pickupAccommodationId, l.dropoffAccommodationId]);
+    const uniqueAccIds = [...new Set(allAccIds)];
+
+    const { data: accRows } = await supabase
+      .from("accommodations")
+      .select("id, stage_name, sort_order")
+      .in("id", uniqueAccIds);
+
+    const accLookup = new Map((accRows ?? []).map((a: { id: string; stage_name: string | null; sort_order: number }) => [a.id, a]));
+
+    const stageMinOrder = new Map<string, number>();
+    for (const a of (accRows ?? []) as Array<{ stage_name: string | null; sort_order: number }>) {
+      if (!a.stage_name) continue;
+      const cur = stageMinOrder.get(a.stage_name);
+      if (cur === undefined || a.sort_order < cur) stageMinOrder.set(a.stage_name, a.sort_order);
+    }
+    const sortedStages = Array.from(stageMinOrder.entries()).sort((a, b) => a[1] - b[1]);
+    const stageIndex = new Map(sortedStages.map(([name], i) => [name, i]));
+
+    function getStagesCount(pickupId: string, dropoffId: string): number {
+      const p = accLookup.get(pickupId);
+      const d = accLookup.get(dropoffId);
+      if (!p?.stage_name || !d?.stage_name) return 1;
+      const pi = stageIndex.get(p.stage_name);
+      const di = stageIndex.get(d.stage_name);
+      if (pi === undefined || di === undefined) return 1;
+      return Math.max(1, Math.abs(di - pi));
+    }
+
     const pricing = calculatePricing(
       data.legs.map((l) => ({
         bagsCount: l.bagsCount,
         overweightBagsCount: l.overweightBagsCount,
+        stagesCount: getStagesCount(l.pickupAccommodationId, l.dropoffAccommodationId),
       })),
     );
-
-    const supabase = createAdminClient();
 
     /* ── Idempotency check ───────────────────────────────────────────── */
 
@@ -228,17 +260,20 @@ export async function createBooking(
 
     /* ── 4. Create booking items ──────────────────────────────────── */
 
-    const items = data.legs.map((leg) => ({
-      booking_id: booking.id,
-      service_date: leg.serviceDate,
-      pickup_accommodation_id: leg.pickupAccommodationId,
-      dropoff_accommodation_id: leg.dropoffAccommodationId,
-      bags_count: leg.bagsCount,
-      overweight_bags_count: leg.overweightBagsCount,
-      unit_price: pricing.unitPrice,
-      line_total: leg.bagsCount * pricing.unitPrice,
-      operational_status: "pending" as const,
-    }));
+    const items = data.legs.map((leg) => {
+      const stages = getStagesCount(leg.pickupAccommodationId, leg.dropoffAccommodationId);
+      return {
+        booking_id: booking.id,
+        service_date: leg.serviceDate,
+        pickup_accommodation_id: leg.pickupAccommodationId,
+        dropoff_accommodation_id: leg.dropoffAccommodationId,
+        bags_count: leg.bagsCount,
+        overweight_bags_count: leg.overweightBagsCount,
+        unit_price: pricing.unitPrice,
+        line_total: leg.bagsCount * pricing.unitPrice * stages,
+        operational_status: "pending" as const,
+      };
+    });
 
     const { error: itemsErr } = await supabase.from("booking_items").insert(items);
 
@@ -270,11 +305,21 @@ export async function createBooking(
       console.error("[createBooking] event insert failed:", eventErr.message);
     }
 
-    /* ── 6. Send confirmation email (only if no Stripe — otherwise webhook handles it) */
+    /* ── 6. Determine payment flow ─────────────────────────────────── */
 
     const stripeEnabled = isStripeConfigured();
+    const wantsOnline = data.paymentMethod !== "cash" && stripeEnabled;
 
-    if (!stripeEnabled) {
+    if (data.paymentMethod === "cash") {
+      await supabase
+        .from("bookings")
+        .update({ payment_method: "cash" } as any)
+        .eq("id", booking.id);
+    }
+
+    /* ── 7. Send confirmation email (only if no Stripe redirect — otherwise webhook handles it) */
+
+    if (!wantsOnline) {
       sendConfirmationEmail(supabase, booking.id, bookingCode, email, data, pricing).catch(() => {});
     }
 
@@ -287,7 +332,7 @@ export async function createBooking(
       legsCount: data.legs.length,
       firstServiceDate: firstDate,
       pricing,
-      stripeEnabled,
+      stripeEnabled: wantsOnline,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

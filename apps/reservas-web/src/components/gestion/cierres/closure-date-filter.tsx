@@ -17,13 +17,13 @@ export function ClosureDateFilter({ dateFrom, dateTo }: Props) {
     const sp = new URLSearchParams();
     if (from) sp.set("dateFrom", from);
     if (to) sp.set("dateTo", to);
-    router.push(`/cierres?${sp.toString()}`);
+    router.push(`/gestion/cierres?${sp.toString()}`);
   }
 
   function clear() {
     setFrom("");
     setTo("");
-    router.push("/cierres");
+    router.push("/gestion/cierres");
   }
 
   const hasFilters = dateFrom || dateTo;

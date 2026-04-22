@@ -20,7 +20,7 @@ export function BookingFilters() {
       if (value) sp.set(key, value);
       else sp.delete(key);
       sp.delete("page");
-      router.push(`/reservas?${sp.toString()}`);
+      router.push(`/gestion/reservas?${sp.toString()}`);
     },
     [router, params],
   );
@@ -99,7 +99,7 @@ export function BookingFilters() {
         {hasFilters && (
           <button
             type="button"
-            onClick={() => router.push("/reservas")}
+            onClick={() => router.push("/gestion/reservas")}
             className="rounded-md px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100"
           >
             Limpiar

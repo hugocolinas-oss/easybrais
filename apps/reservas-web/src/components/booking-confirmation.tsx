@@ -70,7 +70,7 @@ export function BookingConfirmation({ result, onNewBooking }: Props) {
           <div className="space-y-1.5 px-4 py-3 text-sm">
             {pricing.normalBags > 0 && (
               <div className="flex justify-between text-brand-800/60">
-                <span>{pricing.normalBags} {pricing.normalBags === 1 ? "mochila" : "mochilas"} × {formatEUR(BASE_PRICE)}</span>
+                <span>{pricing.normalBags} × {formatEUR(BASE_PRICE)}</span>
                 <span>{formatEUR(pricing.normalBags * BASE_PRICE)}</span>
               </div>
             )}

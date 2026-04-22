@@ -7,11 +7,22 @@ export default async function HomePage() {
 
   const { data: rows } = await supabase
     .from("accommodations")
-    .select("id, external_code, name, stage_name, town, address")
+    .select("id, external_code, name, display_name, stage_name, town, address, reservation_notes, sort_order")
     .eq("active", true)
-    .order("external_code", { ascending: true });
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
 
-  type RawRow = { id: string; external_code: string | null; name: string; stage_name: string | null; town: string | null; address: string | null; display_name?: string; reservation_notes?: string | null; sort_order?: number };
+  type RawRow = {
+    id: string;
+    external_code: string | null;
+    name: string;
+    display_name: string | null;
+    stage_name: string | null;
+    town: string | null;
+    address: string | null;
+    reservation_notes: string | null;
+    sort_order: number;
+  };
   const raw = (rows ?? []) as unknown as RawRow[];
 
   const accommodations: Accommodation[] = raw.map((r) => ({

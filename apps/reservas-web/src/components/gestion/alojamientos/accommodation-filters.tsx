@@ -17,7 +17,7 @@ export function AccommodationFilters({ stages }: Props) {
       if (value) next.set(key, value);
       else next.delete(key);
       next.delete("page");
-      router.push(`/alojamientos?${next.toString()}`);
+      router.push(`/gestion/alojamientos?${next.toString()}`);
     },
     [router, sp],
   );

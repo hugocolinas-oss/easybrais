@@ -30,3 +30,4 @@ dist/
 
 # Supabase
 supabase/.temp/
+.vercel

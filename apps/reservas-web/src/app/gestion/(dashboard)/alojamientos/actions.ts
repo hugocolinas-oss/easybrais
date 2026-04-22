@@ -85,7 +85,7 @@ export async function createAccommodation(fields: {
       return { error: "Error al guardar el alojamiento. Inténtalo de nuevo." };
     }
 
-    revalidatePath("/alojamientos");
+    revalidatePath("/gestion/alojamientos");
     return { ok: true, id: created.id };
   } catch (err) {
     console.error("[alojamientos] createAccommodation unexpected:", err);
@@ -125,8 +125,8 @@ export async function updateAccommodation(
       return { error: "No se pudo actualizar el alojamiento." };
     }
 
-    revalidatePath("/alojamientos");
-    revalidatePath(`/alojamientos/${id}`);
+    revalidatePath("/gestion/alojamientos");
+    revalidatePath(`/gestion/alojamientos/${id}`);
     return { ok: true };
   } catch (err) {
     console.error("[alojamientos] updateAccommodation unexpected:", err);
@@ -150,7 +150,7 @@ export async function toggleActive(
       return { error: "No se pudo cambiar el estado." };
     }
 
-    revalidatePath("/alojamientos");
+    revalidatePath("/gestion/alojamientos");
     return { ok: true };
   } catch (err) {
     console.error("[alojamientos] toggleActive unexpected:", err);
@@ -175,7 +175,7 @@ export async function toggleVisibility(
       return { error: "No se pudo cambiar la visibilidad." };
     }
 
-    revalidatePath("/alojamientos");
+    revalidatePath("/gestion/alojamientos");
     return { ok: true };
   } catch (err) {
     console.error("[alojamientos] toggleVisibility unexpected:", err);
@@ -199,8 +199,8 @@ export async function markVerified(
       return { error: "No se pudo marcar como verificado." };
     }
 
-    revalidatePath("/alojamientos");
-    revalidatePath(`/alojamientos/${id}`);
+    revalidatePath("/gestion/alojamientos");
+    revalidatePath(`/gestion/alojamientos/${id}`);
     return { ok: true };
   } catch (err) {
     console.error("[alojamientos] markVerified unexpected:", err);

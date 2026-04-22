@@ -40,7 +40,7 @@ export default async function ReservasPage({
     if (filters.q) sp.set("q", filters.q);
     if (p > 1) sp.set("page", String(p));
     const qs = sp.toString();
-    return `/reservas${qs ? `?${qs}` : ""}`;
+    return `/gestion/reservas${qs ? `?${qs}` : ""}`;
   }
 
   return (
@@ -50,6 +50,16 @@ export default async function ReservasPage({
           <h2 className="text-lg font-bold text-gray-900 sm:text-xl">Reservas</h2>
           <p className="text-xs text-gray-500 sm:mt-1 sm:text-sm">{total} resultados</p>
         </div>
+        <Link
+          href="/gestion/reservas/nueva"
+          className="flex items-center gap-1.5 rounded-lg bg-brand-800 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 sm:px-4 sm:text-sm"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          <span className="hidden sm:inline">Nueva reserva</span>
+          <span className="sm:hidden">Nueva</span>
+        </Link>
       </div>
 
       <Filters />
@@ -67,7 +77,7 @@ export default async function ReservasPage({
               return (
                 <Link
                   key={b.id}
-                  href={`/reservas/${b.id}`}
+                  href={`/gestion/reservas/${b.id}`}
                   className="block rounded-lg border border-gray-200 bg-white p-3 active:bg-gray-50"
                 >
                   <div className="flex items-center justify-between">
@@ -111,12 +121,12 @@ export default async function ReservasPage({
                     return (
                       <tr key={b.id} className="group hover:bg-gray-50/60">
                         <td className="whitespace-nowrap px-4 py-3">
-                          <Link href={`/reservas/${b.id}`} className="font-mono text-xs font-semibold text-brand-700 underline-offset-2 group-hover:underline">
+                          <Link href={`/gestion/reservas/${b.id}`} className="font-mono text-xs font-semibold text-brand-700 underline-offset-2 group-hover:underline">
                             {b.booking_code}
                           </Link>
                         </td>
                         <td className="px-4 py-3">
-                          <Link href={`/reservas/${b.id}`} className="block">
+                          <Link href={`/gestion/reservas/${b.id}`} className="block">
                             <p className="font-medium text-gray-900">{b.customer_name}</p>
                             {b.customer_phone && <p className="text-xs text-gray-400">{b.customer_phone}</p>}
                           </Link>

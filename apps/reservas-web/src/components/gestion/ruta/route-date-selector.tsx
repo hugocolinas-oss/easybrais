@@ -15,7 +15,7 @@ export function RouteDateSelector({ currentDate }: Props) {
     (date: string) => {
       const params = new URLSearchParams(searchParams.toString());
       params.set("date", date);
-      router.push(`/ruta?${params.toString()}`);
+      router.push(`/gestion/ruta?${params.toString()}`);
     },
     [router, searchParams],
   );

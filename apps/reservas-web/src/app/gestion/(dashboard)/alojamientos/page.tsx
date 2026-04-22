@@ -33,7 +33,7 @@ export default async function AlojamientosPage({
     if (filters.stage) sp.set("stage", filters.stage);
     if (p > 1) sp.set("page", String(p));
     const qs = sp.toString();
-    return `/alojamientos${qs ? `?${qs}` : ""}`;
+    return `/gestion/alojamientos${qs ? `?${qs}` : ""}`;
   }
 
   return (
@@ -68,7 +68,7 @@ export default async function AlojamientosPage({
             {rows.map((a) => (
               <Link
                 key={a.id}
-                href={`/alojamientos/${a.id}`}
+                href={`/gestion/alojamientos/${a.id}`}
                 className="block rounded-lg border border-gray-200 bg-white p-3 active:bg-gray-50"
               >
                 <div className="flex items-center justify-between gap-2">
@@ -113,14 +113,14 @@ export default async function AlojamientosPage({
                     <tr key={a.id} className="group hover:bg-gray-50/60">
                       <td className="whitespace-nowrap px-4 py-3">
                         <Link
-                          href={`/alojamientos/${a.id}`}
+                          href={`/gestion/alojamientos/${a.id}`}
                           className="font-mono text-xs font-semibold text-brand-700 underline-offset-2 group-hover:underline"
                         >
                           {a.external_code ?? "—"}
                         </Link>
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/alojamientos/${a.id}`} className="block">
+                        <Link href={`/gestion/alojamientos/${a.id}`} className="block">
                           <p className="font-medium text-gray-900">{a.display_name ?? a.name}</p>
                           {a.display_name && a.display_name !== a.name && (
                             <p className="text-[11px] text-gray-400">orig: {a.name}</p>

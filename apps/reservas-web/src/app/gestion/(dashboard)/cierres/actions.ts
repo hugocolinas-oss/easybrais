@@ -102,8 +102,8 @@ export async function generateClosure(date: string) {
       return { error: "Error al guardar el cierre." };
     }
 
-    revalidatePath("/cierres");
-    revalidatePath("/");
+    revalidatePath("/gestion/cierres");
+    revalidatePath("/gestion");
     return { ok: true };
   } catch (err) {
     console.error("[generateClosure] unexpected:", err instanceof Error ? err.message : err);
@@ -128,8 +128,8 @@ export async function deleteClosure(closureId: string) {
       return { error: "Error al eliminar el cierre." };
     }
 
-    revalidatePath("/cierres");
-    revalidatePath("/");
+    revalidatePath("/gestion/cierres");
+    revalidatePath("/gestion");
     return { ok: true };
   } catch (err) {
     console.error("[deleteClosure] unexpected:", err instanceof Error ? err.message : err);

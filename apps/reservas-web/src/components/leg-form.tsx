@@ -11,6 +11,7 @@ interface Props {
   allAccommodations: Accommodation[];
   canRemove: boolean;
   pickupLocked?: boolean;
+  stagesCount?: number;
   onUpdate: (leg: StageLeg) => void;
   onRemove: () => void;
   errors: Record<string, string>;
@@ -23,6 +24,7 @@ export function LegForm({
   allAccommodations,
   canRemove,
   pickupLocked,
+  stagesCount = 1,
   onUpdate,
   onRemove,
   errors,
@@ -80,6 +82,11 @@ export function LegForm({
           <h4 className="text-sm font-semibold text-brand-900">
             Transporte {index + 1}
           </h4>
+          {stagesCount > 1 && (
+            <span className="rounded bg-gold-100 px-1.5 py-0.5 text-[9px] font-bold text-gold-700">
+              {stagesCount} etapas
+            </span>
+          )}
         </div>
         {canRemove && (
           <button

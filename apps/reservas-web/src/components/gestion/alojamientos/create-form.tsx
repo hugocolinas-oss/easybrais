@@ -65,7 +65,7 @@ export function CreateAccommodationForm({ stages, towns }: Props) {
       }
 
       if (action === "list") {
-        router.push("/alojamientos");
+        router.push("/gestion/alojamientos");
       } else {
         setSuccess(`Alojamiento "${name.trim()}" creado correctamente.`);
         setName("");
@@ -253,7 +253,7 @@ export function CreateAccommodationForm({ stages, towns }: Props) {
       <div className="flex flex-col gap-3 border-t border-gray-200 pt-4 sm:flex-row sm:justify-end">
         <button
           type="button"
-          onClick={() => router.push("/alojamientos")}
+          onClick={() => router.push("/gestion/alojamientos")}
           className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
         >
           Cancelar

@@ -54,9 +54,9 @@ export async function changeBookingStatus(bookingId: string, newStatus: string) 
       console.error("[changeBookingStatus] event insert failed:", eventErr.message);
     }
 
-    revalidatePath(`/reservas/${bookingId}`);
-    revalidatePath("/reservas");
-    revalidatePath("/");
+    revalidatePath(`/gestion/reservas/${bookingId}`);
+    revalidatePath("/gestion/reservas");
+    revalidatePath("/gestion");
     return { ok: true };
   } catch (err) {
     console.error("[changeBookingStatus] unexpected:", err instanceof Error ? err.message : err);
@@ -94,7 +94,7 @@ export async function updateInternalNotes(bookingId: string, notes: string) {
       console.error("[updateInternalNotes] event insert failed:", eventErr.message);
     }
 
-    revalidatePath(`/reservas/${bookingId}`);
+    revalidatePath(`/gestion/reservas/${bookingId}`);
     return { ok: true };
   } catch (err) {
     console.error("[updateInternalNotes] unexpected:", err instanceof Error ? err.message : err);

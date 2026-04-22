@@ -33,4 +33,5 @@ export interface BookingFormData {
     language: string;
     notes: string;
   };
+  paymentMethod?: "online" | "cash";
 }
