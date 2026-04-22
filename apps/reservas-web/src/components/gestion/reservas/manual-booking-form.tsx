@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { Accommodation } from "@/lib/types";
 import { createBooking } from "@/app/actions";
@@ -8,6 +8,12 @@ import { formatEUR, calculatePricing } from "@easybrais/utils";
 
 interface Props {
   accommodations: Accommodation[];
+}
+
+function stageNumberFromCode(acc: Accommodation): number | null {
+  if (!acc.external_code) return null;
+  const n = parseInt(acc.external_code.split(".")[0], 10);
+  return Number.isNaN(n) ? null : n;
 }
 
 export function ManualBookingForm({ accommodations }: Props) {
@@ -28,7 +34,24 @@ export function ManualBookingForm({ accommodations }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const pricing = calculatePricing([{ bagsCount, overweightBagsCount: overweightBags, stagesCount: 1 }]);
+  const accMap = useMemo(() => new Map(accommodations.map((a) => [a.id, a])), [accommodations]);
+
+  const sortedAccommodations = useMemo(
+    () => [...accommodations].sort((a, b) => (stageNumberFromCode(a) ?? 999) - (stageNumberFromCode(b) ?? 999)),
+    [accommodations],
+  );
+
+  const stagesCount = useMemo(() => {
+    const pickup = accMap.get(pickupId);
+    const dropoff = accMap.get(dropoffId);
+    if (!pickup || !dropoff) return 1;
+    const p = stageNumberFromCode(pickup);
+    const d = stageNumberFromCode(dropoff);
+    if (p === null || d === null) return 1;
+    return Math.max(1, Math.abs(d - p));
+  }, [pickupId, dropoffId, accMap]);
+
+  const pricing = calculatePricing([{ bagsCount, overweightBagsCount: overweightBags, stagesCount }]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -86,7 +109,7 @@ export function ManualBookingForm({ accommodations }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="max-w-2xl space-y-6">
       <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6">
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">Cliente</h3>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -96,7 +119,7 @@ export function ManualBookingForm({ accommodations }: Props) {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Opcional" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600" />
+            <input type="text" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Opcional" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600" />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Teléfono</label>
@@ -124,7 +147,7 @@ export function ManualBookingForm({ accommodations }: Props) {
             <label className="mb-1 block text-xs font-medium text-gray-600">Recogida *</label>
             <select value={pickupId} onChange={(e) => setPickupId(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600">
               <option value="">Selecciona alojamiento</option>
-              {accommodations.map((a) => (
+              {sortedAccommodations.map((a) => (
                 <option key={a.id} value={a.id}>{a.display_name} {a.town ? `(${a.town})` : ""}</option>
               ))}
             </select>
@@ -133,7 +156,7 @@ export function ManualBookingForm({ accommodations }: Props) {
             <label className="mb-1 block text-xs font-medium text-gray-600">Entrega *</label>
             <select value={dropoffId} onChange={(e) => setDropoffId(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600">
               <option value="">Selecciona alojamiento</option>
-              {accommodations.map((a) => (
+              {sortedAccommodations.map((a) => (
                 <option key={a.id} value={a.id}>{a.display_name} {a.town ? `(${a.town})` : ""}</option>
               ))}
             </select>
@@ -144,6 +167,11 @@ export function ManualBookingForm({ accommodations }: Props) {
           </div>
           <div className="flex items-end">
             <div className="rounded-lg bg-gray-50 px-4 py-2.5 text-sm">
+              {stagesCount > 1 && (
+                <span className="mr-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-700">
+                  {stagesCount} etapas
+                </span>
+              )}
               <span className="text-gray-500">Total: </span>
               <span className="font-bold text-gray-900">{formatEUR(pricing.totalAmount)}</span>
             </div>

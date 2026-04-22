@@ -74,13 +74,19 @@ export function BookingForm({ allAccommodations }: Props) {
   );
 
   const towns = useMemo(() => {
-    const seen = new Map<string, string>();
+    const townDisplay = new Map<string, string>();
+    const townMinStage = new Map<string, number>();
     allAccommodations.forEach((a) => {
       if (!a.town) return;
       const key = a.town.trim().toLowerCase();
-      if (!seen.has(key)) seen.set(key, a.town.trim());
+      if (!townDisplay.has(key)) townDisplay.set(key, a.town.trim());
+      const stage = stageNumberFromCode(a) ?? 999;
+      const cur = townMinStage.get(key);
+      if (cur === undefined || stage < cur) townMinStage.set(key, stage);
     });
-    return Array.from(seen.values()).sort((a, b) => a.localeCompare(b, "es"));
+    return Array.from(townDisplay.entries())
+      .sort((a, b) => (townMinStage.get(a[0]) ?? 999) - (townMinStage.get(b[0]) ?? 999))
+      .map(([, display]) => display);
   }, [allAccommodations]);
 
   const pricing = useMemo(
