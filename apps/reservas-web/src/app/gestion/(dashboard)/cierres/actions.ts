@@ -7,16 +7,18 @@ import { requireAuth } from "@/lib/gestion/auth";
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-interface RawBooking {
-  id: string;
-  status: string;
-  subtotal_amount: number;
-  discount_amount: number;
-  extra_weight_amount: number;
-  total_amount: number;
-  payment_status: string;
-  booking_items: Array<{ bags_count: number }>;
+interface RawItem {
+  bags_count: number;
+  overweight_bags_count: number;
+  line_total: number;
+  bookings: {
+    id: string;
+    status: string;
+    payment_status: string;
+  };
 }
+
+const OVERWEIGHT_FEE = 5;
 
 export async function generateClosure(date: string) {
   if (!DATE_RE.test(date)) return { error: "Fecha inválida." };
@@ -39,51 +41,43 @@ export async function generateClosure(date: string) {
       return { error: "Ya existe un cierre para este día. Elimínalo primero si quieres regenerar." };
     }
 
-    const { data: bookings, error: bookingsErr } = await supabase
-      .from("bookings")
-      .select("id, status, subtotal_amount, discount_amount, extra_weight_amount, total_amount, payment_status, booking_items(bags_count)")
+    const { data: items, error: itemsErr } = await supabase
+      .from("booking_items")
+      .select("bags_count, overweight_bags_count, line_total, bookings!inner(id, status, payment_status)")
       .eq("service_date", date);
 
-    if (bookingsErr) {
-      console.error("[generateClosure] fetch bookings failed:", bookingsErr.message);
-      return { error: "Error al consultar las reservas del día." };
+    if (itemsErr) {
+      console.error("[generateClosure] fetch items failed:", itemsErr.message);
+      return { error: "Error al consultar los tramos del día." };
     }
 
-    const rows = (bookings ?? []) as unknown as RawBooking[];
+    const rows = (items ?? []) as unknown as RawItem[];
 
-    const activeBookings = rows.filter((b) => b.status !== "cancelled");
-    const cancelledBookings = rows.filter((b) => b.status === "cancelled");
-
-    const totalBookings = activeBookings.length;
-    const totalBags = activeBookings.reduce(
-      (sum, b) =>
-        sum +
-        (Array.isArray(b.booking_items)
-          ? b.booking_items.reduce((s, i) => s + (i.bags_count || 0), 0)
-          : 0),
-      0,
+    const activeItems = rows.filter((i) => i.bookings.status !== "cancelled");
+    const cancelledBookingIds = new Set(
+      rows.filter((i) => i.bookings.status === "cancelled").map((i) => i.bookings.id),
     );
 
-    const grossAmount = activeBookings.reduce(
-      (sum, b) => sum + (Number(b.subtotal_amount) || 0),
-      0,
+    const activeBookingIds = new Set(activeItems.map((i) => i.bookings.id));
+    const totalBookings = activeBookingIds.size;
+
+    const totalBags = activeItems.reduce((s, i) => s + (i.bags_count || 0), 0);
+
+    const totalOverweight = activeItems.reduce((s, i) => s + (i.overweight_bags_count || 0), 0);
+    const extrasAmount = totalOverweight * OVERWEIGHT_FEE;
+
+    const grossAmount = activeItems.reduce((s, i) => s + (Number(i.line_total) || 0), 0);
+    const netAmount = grossAmount + extrasAmount;
+    const discountsAmount = 0;
+
+    const pendingBookingIds = new Set(
+      activeItems.filter((i) => i.bookings.payment_status === "pending").map((i) => i.bookings.id),
     );
-    const discountsAmount = activeBookings.reduce(
-      (sum, b) => sum + (Number(b.discount_amount) || 0),
-      0,
-    );
-    const extrasAmount = activeBookings.reduce(
-      (sum, b) => sum + (Number(b.extra_weight_amount) || 0),
-      0,
-    );
-    const netAmount = activeBookings.reduce(
-      (sum, b) => sum + (Number(b.total_amount) || 0),
-      0,
-    );
-    const pendingCollectionAmount = activeBookings
-      .filter((b) => b.payment_status === "pending")
-      .reduce((sum, b) => sum + (Number(b.total_amount) || 0), 0);
-    const cancellationsCount = cancelledBookings.length;
+    const pendingItems = activeItems.filter((i) => pendingBookingIds.has(i.bookings.id));
+    const pendingCollectionAmount = pendingItems.reduce((s, i) => s + (Number(i.line_total) || 0), 0) +
+      pendingItems.reduce((s, i) => s + (i.overweight_bags_count || 0), 0) * OVERWEIGHT_FEE;
+
+    const cancellationsCount = cancelledBookingIds.size;
 
     const { error } = await supabase.from("daily_cash_closures").insert({
       closure_date: date,
