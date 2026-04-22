@@ -18,8 +18,10 @@ export function StageManager({ stages }: Props) {
       const res = await toggleStageActive(stageName, active);
       if ("ok" in res) {
         setFeedback(`${active ? "Activados" : "Desactivados"} ${res.count} alojamientos en "${stageName}"`);
-        setTimeout(() => setFeedback(null), 3000);
+      } else {
+        setFeedback(`Error: ${res.error}`);
       }
+      setTimeout(() => setFeedback(null), 3000);
     });
   }
 
@@ -28,8 +30,10 @@ export function StageManager({ stages }: Props) {
       const res = await toggleStageVisibility(stageName, visible);
       if ("ok" in res) {
         setFeedback(`${visible ? "Visibles" : "Ocultos"} ${res.count} alojamientos en "${stageName}"`);
-        setTimeout(() => setFeedback(null), 3000);
+      } else {
+        setFeedback(`Error: ${res.error}`);
       }
+      setTimeout(() => setFeedback(null), 3000);
     });
   }
 

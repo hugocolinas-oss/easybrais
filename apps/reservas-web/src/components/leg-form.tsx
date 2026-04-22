@@ -69,7 +69,10 @@ export function LegForm({
   const prefix = `leg_${index}`;
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().split("T")[0] ?? "";
+  const yy = tomorrow.getFullYear();
+  const mm = String(tomorrow.getMonth() + 1).padStart(2, "0");
+  const dd = String(tomorrow.getDate()).padStart(2, "0");
+  const minDate = `${yy}-${mm}-${dd}`;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-cream-300/80 bg-white shadow-card transition-shadow hover:shadow-card-hover">

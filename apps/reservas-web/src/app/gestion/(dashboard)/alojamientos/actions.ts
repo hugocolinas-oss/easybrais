@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { requireAuth } from "@/lib/gestion/auth";
 
 // ---------------------------------------------------------------------------
 // Create
@@ -24,6 +25,7 @@ export async function createAccommodation(fields: {
   reservation_notes?: string;
 }): Promise<{ ok: true; id: string } | { error: string }> {
   try {
+    await requireAuth();
     const name = fields.name.trim();
     if (!name || name.length < 2) return { error: "El nombre es obligatorio (mín. 2 caracteres)." };
     if (name.length > 200) return { error: "El nombre es demasiado largo." };
@@ -113,6 +115,7 @@ export async function updateAccommodation(
   },
 ): Promise<{ ok: true } | { error: string }> {
   try {
+    await requireAuth();
     const supabase = await getServerSupabase();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- new columns from migration 010 not in generated types
     const { error } = await supabase
@@ -139,6 +142,7 @@ export async function toggleActive(
   active: boolean,
 ): Promise<{ ok: true } | { error: string }> {
   try {
+    await requireAuth();
     const supabase = await getServerSupabase();
     const { error } = await supabase
       .from("accommodations")
@@ -163,6 +167,7 @@ export async function toggleVisibility(
   visible: boolean,
 ): Promise<{ ok: true } | { error: string }> {
   try {
+    await requireAuth();
     const supabase = await getServerSupabase();
     const { error } = await supabase
       .from("accommodations")
@@ -187,6 +192,7 @@ export async function markVerified(
   id: string,
 ): Promise<{ ok: true } | { error: string }> {
   try {
+    await requireAuth();
     const supabase = await getServerSupabase();
     const { error } = await supabase
       .from("accommodations")
@@ -217,6 +223,7 @@ export async function toggleStageActive(
   active: boolean,
 ): Promise<{ ok: true; count: number } | { error: string }> {
   try {
+    await requireAuth();
     const supabase = await getServerSupabase();
     const { data, error } = await supabase
       .from("accommodations")
@@ -242,6 +249,7 @@ export async function toggleStageVisibility(
   visible: boolean,
 ): Promise<{ ok: true; count: number } | { error: string }> {
   try {
+    await requireAuth();
     const supabase = await getServerSupabase();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await supabase

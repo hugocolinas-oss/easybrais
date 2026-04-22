@@ -25,13 +25,16 @@ export const STATUS_MAP: Record<string, StatusConfig> = {
   completed:        { label: "Completada",                 shortLabel: "Completada",      bg: "bg-green-100",   text: "text-green-800",   dot: "bg-green-500" },
 };
 
-/** Statuses shown in filters and status-change dropdown (beta operational flow). */
+/** Statuses shown in filters and status-change dropdown. */
 export const OPERATIONAL_STATUSES = [
   "pending",
   "pending_payment",
   "confirmed",
   "in_pickup",
+  "in_transit",
+  "in_progress",
   "delivered",
+  "completed",
   "incident",
   "cancelled",
   "payment_expired",

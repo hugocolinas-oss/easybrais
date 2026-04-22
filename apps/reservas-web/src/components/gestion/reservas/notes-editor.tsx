@@ -10,9 +10,10 @@ interface Props {
 
 export function NotesEditor({ bookingId, initialNotes }: Props) {
   const [notes, setNotes] = useState(initialNotes);
+  const [savedNotes, setSavedNotes] = useState(initialNotes);
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ text: string; isError: boolean } | null>(null);
-  const dirty = notes !== initialNotes;
+  const dirty = notes !== savedNotes;
 
   function handleSave() {
     setFeedback(null);
@@ -21,6 +22,7 @@ export function NotesEditor({ bookingId, initialNotes }: Props) {
       if ("error" in result && result.error) {
         setFeedback({ text: result.error, isError: true });
       } else {
+        setSavedNotes(notes);
         setFeedback({ text: "Guardado", isError: false });
         setTimeout(() => setFeedback(null), 2000);
       }

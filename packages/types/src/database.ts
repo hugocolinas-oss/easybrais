@@ -7,7 +7,7 @@
  */
 
 export type BookingType = "luggage_transfer" | "custom";
-export type BookingStatus = "draft" | "pending" | "confirmed" | "in_pickup" | "in_progress" | "in_transit" | "delivered" | "completed" | "cancelled" | "incident";
+export type BookingStatus = "draft" | "pending" | "pending_payment" | "payment_expired" | "confirmed" | "in_pickup" | "in_progress" | "in_transit" | "delivered" | "completed" | "cancelled" | "incident";
 export type PaymentStatus = "pending" | "paid" | "partial" | "refunded";
 export type EmailStatus = "not_sent" | "sent" | "failed";
 export type SourceChannel = "web" | "phone" | "email" | "walk_in" | "partner" | "other";
@@ -56,6 +56,7 @@ export interface Database {
           id: string;
           external_code: string | null;
           name: string;
+          display_name: string | null;
           stage_name: string | null;
           town: string | null;
           route_name: string | null;
@@ -65,6 +66,11 @@ export interface Database {
           contact_phone: string | null;
           contact_email: string | null;
           active: boolean;
+          visible_in_reservations: boolean;
+          internal_notes: string | null;
+          reservation_notes: string | null;
+          sort_order: number;
+          last_verified_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -72,6 +78,7 @@ export interface Database {
           id?: string;
           external_code?: string | null;
           name: string;
+          display_name?: string | null;
           stage_name?: string | null;
           town?: string | null;
           route_name?: string | null;
@@ -81,6 +88,11 @@ export interface Database {
           contact_phone?: string | null;
           contact_email?: string | null;
           active?: boolean;
+          visible_in_reservations?: boolean;
+          internal_notes?: string | null;
+          reservation_notes?: string | null;
+          sort_order?: number;
+          last_verified_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -88,6 +100,7 @@ export interface Database {
           id?: string;
           external_code?: string | null;
           name?: string;
+          display_name?: string | null;
           stage_name?: string | null;
           town?: string | null;
           route_name?: string | null;
@@ -97,6 +110,11 @@ export interface Database {
           contact_phone?: string | null;
           contact_email?: string | null;
           active?: boolean;
+          visible_in_reservations?: boolean;
+          internal_notes?: string | null;
+          reservation_notes?: string | null;
+          sort_order?: number;
+          last_verified_at?: string | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -119,6 +137,11 @@ export interface Database {
           total_amount: number;
           payment_status: PaymentStatus;
           email_status: EmailStatus;
+          stripe_session_id: string | null;
+          stripe_payment_intent: string | null;
+          payment_method: string | null;
+          payment_expires_at: string | null;
+          paid_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -139,6 +162,11 @@ export interface Database {
           total_amount?: number;
           payment_status?: PaymentStatus;
           email_status?: EmailStatus;
+          stripe_session_id?: string | null;
+          stripe_payment_intent?: string | null;
+          payment_method?: string | null;
+          payment_expires_at?: string | null;
+          paid_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -159,6 +187,11 @@ export interface Database {
           total_amount?: number;
           payment_status?: PaymentStatus;
           email_status?: EmailStatus;
+          stripe_session_id?: string | null;
+          stripe_payment_intent?: string | null;
+          payment_method?: string | null;
+          payment_expires_at?: string | null;
+          paid_at?: string | null;
           updated_at?: string;
         };
         Relationships: [

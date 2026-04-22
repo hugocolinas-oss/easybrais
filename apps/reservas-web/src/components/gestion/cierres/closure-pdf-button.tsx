@@ -18,6 +18,7 @@ function eur(n: number): string {
 
 export function ClosurePdfButton({ closure }: Props) {
   async function handleDownload() {
+    try {
     const { jsPDF } = await import("jspdf");
     const autoTable = (await import("jspdf-autotable")).default;
 
@@ -124,6 +125,10 @@ export function ClosurePdfButton({ closure }: Props) {
     );
 
     doc.save(`cierre-${closure.closure_date}.pdf`);
+    } catch (err) {
+      console.error("[ClosurePdf] Error al generar PDF:", err);
+      alert("Error al generar el PDF. Inténtalo de nuevo.");
+    }
   }
 
   return (
