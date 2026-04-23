@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/gestion/reservas/status-badge";
 import { StatusSelect } from "@/components/gestion/reservas/status-select";
 import { NotesEditor } from "@/components/gestion/reservas/notes-editor";
 import { EventTimeline } from "@/components/gestion/reservas/event-timeline";
+import { BackToBookings } from "@/components/gestion/reservas/back-button";
 
 export const dynamic = "force-dynamic";
 
@@ -47,9 +48,7 @@ export default async function BookingDetailPage({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-        <Link href="/gestion/reservas" className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 active:bg-gray-100 sm:hover:bg-gray-50">
-          ← Reservas
-        </Link>
+        <BackToBookings />
         <h2 className="font-mono text-lg font-bold text-gray-900 sm:text-xl">{booking.booking_code}</h2>
         <StatusBadge status={booking.status} size="lg" />
         <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${pay.cls}`}>{pay.label}</span>

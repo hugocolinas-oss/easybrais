@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { OPERATIONAL_STATUSES, getStatusConfig } from "@/lib/gestion/booking-status";
 
 const PAYMENT_STATUSES: { value: string; label: string }[] = [
@@ -9,6 +9,10 @@ const PAYMENT_STATUSES: { value: string; label: string }[] = [
   { value: "paid", label: "Pagado" },
   { value: "refunded", label: "Reembolsado" },
 ];
+
+function toISODate(d: Date) {
+  return d.toISOString().split("T")[0]!;
+}
 
 export function BookingFilters() {
   const router = useRouter();
@@ -26,9 +30,45 @@ export function BookingFilters() {
     [router, params],
   );
 
+  const pushMultiple = useCallback(
+    (updates: Record<string, string>) => {
+      const sp = new URLSearchParams(params.toString());
+      for (const [k, v] of Object.entries(updates)) {
+        if (v) sp.set(k, v);
+        else sp.delete(k);
+      }
+      sp.delete("page");
+      router.push(`/gestion/reservas?${sp.toString()}`);
+    },
+    [router, params],
+  );
+
   function handleSearch(value: string) {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => push("q", value), 300);
+  }
+
+  const today = useMemo(() => toISODate(new Date()), []);
+
+  const weekEnd = useMemo(() => {
+    const d = new Date();
+    const day = d.getDay();
+    const diff = day === 0 ? 0 : 7 - day;
+    d.setDate(d.getDate() + diff);
+    return toISODate(d);
+  }, []);
+
+  const dateFrom = params.get("dateFrom") ?? "";
+  const dateTo = params.get("dateTo") ?? "";
+  const isToday = dateFrom === today && dateTo === today;
+  const isWeek = dateFrom === today && dateTo === weekEnd;
+
+  function setToday() {
+    pushMultiple({ dateFrom: today, dateTo: today });
+  }
+
+  function setWeek() {
+    pushMultiple({ dateFrom: today, dateTo: weekEnd });
   }
 
   const hasFilters = params.get("q") || params.get("status") || params.get("dateFrom") || params.get("dateTo") || params.get("paymentStatus");
@@ -88,7 +128,7 @@ export function BookingFilters() {
           <label className="mb-1 block text-xs font-medium text-gray-500">Desde</label>
           <input
             type="date"
-            value={params.get("dateFrom") ?? ""}
+            value={dateFrom}
             onChange={(e) => push("dateFrom", e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
@@ -98,10 +138,35 @@ export function BookingFilters() {
           <label className="mb-1 block text-xs font-medium text-gray-500">Hasta</label>
           <input
             type="date"
-            value={params.get("dateTo") ?? ""}
+            value={dateTo}
             onChange={(e) => push("dateTo", e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
+        </div>
+
+        <div className="flex items-end gap-1.5">
+          <button
+            type="button"
+            onClick={setToday}
+            className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+              isToday
+                ? "border-brand-600 bg-brand-600 text-white"
+                : "border-gray-300 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            Hoy
+          </button>
+          <button
+            type="button"
+            onClick={setWeek}
+            className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+              isWeek
+                ? "border-brand-600 bg-brand-600 text-white"
+                : "border-gray-300 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            Semana
+          </button>
         </div>
 
         {hasFilters && (
