@@ -111,18 +111,16 @@ export async function generateRoute(date: string) {
       });
     }
 
-    pickupStops.sort((a, b) => {
-      const [a1, a2] = parseStageCode(a.accommodation_code);
-      const [b1, b2] = parseStageCode(b.accommodation_code);
-      return a1 !== b1 ? a1 - b1 : a2 - b2;
-    });
-    dropoffStops.sort((a, b) => {
-      const [a1, a2] = parseStageCode(a.accommodation_code);
-      const [b1, b2] = parseStageCode(b.accommodation_code);
-      return a1 !== b1 ? a1 - b1 : a2 - b2;
-    });
-
     const allStops = [...pickupStops, ...dropoffStops];
+
+    allStops.sort((a, b) => {
+      const [a1, a2] = parseStageCode(a.accommodation_code);
+      const [b1, b2] = parseStageCode(b.accommodation_code);
+      if (a1 !== b1) return a1 - b1;
+      if (a2 !== b2) return a2 - b2;
+      if (a.stop_type !== b.stop_type) return a.stop_type === "pickup" ? -1 : 1;
+      return 0;
+    });
     const totalBags = rows.reduce((s, i) => s + i.bags_count, 0);
 
     const { data: route, error: routeErr } = await supabase
