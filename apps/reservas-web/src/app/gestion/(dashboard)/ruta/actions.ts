@@ -12,9 +12,17 @@ interface RawBookingItem {
   bags_count: number;
   pickup_accommodation_id: string | null;
   dropoff_accommodation_id: string | null;
-  pickup: { name: string; town: string | null } | null;
-  dropoff: { name: string; town: string | null } | null;
-  bookings: { booking_code: string; status: string; customers: { full_name: string } | null } | null;
+  pickup: { name: string; town: string | null; external_code: string | null } | null;
+  dropoff: { name: string; town: string | null; external_code: string | null } | null;
+  bookings: { booking_code: string; status: string; customers: { full_name: string; phone: string | null } | null } | null;
+}
+
+function parseStageCode(code: string | null): [number, number] {
+  if (!code) return [9999, 9999];
+  const parts = code.split(".");
+  const a = parseInt(parts[0], 10);
+  const b = parseInt(parts[1] ?? "0", 10);
+  return [Number.isNaN(a) ? 9999 : a, Number.isNaN(b) ? 9999 : b];
 }
 
 export async function generateRoute(date: string) {
@@ -38,9 +46,9 @@ export async function generateRoute(date: string) {
       .from("booking_items")
       .select(
         `id, bags_count, pickup_accommodation_id, dropoff_accommodation_id,
-         pickup:accommodations!booking_items_pickup_accommodation_id_fkey(name, town),
-         dropoff:accommodations!booking_items_dropoff_accommodation_id_fkey(name, town),
-         bookings!inner(booking_code, status, customers(full_name))`,
+         pickup:accommodations!booking_items_pickup_accommodation_id_fkey(name, town, external_code),
+         dropoff:accommodations!booking_items_dropoff_accommodation_id_fkey(name, town, external_code),
+         bookings!inner(booking_code, status, customers(full_name, phone))`,
       )
       .eq("service_date", date)
       .not("bookings.status", "in", "(cancelled,payment_expired)");
@@ -61,9 +69,11 @@ export async function generateRoute(date: string) {
       accommodation_id: string | null;
       accommodation_name: string;
       accommodation_town: string | null;
+      accommodation_code: string | null;
       booking_item_id: string;
       booking_code: string;
       customer_name: string;
+      customer_phone: string | null;
       bags_count: number;
     }> = [];
 
@@ -72,15 +82,18 @@ export async function generateRoute(date: string) {
     for (const item of rows) {
       const code = item.bookings?.booking_code ?? "—";
       const customer = item.bookings?.customers?.full_name ?? "—";
+      const phone = item.bookings?.customers?.phone ?? null;
 
       pickupStops.push({
         stop_type: "pickup",
         accommodation_id: item.pickup_accommodation_id,
         accommodation_name: item.pickup?.name ?? "—",
         accommodation_town: item.pickup?.town ?? null,
+        accommodation_code: item.pickup?.external_code ?? null,
         booking_item_id: item.id,
         booking_code: code,
         customer_name: customer,
+        customer_phone: phone,
         bags_count: item.bags_count,
       });
 
@@ -89,12 +102,25 @@ export async function generateRoute(date: string) {
         accommodation_id: item.dropoff_accommodation_id,
         accommodation_name: item.dropoff?.name ?? "—",
         accommodation_town: item.dropoff?.town ?? null,
+        accommodation_code: item.dropoff?.external_code ?? null,
         booking_item_id: item.id,
         booking_code: code,
         customer_name: customer,
+        customer_phone: phone,
         bags_count: item.bags_count,
       });
     }
+
+    pickupStops.sort((a, b) => {
+      const [a1, a2] = parseStageCode(a.accommodation_code);
+      const [b1, b2] = parseStageCode(b.accommodation_code);
+      return a1 !== b1 ? a1 - b1 : a2 - b2;
+    });
+    dropoffStops.sort((a, b) => {
+      const [a1, a2] = parseStageCode(a.accommodation_code);
+      const [b1, b2] = parseStageCode(b.accommodation_code);
+      return a1 !== b1 ? a1 - b1 : a2 - b2;
+    });
 
     const allStops = [...pickupStops, ...dropoffStops];
     const totalBags = rows.reduce((s, i) => s + i.bags_count, 0);
@@ -121,7 +147,14 @@ export async function generateRoute(date: string) {
     const stopsToInsert = allStops.map((stop, i) => ({
       route_id: routeId,
       position: i + 1,
-      ...stop,
+      stop_type: stop.stop_type,
+      accommodation_id: stop.accommodation_id,
+      accommodation_name: stop.accommodation_name,
+      accommodation_town: stop.accommodation_town,
+      booking_item_id: stop.booking_item_id,
+      booking_code: stop.booking_code,
+      customer_name: stop.customer_name,
+      bags_count: stop.bags_count,
     }));
 
     const { error: stopsErr } = await supabase
@@ -267,6 +300,37 @@ export async function toggleStopCompleted(stopId: string, completed: boolean) {
     return { ok: true };
   } catch (err) {
     console.error("[toggleStopCompleted] unexpected:", err instanceof Error ? err.message : err);
+    return { error: "Error inesperado." };
+  }
+}
+
+export async function reorderStops(
+  routeId: string,
+  orderedStopIds: string[],
+) {
+  if (!UUID_RE.test(routeId)) return { error: "ID inválido." };
+
+  try {
+    await requireAuth();
+    const supabase = createAdminClient();
+
+    for (let i = 0; i < orderedStopIds.length; i++) {
+      const { error } = await supabase
+        .from("daily_route_stops")
+        .update({ position: i + 1 } as never)
+        .eq("id", orderedStopIds[i]!)
+        .eq("route_id", routeId);
+
+      if (error) {
+        console.error("[reorderStops] update failed:", error.message);
+        return { error: "Error al reordenar." };
+      }
+    }
+
+    revalidatePath("/gestion/ruta");
+    return { ok: true };
+  } catch (err) {
+    console.error("[reorderStops] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado." };
   }
 }

@@ -6,13 +6,14 @@ import { CreateAccommodationForm } from "@/components/gestion/alojamientos/creat
 export const dynamic = "force-dynamic";
 
 export default async function NuevoAlojamientoPage() {
-  const [stages, towns] = await Promise.all([
+  const [stages, towns, existingCodes] = await Promise.all([
     getDistinctStages(),
     getDistinctTowns(),
+    getExistingCodes(),
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link
           href="/gestion/alojamientos"
@@ -23,7 +24,7 @@ export default async function NuevoAlojamientoPage() {
         <h2 className="text-lg font-bold text-gray-900">Nuevo alojamiento</h2>
       </div>
 
-      <CreateAccommodationForm stages={stages} towns={towns} />
+      <CreateAccommodationForm stages={stages} towns={towns} existingCodes={existingCodes} />
     </div>
   );
 }
@@ -41,4 +42,14 @@ async function getDistinctTowns(): Promise<string[]> {
     if (r.town) unique.add(r.town.trim());
   });
   return Array.from(unique);
+}
+
+async function getExistingCodes(): Promise<string[]> {
+  const supabase = await getServerSupabase();
+  const { data } = await supabase
+    .from("accommodations")
+    .select("external_code")
+    .not("external_code", "is", null);
+
+  return (data ?? []).map((r) => r.external_code).filter(Boolean) as string[];
 }

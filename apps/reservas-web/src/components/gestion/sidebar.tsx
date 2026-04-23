@@ -85,7 +85,7 @@ export function Sidebar({ fullName, email, role }: Props) {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-gray-200 bg-white lg:flex">
+    <aside className="hidden w-52 shrink-0 flex-col border-r border-gray-200 bg-white md:flex lg:w-60">
       <div className="border-b border-gray-100 px-5 py-4">
         <h1 className="text-lg font-bold text-brand-700">Easy Brais</h1>
         <p className="text-[11px] text-gray-400">Panel de gestión</p>

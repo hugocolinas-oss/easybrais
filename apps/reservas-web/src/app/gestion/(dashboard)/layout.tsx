@@ -26,9 +26,9 @@ export default async function DashboardLayout({
 
       <div className="flex flex-1 flex-col">
         {/* Topbar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white/95 px-4 py-3 backdrop-blur-sm lg:px-8">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white/95 px-4 py-3 backdrop-blur-sm md:px-6">
           <div className="flex items-center gap-3">
-            <span className="text-base font-bold text-brand-700 lg:hidden">EB</span>
+            <span className="text-base font-bold text-brand-700 md:hidden">EB</span>
             <p className="text-sm font-medium text-gray-900 capitalize">{today}</p>
           </div>
           <div className="flex items-center gap-3">
@@ -42,8 +42,7 @@ export default async function DashboardLayout({
           </div>
         </header>
 
-        {/* Main content — pb-20 on mobile for bottom nav clearance */}
-        <main className="flex-1 p-3 pb-20 sm:p-4 lg:p-8 lg:pb-8">{children}</main>
+        <main className="mx-auto w-full max-w-5xl flex-1 p-3 pb-20 sm:p-4 md:p-6 md:pb-6">{children}</main>
       </div>
 
       <BottomNav />

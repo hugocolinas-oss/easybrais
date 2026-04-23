@@ -77,7 +77,7 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-sm safe-b lg:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-sm safe-b md:hidden">
       <div className="grid h-16 grid-cols-6">
         {NAV_ITEMS.map((item) => {
           const active = new RegExp(item.match).test(pathname);

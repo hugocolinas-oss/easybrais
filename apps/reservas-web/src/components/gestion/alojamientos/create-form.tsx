@@ -1,15 +1,36 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createAccommodation } from "@/app/gestion/(dashboard)/alojamientos/actions";
 
 interface Props {
   stages: string[];
   towns: string[];
+  existingCodes?: string[];
 }
 
-export function CreateAccommodationForm({ stages, towns }: Props) {
+function suggestNextCode(stageName: string, existingCodes: string[]): string {
+  const stageMatch = stageName.match(/\d+/);
+  if (!stageMatch) return "";
+  const stageNum = parseInt(stageMatch[0], 10);
+  if (Number.isNaN(stageNum)) return "";
+
+  const codesInStage = existingCodes
+    .filter((c) => {
+      const n = parseInt(c.split(".")[0], 10);
+      return n === stageNum;
+    })
+    .map((c) => {
+      const seq = parseInt(c.split(".")[1] ?? "0", 10);
+      return Number.isNaN(seq) ? 0 : seq;
+    });
+
+  const maxSeq = codesInStage.length > 0 ? Math.max(...codesInStage) : 0;
+  return `${stageNum}.${maxSeq + 1}`;
+}
+
+export function CreateAccommodationForm({ stages, towns, existingCodes = [] }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -31,8 +52,35 @@ export function CreateAccommodationForm({ stages, towns }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent, action: "list" | "continue") {
-    e.preventDefault();
+  const [stageSearch, setStageSearch] = useState("");
+  const [townSearch, setTownSearch] = useState("");
+  const [showStages, setShowStages] = useState(false);
+  const [showTowns, setShowTowns] = useState(false);
+
+  const filteredStages = useMemo(
+    () => stages.filter((s) => s.toLowerCase().includes(stageSearch.toLowerCase())),
+    [stages, stageSearch],
+  );
+  const filteredTowns = useMemo(
+    () => towns.filter((t) => t.toLowerCase().includes(townSearch.toLowerCase())),
+    [towns, townSearch],
+  );
+
+  const handleStageSelect = useCallback((s: string) => {
+    setStageName(s);
+    setStageSearch(s);
+    setShowStages(false);
+    const suggested = suggestNextCode(s, existingCodes);
+    if (suggested && !externalCode) setExternalCode(suggested);
+  }, [existingCodes, externalCode]);
+
+  const handleTownSelect = useCallback((t: string) => {
+    setTown(t);
+    setTownSearch(t);
+    setShowTowns(false);
+  }, []);
+
+  function handleSubmit(action: "list" | "continue") {
     setError(null);
     setSuccess(null);
 
@@ -82,7 +130,7 @@ export function CreateAccommodationForm({ stages, towns }: Props) {
   }
 
   return (
-    <form className="space-y-6">
+    <div className="space-y-6">
       {error && (
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
@@ -101,121 +149,93 @@ export function CreateAccommodationForm({ stages, towns }: Props) {
         </div>
       )}
 
-      {/* Identificación */}
       <Section title="Identificación">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Nombre interno *" hint="Nombre único en el sistema">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ej: Hotel Parador de Tui"
-              maxLength={200}
-              className={inputClass}
-              required
-            />
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Hotel Parador de Tui" maxLength={200} className={inputClass} />
           </Field>
           <Field label="Nombre público" hint="Lo que ve el cliente (si es distinto)">
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder={name || "Se usará el nombre interno"}
-              maxLength={200}
-              className={inputClass}
-            />
+            <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={name || "Se usará el nombre interno"} maxLength={200} className={inputClass} />
           </Field>
-          <Field label="Código externo" hint="Ej: 5.01, TUI-001">
-            <input
-              type="text"
-              value={externalCode}
-              onChange={(e) => setExternalCode(e.target.value)}
-              placeholder="Opcional"
-              maxLength={20}
-              className={inputClass}
-            />
+          <Field label="Código externo" hint="Se sugiere al elegir etapa">
+            <input type="text" value={externalCode} onChange={(e) => setExternalCode(e.target.value)} placeholder="Ej: 5.01" maxLength={20} className={inputClass} />
           </Field>
           <Field label="Orden" hint="Menor = aparece antes">
-            <input
-              type="number"
-              value={sortOrder}
-              onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
-              min={0}
-              className={inputClass}
-            />
+            <input type="number" value={sortOrder} onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)} min={0} className={inputClass} />
           </Field>
         </div>
       </Section>
 
-      {/* Ubicación */}
       <Section title="Ubicación">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Localidad">
-            <InputWithDatalist
-              value={town}
-              onChange={setTown}
-              options={towns}
-              placeholder="Ej: Tui, Porriño..."
-            />
-          </Field>
           <Field label="Etapa">
-            <InputWithDatalist
-              value={stageName}
-              onChange={setStageName}
-              options={stages}
-              placeholder="Ej: Etapa 1 – Tui a Porriño"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={showStages ? stageSearch : stageName}
+                onChange={(e) => { setStageSearch(e.target.value); setStageName(e.target.value); setShowStages(true); }}
+                onFocus={() => { setStageSearch(stageName); setShowStages(true); }}
+                onBlur={() => setTimeout(() => setShowStages(false), 200)}
+                placeholder="Buscar etapa..."
+                className={inputClass}
+              />
+              {showStages && filteredStages.length > 0 && (
+                <ul className="absolute z-20 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                  {filteredStages.map((s) => (
+                    <li key={s}>
+                      <button type="button" onMouseDown={() => handleStageSelect(s)} className="w-full px-3 py-2 text-left text-sm hover:bg-brand-50">
+                        {s}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </Field>
+          <Field label="Localidad">
+            <div className="relative">
+              <input
+                type="text"
+                value={showTowns ? townSearch : town}
+                onChange={(e) => { setTownSearch(e.target.value); setTown(e.target.value); setShowTowns(true); }}
+                onFocus={() => { setTownSearch(town); setShowTowns(true); }}
+                onBlur={() => setTimeout(() => setShowTowns(false), 200)}
+                placeholder="Buscar localidad..."
+                className={inputClass}
+              />
+              {showTowns && filteredTowns.length > 0 && (
+                <ul className="absolute z-20 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                  {filteredTowns.map((t) => (
+                    <li key={t}>
+                      <button type="button" onMouseDown={() => handleTownSelect(t)} className="w-full px-3 py-2 text-left text-sm hover:bg-brand-50">
+                        {t}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </Field>
           <Field label="Ruta">
-            <input
-              type="text"
-              value={routeName}
-              onChange={(e) => setRouteName(e.target.value)}
-              placeholder="Ej: Camino Portugués"
-              maxLength={100}
-              className={inputClass}
-            />
+            <input type="text" value={routeName} onChange={(e) => setRouteName(e.target.value)} placeholder="Ej: Camino Portugués" maxLength={100} className={inputClass} />
           </Field>
           <Field label="Dirección">
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Dirección completa"
-              maxLength={300}
-              className={inputClass}
-            />
+            <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Dirección completa" maxLength={300} className={inputClass} />
           </Field>
         </div>
       </Section>
 
-      {/* Contacto */}
       <Section title="Contacto">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Teléfono">
-            <input
-              type="tel"
-              value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
-              placeholder="+34 600 000 000"
-              maxLength={30}
-              className={inputClass}
-            />
+            <input type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+34 600 000 000" maxLength={30} className={inputClass} />
           </Field>
           <Field label="Email">
-            <input
-              type="email"
-              value={contactEmail}
-              onChange={(e) => setContactEmail(e.target.value)}
-              placeholder="contacto@alojamiento.es"
-              maxLength={254}
-              className={inputClass}
-            />
+            <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contacto@alojamiento.es" maxLength={254} className={inputClass} />
           </Field>
         </div>
       </Section>
 
-      {/* Visibilidad */}
       <Section title="Visibilidad y estado">
         <div className="flex flex-wrap gap-6">
           <Toggle label="Activo" hint="Disponible en el sistema" checked={active} onChange={setActive} />
@@ -223,63 +243,31 @@ export function CreateAccommodationForm({ stages, towns }: Props) {
         </div>
       </Section>
 
-      {/* Notas */}
       <Section title="Notas">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Notas internas" hint="Solo visible para staff">
-            <textarea
-              value={internalNotes}
-              onChange={(e) => setInternalNotes(e.target.value)}
-              rows={3}
-              maxLength={1000}
-              placeholder="Notas de gestión..."
-              className={inputClass}
-            />
+            <textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={3} maxLength={1000} placeholder="Notas de gestión..." className={inputClass} />
           </Field>
           <Field label="Notas de reserva" hint="Visible para el cliente">
-            <textarea
-              value={reservationNotes}
-              onChange={(e) => setReservationNotes(e.target.value)}
-              rows={3}
-              maxLength={500}
-              placeholder="Info para el cliente..."
-              className={inputClass}
-            />
+            <textarea value={reservationNotes} onChange={(e) => setReservationNotes(e.target.value)} rows={3} maxLength={500} placeholder="Info para el cliente..." className={inputClass} />
           </Field>
         </div>
       </Section>
 
-      {/* Actions */}
       <div className="flex flex-col gap-3 border-t border-gray-200 pt-4 sm:flex-row sm:justify-end">
-        <button
-          type="button"
-          onClick={() => router.push("/gestion/alojamientos")}
-          className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
-        >
+        <button type="button" onClick={() => router.push("/gestion/alojamientos")} className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50">
           Cancelar
         </button>
-        <button
-          type="submit"
-          disabled={pending}
-          onClick={(e) => handleSubmit(e, "continue")}
-          className="rounded-lg border border-brand-700 px-4 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50 disabled:opacity-50"
-        >
+        <button type="button" disabled={pending} onClick={() => handleSubmit("continue")} className="rounded-lg border border-brand-700 px-4 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50 disabled:opacity-50">
           {pending ? "Guardando..." : "Guardar y crear otro"}
         </button>
-        <button
-          type="submit"
-          disabled={pending}
-          onClick={(e) => handleSubmit(e, "list")}
-          className="rounded-lg bg-brand-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 disabled:opacity-50"
-        >
+        <button type="button" disabled={pending} onClick={() => handleSubmit("list")} className="rounded-lg bg-brand-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 disabled:opacity-50">
           {pending ? "Guardando..." : "Guardar y volver"}
         </button>
       </div>
-    </form>
+    </div>
   );
 }
-
-/* ── Sub-components ───────────────────────────────────────────────────── */
 
 const inputClass =
   "block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600 disabled:bg-gray-50";
@@ -305,17 +293,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-function Toggle({
-  label,
-  hint,
-  checked,
-  onChange,
-}: {
-  label: string;
-  hint: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
+function Toggle({ label, hint, checked, onChange }: { label: string; hint: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex cursor-pointer items-center gap-3">
       <button
@@ -323,52 +301,14 @@ function Toggle({
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors ${
-          checked ? "bg-brand-700" : "bg-gray-200"
-        }`}
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors ${checked ? "bg-brand-700" : "bg-gray-200"}`}
       >
-        <span
-          className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
-            checked ? "translate-x-5" : "translate-x-0.5"
-          }`}
-        />
+        <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"}`} />
       </button>
       <div>
         <p className="text-sm font-medium text-gray-900">{label}</p>
         <p className="text-[11px] text-gray-400">{hint}</p>
       </div>
     </label>
-  );
-}
-
-function InputWithDatalist({
-  value,
-  onChange,
-  options,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-  placeholder: string;
-}) {
-  const id = `dl-${placeholder.replace(/\s/g, "").slice(0, 10)}`;
-  return (
-    <>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        list={id}
-        placeholder={placeholder}
-        maxLength={100}
-        className={inputClass}
-      />
-      <datalist id={id}>
-        {options.map((o) => (
-          <option key={o} value={o} />
-        ))}
-      </datalist>
-    </>
   );
 }
