@@ -154,7 +154,7 @@ export function ManualBookingForm({ accommodations }: Props) {
           }],
           customer: {
             fullName: fullName.trim(),
-            email: email.trim() || "manual@easybrais.com",
+            email: email.trim() || `manual+${crypto.randomUUID().slice(0, 8)}@easybrais.com`,
             phone: phone.trim(),
             language: "es",
             notes: notes.trim(),
