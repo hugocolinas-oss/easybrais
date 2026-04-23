@@ -27,18 +27,15 @@ export async function generateClosure(date: string) {
     await requireAuth();
     const supabase = createAdminClient();
 
-    const { data: existing, error: existErr } = await supabase
+    const { data: existingRows } = await supabase
       .from("daily_cash_closures")
       .select("id")
-      .eq("closure_date", date)
-      .single();
+      .eq("closure_date", date);
 
-    if (existErr && existErr.code !== "PGRST116") {
-      console.error("[generateClosure] existing check failed:", existErr.message);
-    }
-
-    if (existing) {
-      return { error: "Ya existe un cierre para este día. Elimínalo primero si quieres regenerar." };
+    if (existingRows && existingRows.length > 0) {
+      for (const row of existingRows) {
+        await supabase.from("daily_cash_closures").delete().eq("id", row.id);
+      }
     }
 
     const { data: items, error: itemsErr } = await supabase
@@ -102,6 +99,81 @@ export async function generateClosure(date: string) {
   } catch (err) {
     console.error("[generateClosure] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al generar el cierre." };
+  }
+}
+
+export interface ClosureBookingRow {
+  booking_code: string;
+  customer_name: string;
+  route: string;
+  bags_count: number;
+  total_amount: number;
+  payment_status: string;
+}
+
+export async function getClosureBookings(date: string): Promise<{ rows: ClosureBookingRow[] } | { error: string }> {
+  if (!DATE_RE.test(date)) return { error: "Fecha inválida." };
+
+  try {
+    await requireAuth();
+    const supabase = createAdminClient();
+
+    const { data: items, error: fetchErr } = await supabase
+      .from("booking_items")
+      .select(
+        `bags_count, overweight_bags_count, line_total,
+         pickup:accommodations!booking_items_pickup_accommodation_id_fkey(name),
+         dropoff:accommodations!booking_items_dropoff_accommodation_id_fkey(name),
+         bookings!inner(id, booking_code, status, payment_status, total_amount, customers(full_name))`,
+      )
+      .eq("service_date", date);
+
+    if (fetchErr) {
+      console.error("[getClosureBookings] fetch failed:", fetchErr.message);
+      return { error: "Error al consultar reservas." };
+    }
+
+    interface RawPdfItem {
+      bags_count: number;
+      overweight_bags_count: number;
+      line_total: number;
+      pickup: { name: string } | null;
+      dropoff: { name: string } | null;
+      bookings: {
+        id: string;
+        booking_code: string;
+        status: string;
+        payment_status: string;
+        total_amount: number;
+        customers: { full_name: string } | null;
+      };
+    }
+
+    const raw = (items ?? []) as unknown as RawPdfItem[];
+    const active = raw.filter((i) => i.bookings.status !== "cancelled");
+
+    const bookingMap = new Map<string, ClosureBookingRow>();
+    for (const item of active) {
+      const bId = item.bookings.id;
+      const existing = bookingMap.get(bId);
+      if (existing) {
+        existing.bags_count += item.bags_count || 0;
+      } else {
+        bookingMap.set(bId, {
+          booking_code: item.bookings.booking_code,
+          customer_name: item.bookings.customers?.full_name ?? "—",
+          route: `${item.pickup?.name ?? "—"} → ${item.dropoff?.name ?? "—"}`,
+          bags_count: item.bags_count || 0,
+          total_amount: Number(item.bookings.total_amount) || 0,
+          payment_status: item.bookings.payment_status,
+        });
+      }
+    }
+
+    return { rows: Array.from(bookingMap.values()) };
+  } catch (err) {
+    console.error("[getClosureBookings] unexpected:", err instanceof Error ? err.message : err);
+    return { error: "Error inesperado." };
   }
 }
 

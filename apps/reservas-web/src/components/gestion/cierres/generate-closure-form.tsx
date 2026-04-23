@@ -20,7 +20,7 @@ export function GenerateClosureForm() {
       if ("error" in res && res.error) {
         setFeedback({ text: res.error, isError: true });
       } else {
-        setFeedback({ text: `Cierre generado para ${date}`, isError: false });
+        setFeedback({ text: `Cierre generado/actualizado para ${date}`, isError: false });
         setTimeout(() => setFeedback(null), 3000);
       }
     });
