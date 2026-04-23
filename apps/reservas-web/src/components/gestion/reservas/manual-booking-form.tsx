@@ -113,17 +113,17 @@ export function ManualBookingForm({ accommodations }: Props) {
     [accommodations],
   );
 
-  const stagesCount = useMemo(() => {
+  const { stagesCount, pickupPrefix, dropoffPrefix } = useMemo(() => {
     const pickup = accMap.get(pickupId);
     const dropoff = accMap.get(dropoffId);
-    if (!pickup || !dropoff) return 1;
+    if (!pickup || !dropoff) return { stagesCount: 1, pickupPrefix: null, dropoffPrefix: null };
     const p = stageNumberFromCode(pickup);
     const d = stageNumberFromCode(dropoff);
-    if (p === null || d === null) return 1;
-    return getRealEtapas(p, d);
+    if (p === null || d === null) return { stagesCount: 1, pickupPrefix: p, dropoffPrefix: d };
+    return { stagesCount: getRealEtapas(p, d), pickupPrefix: p, dropoffPrefix: d };
   }, [pickupId, dropoffId, accMap]);
 
-  const pricing = calculatePricing([{ bagsCount, overweightBagsCount: overweightBags, stagesCount }]);
+  const pricing = calculatePricing([{ bagsCount, overweightBagsCount: overweightBags, stagesCount, pickupPrefix, dropoffPrefix }]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -5,14 +5,13 @@
  * Used both client-side (preview) and server-side (authoritative).
  *
  * Camino Portugués por la Costa — 8 etapas.
- * Precio por mochila = 6 € (1 etapa) + 2 € por cada etapa adicional.
+ * Precio por mochila = etapas × 6 €  (camino completo = 48 €).
+ * Excepciones de precio fijo para rutas específicas.
  */
 
 export const PRICING_RULES = {
-  /** Base price per bag for a single etapa */
+  /** Price per bag per etapa */
   BASE_PRICE: 6,
-  /** Extra per bag for each additional etapa beyond the first */
-  STAGE_SURCHARGE: 2,
   /** Total bags threshold before volume discount kicks in */
   VOLUME_THRESHOLD: 9,
   /** Discount per bag beyond VOLUME_THRESHOLD */
@@ -47,6 +46,24 @@ export const PRICING_ZONES: [number, number][] = [
   [13, 13],
 ];
 
+/**
+ * Fixed-price overrides for specific code-prefix pairs (per bag).
+ * Key format: "min:max" where min < max.
+ */
+const PRICE_OVERRIDES: Record<string, number> = {
+  "5:9": 8,
+  "8:12": 8,
+};
+
+function overrideKey(p1: number, p2: number): string {
+  return p1 <= p2 ? `${p1}:${p2}` : `${p2}:${p1}`;
+}
+
+/** Returns a fixed override price per bag, or null if standard pricing applies. */
+export function getOverridePrice(pickupPrefix: number, dropoffPrefix: number): number | null {
+  return PRICE_OVERRIDES[overrideKey(pickupPrefix, dropoffPrefix)] ?? null;
+}
+
 /** Map an external_code integer prefix to its pricing zone index (0-based). Returns -1 if unknown. */
 export function getPricingZone(codePrefix: number): number {
   for (let i = 0; i < PRICING_ZONES.length; i++) {
@@ -64,10 +81,25 @@ export function getRealEtapas(pickupPrefix: number, dropoffPrefix: number): numb
   return Math.max(1, Math.abs(dz - pz));
 }
 
-/** Price per bag for a given number of real etapas. */
+/** Price per bag for a given number of real etapas (standard, no overrides). */
 export function pricePerBagForEtapas(realEtapas: number): number {
-  const { BASE_PRICE, STAGE_SURCHARGE } = PRICING_RULES;
-  return BASE_PRICE + Math.max(0, realEtapas - 1) * STAGE_SURCHARGE;
+  return PRICING_RULES.BASE_PRICE * Math.max(1, realEtapas);
+}
+
+/**
+ * Resolve the per-bag price for a leg, applying overrides when code prefixes are known.
+ * Falls back to standard etapas × BASE_PRICE when no override matches.
+ */
+export function resolvePerBagPrice(
+  pickupPrefix: number | null,
+  dropoffPrefix: number | null,
+  etapas: number,
+): number {
+  if (pickupPrefix != null && dropoffPrefix != null) {
+    const override = getOverridePrice(pickupPrefix, dropoffPrefix);
+    if (override !== null) return override;
+  }
+  return pricePerBagForEtapas(etapas);
 }
 
 export interface PricingInput {
@@ -75,6 +107,10 @@ export interface PricingInput {
   overweightBagsCount: number;
   /** Number of real pricing etapas this leg spans (defaults to 1) */
   stagesCount?: number;
+  /** External-code prefix of pickup accommodation (for override lookup) */
+  pickupPrefix?: number | null;
+  /** External-code prefix of dropoff accommodation (for override lookup) */
+  dropoffPrefix?: number | null;
 }
 
 export interface PricingBreakdown {
@@ -93,9 +129,8 @@ export interface PricingBreakdown {
 /**
  * Calculate full pricing breakdown for a booking.
  *
- * Pricing per bag = BASE_PRICE + (etapas − 1) × STAGE_SURCHARGE
- *   1 etapa → 6 €   |   2 etapas → 8 €   |   3 etapas → 10 €
- *
+ * Standard pricing: etapas × 6 €/bag.
+ * Override pricing: fixed price per bag for specific code-prefix routes.
  * Volume discount: bags beyond VOLUME_THRESHOLD get VOLUME_DISCOUNT off each.
  */
 export function calculatePricing(legs: PricingInput[]): PricingBreakdown {
@@ -106,7 +141,11 @@ export function calculatePricing(legs: PricingInput[]): PricingBreakdown {
 
   let subtotalAmount = 0;
   for (const leg of legs) {
-    const perBag = pricePerBagForEtapas(Math.max(1, leg.stagesCount ?? 1));
+    const perBag = resolvePerBagPrice(
+      leg.pickupPrefix ?? null,
+      leg.dropoffPrefix ?? null,
+      Math.max(1, leg.stagesCount ?? 1),
+    );
     subtotalAmount += leg.bagsCount * perBag;
   }
 

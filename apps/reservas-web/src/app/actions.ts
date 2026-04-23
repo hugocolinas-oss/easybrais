@@ -1,6 +1,6 @@
 "use server";
 
-import { createAdminClient, calculatePricing, getRealEtapas, pricePerBagForEtapas, type PricingBreakdown } from "@easybrais/utils";
+import { createAdminClient, calculatePricing, getRealEtapas, resolvePerBagPrice, type PricingBreakdown } from "@easybrais/utils";
 import {
   sendEmail,
   bookingConfirmationSubject,
@@ -114,19 +114,24 @@ export async function createBooking(
       return Number.isNaN(n) ? null : n;
     }
 
-    function getStagesCount(pickupId: string, dropoffId: string): number {
+    function getLegPrefixes(pickupId: string, dropoffId: string) {
       const p = stageNumber(accLookup.get(pickupId)?.external_code ?? null);
       const d = stageNumber(accLookup.get(dropoffId)?.external_code ?? null);
-      if (p === null || d === null) return 1;
-      return getRealEtapas(p, d);
+      const etapas = p !== null && d !== null ? getRealEtapas(p, d) : 1;
+      return { pickupPrefix: p, dropoffPrefix: d, stagesCount: etapas };
     }
 
     const pricing = calculatePricing(
-      data.legs.map((l) => ({
-        bagsCount: l.bagsCount,
-        overweightBagsCount: l.overweightBagsCount,
-        stagesCount: getStagesCount(l.pickupAccommodationId, l.dropoffAccommodationId),
-      })),
+      data.legs.map((l) => {
+        const { pickupPrefix, dropoffPrefix, stagesCount } = getLegPrefixes(l.pickupAccommodationId, l.dropoffAccommodationId);
+        return {
+          bagsCount: l.bagsCount,
+          overweightBagsCount: l.overweightBagsCount,
+          stagesCount,
+          pickupPrefix,
+          dropoffPrefix,
+        };
+      }),
     );
 
     /* ── Idempotency check ───────────────────────────────────────────── */
@@ -256,8 +261,8 @@ export async function createBooking(
     /* ── 4. Create booking items ──────────────────────────────────── */
 
     const items = data.legs.map((leg) => {
-      const stages = getStagesCount(leg.pickupAccommodationId, leg.dropoffAccommodationId);
-      const perBag = pricePerBagForEtapas(stages);
+      const { pickupPrefix, dropoffPrefix, stagesCount } = getLegPrefixes(leg.pickupAccommodationId, leg.dropoffAccommodationId);
+      const perBag = resolvePerBagPrice(pickupPrefix, dropoffPrefix, stagesCount);
       return {
         booking_id: booking.id,
         service_date: leg.serviceDate,

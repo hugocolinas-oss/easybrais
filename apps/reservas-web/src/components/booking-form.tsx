@@ -101,6 +101,8 @@ export function BookingForm({ allAccommodations }: Props) {
             bagsCount: l.bagsCount,
             overweightBagsCount: l.overweightBagsCount,
             stagesCount: getStagesCount(pickup, dropoff),
+            pickupPrefix: stageNumberFromCode(pickup ?? ({} as Accommodation)),
+            dropoffPrefix: stageNumberFromCode(dropoff ?? ({} as Accommodation)),
           };
         }),
       ),
