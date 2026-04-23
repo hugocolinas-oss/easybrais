@@ -276,8 +276,24 @@ export async function toggleStopCompleted(stopId: string, completed: boolean) {
   if (!UUID_RE.test(stopId)) return { error: "ID inválido." };
 
   try {
-    await requireAuth();
+    const { userId } = await requireAuth();
     const supabase = createAdminClient();
+
+    const { data: stop, error: stopFetchErr } = await supabase
+      .from("daily_route_stops")
+      .select("id, stop_type, booking_item_id")
+      .eq("id", stopId)
+      .single();
+
+    if (stopFetchErr || !stop) {
+      console.error("[toggleStopCompleted] fetch stop failed:", stopFetchErr?.message);
+      return { error: "Parada no encontrada." };
+    }
+
+    const { stop_type, booking_item_id } = stop as {
+      stop_type: string;
+      booking_item_id: string | null;
+    };
 
     const update: Record<string, unknown> = {
       completed,
@@ -294,11 +310,110 @@ export async function toggleStopCompleted(stopId: string, completed: boolean) {
       return { error: "Error al actualizar." };
     }
 
+    if (booking_item_id) {
+      const newItemStatus = completed
+        ? stop_type === "pickup"
+          ? "picked_up"
+          : "delivered"
+        : "pending";
+
+      const { data: item } = await supabase
+        .from("booking_items")
+        .select("booking_id, operational_status")
+        .eq("id", booking_item_id)
+        .single();
+
+      if (item) {
+        const { booking_id: bookingId, operational_status: oldStatus } = item as {
+          booking_id: string;
+          operational_status: string;
+        };
+
+        if (oldStatus !== newItemStatus) {
+          await supabase
+            .from("booking_items")
+            .update({ operational_status: newItemStatus } as never)
+            .eq("id", booking_item_id);
+
+          await supabase.from("booking_events").insert({
+            booking_id: bookingId,
+            event_type: "item_status_changed" as const,
+            actor_type: "staff" as const,
+            actor_id: userId,
+            payload_json: {
+              item_id: booking_item_id,
+              from: oldStatus,
+              to: newItemStatus,
+              source: "route_checkpoint",
+            },
+          });
+
+          await syncBookingStatusFromItems(supabase, bookingId, userId);
+        }
+      }
+    }
+
     revalidatePath("/gestion/ruta");
+    revalidatePath("/gestion/operativa");
+    revalidatePath("/gestion/reservas");
+    revalidatePath("/gestion");
     return { ok: true };
   } catch (err) {
     console.error("[toggleStopCompleted] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado." };
+  }
+}
+
+async function syncBookingStatusFromItems(
+  supabase: ReturnType<typeof createAdminClient>,
+  bookingId: string,
+  userId: string,
+) {
+  try {
+    const { data: items } = await supabase
+      .from("booking_items")
+      .select("operational_status")
+      .eq("booking_id", bookingId);
+
+    if (!items || items.length === 0) return;
+
+    const statuses = (items as { operational_status: string }[]).map((i) => i.operational_status);
+
+    let derived: string;
+    if (statuses.every((s) => s === "delivered")) {
+      derived = "delivered";
+    } else if (statuses.some((s) => s === "incident")) {
+      derived = "incident";
+    } else if (statuses.some((s) => s === "picked_up")) {
+      derived = "in_pickup";
+    } else {
+      derived = "confirmed";
+    }
+
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("status")
+      .eq("id", bookingId)
+      .single();
+
+    if (!booking) return;
+    const current = (booking as { status: string }).status;
+    if (current === "cancelled" || current === derived) return;
+
+    await supabase
+      .from("bookings")
+      .update({ status: derived } as never)
+      .eq("id", bookingId);
+
+    await supabase.from("booking_events").insert({
+      booking_id: bookingId,
+      event_type: "status_changed" as const,
+      actor_type: "system" as const,
+      actor_id: userId,
+      payload_json: { from: current, to: derived, reason: "auto_sync_from_route" },
+    });
+  } catch (err) {
+    console.error("[syncBookingStatusFromItems] unexpected:", err instanceof Error ? err.message : err);
   }
 }
 
