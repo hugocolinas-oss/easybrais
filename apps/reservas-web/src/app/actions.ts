@@ -1,6 +1,6 @@
 "use server";
 
-import { createAdminClient, calculatePricing, type PricingBreakdown } from "@easybrais/utils";
+import { createAdminClient, calculatePricing, getRealEtapas, pricePerBagForEtapas, type PricingBreakdown } from "@easybrais/utils";
 import {
   sendEmail,
   bookingConfirmationSubject,
@@ -118,7 +118,7 @@ export async function createBooking(
       const p = stageNumber(accLookup.get(pickupId)?.external_code ?? null);
       const d = stageNumber(accLookup.get(dropoffId)?.external_code ?? null);
       if (p === null || d === null) return 1;
-      return Math.max(1, Math.abs(d - p));
+      return getRealEtapas(p, d);
     }
 
     const pricing = calculatePricing(
@@ -257,6 +257,7 @@ export async function createBooking(
 
     const items = data.legs.map((leg) => {
       const stages = getStagesCount(leg.pickupAccommodationId, leg.dropoffAccommodationId);
+      const perBag = pricePerBagForEtapas(stages);
       return {
         booking_id: booking.id,
         service_date: leg.serviceDate,
@@ -264,8 +265,8 @@ export async function createBooking(
         dropoff_accommodation_id: leg.dropoffAccommodationId,
         bags_count: leg.bagsCount,
         overweight_bags_count: leg.overweightBagsCount,
-        unit_price: pricing.unitPrice,
-        line_total: leg.bagsCount * pricing.unitPrice * stages,
+        unit_price: perBag,
+        line_total: leg.bagsCount * perBag,
         operational_status: "pending" as const,
       };
     });

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useMemo } from "react";
 import type { Accommodation, BookingType, StageLeg, BookingFormData } from "@/lib/types";
-import { calculatePricing, formatEUR, fmtDateShort, PRICING_RULES } from "@easybrais/utils";
+import { calculatePricing, formatEUR, fmtDateShort, PRICING_RULES, getRealEtapas } from "@easybrais/utils";
 import { createBooking, type BookingSuccess } from "@/app/actions";
 import { BookingTypeSelector } from "./booking-type-selector";
 import { LegForm } from "./leg-form";
@@ -52,7 +52,7 @@ function getStagesCount(
   const p = stageNumberFromCode(pickupAcc);
   const d = stageNumberFromCode(dropoffAcc);
   if (p === null || d === null) return 1;
-  return Math.max(1, Math.abs(d - p));
+  return getRealEtapas(p, d);
 }
 
 export function BookingForm({ allAccommodations }: Props) {

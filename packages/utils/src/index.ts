@@ -2,6 +2,10 @@ export { cn } from "./cn";
 export { formatDate, fmtDateShort, formatTime } from "./format";
 export {
   PRICING_RULES,
+  PRICING_ZONES,
+  getPricingZone,
+  getRealEtapas,
+  pricePerBagForEtapas,
   calculatePricing,
   formatEUR,
   type PricingInput,

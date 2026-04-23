@@ -4,7 +4,7 @@ import { useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { Accommodation } from "@/lib/types";
 import { createBooking } from "@/app/actions";
-import { formatEUR, calculatePricing } from "@easybrais/utils";
+import { formatEUR, calculatePricing, getRealEtapas } from "@easybrais/utils";
 
 interface Props {
   accommodations: Accommodation[];
@@ -120,7 +120,7 @@ export function ManualBookingForm({ accommodations }: Props) {
     const p = stageNumberFromCode(pickup);
     const d = stageNumberFromCode(dropoff);
     if (p === null || d === null) return 1;
-    return Math.max(1, Math.abs(d - p));
+    return getRealEtapas(p, d);
   }, [pickupId, dropoffId, accMap]);
 
   const pricing = calculatePricing([{ bagsCount, overweightBagsCount: overweightBags, stagesCount }]);
