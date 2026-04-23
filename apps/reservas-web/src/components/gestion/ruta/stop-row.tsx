@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import type { RouteStop } from "@/lib/gestion/route-queries";
 import { toggleStopCompleted, swapStopPositions } from "@/app/gestion/(dashboard)/ruta/actions";
@@ -15,12 +15,21 @@ interface Props {
 
 export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
   const [pending, startTransition] = useTransition();
+  const [optimisticCompleted, setOptimisticCompleted] = useState(stop.completed);
+
+  useEffect(() => {
+    setOptimisticCompleted(stop.completed);
+  }, [stop.completed]);
 
   const isPickup = stop.stop_type === "pickup";
+  const isCompleted = optimisticCompleted;
 
   function handleToggle() {
+    const next = !optimisticCompleted;
+    setOptimisticCompleted(next);
     startTransition(async () => {
-      await toggleStopCompleted(stop.id, !stop.completed);
+      const res = await toggleStopCompleted(stop.id, next);
+      if (res && "error" in res) setOptimisticCompleted(!next);
     });
   }
 
@@ -33,22 +42,22 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
   return (
     <div
       className={`group relative flex items-stretch gap-0 transition-opacity ${
-        stop.completed ? "opacity-60" : ""
+        isCompleted ? "opacity-60" : ""
       }`}
     >
       {/* Timeline */}
       <div className="flex w-10 shrink-0 flex-col items-center">
         {!isFirst && <div className="w-0.5 flex-1 bg-gray-200" />}
         <div
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold ${
-            stop.completed
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors ${
+            isCompleted
               ? "border-green-500 bg-green-50 text-green-600"
               : isPickup
                 ? "border-amber-400 bg-amber-50 text-amber-700"
                 : "border-indigo-400 bg-indigo-50 text-indigo-700"
           }`}
         >
-          {stop.completed ? (
+          {isCompleted ? (
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
@@ -62,7 +71,7 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
       {/* Card */}
       <div
         className={`mb-2 ml-2 flex-1 rounded-lg border bg-white shadow-sm transition-all ${
-          stop.completed
+          isCompleted
             ? "border-green-200"
             : isPickup
               ? "border-amber-200"
@@ -76,13 +85,13 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
             onClick={handleToggle}
             disabled={pending}
             className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 transition-colors sm:h-5 sm:w-5 sm:rounded sm:border ${
-              stop.completed
+              isCompleted
                 ? "border-green-500 bg-green-500 text-white"
                 : "border-gray-300 active:border-brand-500"
             }`}
-            aria-label={stop.completed ? "Desmarcar" : "Marcar completada"}
+            aria-label={isCompleted ? "Desmarcar" : "Marcar completada"}
           >
-            {stop.completed && (
+            {isCompleted && (
               <svg className="h-4 w-4 sm:h-3 sm:w-3" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
@@ -102,7 +111,7 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
 
           {/* Accommodation */}
           <div className="min-w-0 flex-1">
-            <p className={`truncate text-sm font-semibold ${stop.completed ? "line-through text-gray-400" : "text-gray-900"}`}>
+            <p className={`truncate text-sm font-semibold ${isCompleted ? "line-through text-gray-400" : "text-gray-900"}`}>
               {stop.accommodation_name}
             </p>
             <div className="flex flex-wrap items-center gap-x-2 text-xs text-gray-400">
