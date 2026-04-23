@@ -8,13 +8,12 @@ interface Props {
   stages: string[];
   towns: string[];
   existingCodes?: string[];
+  stageNumberMap?: Record<string, number>;
 }
 
-function suggestNextCode(stageName: string, existingCodes: string[]): string {
-  const stageMatch = stageName.match(/\d+/);
-  if (!stageMatch) return "";
-  const stageNum = parseInt(stageMatch[0], 10);
-  if (Number.isNaN(stageNum)) return "";
+function suggestNextCode(stageName: string, existingCodes: string[], stageNumberMap: Record<string, number>): string {
+  const stageNum = stageNumberMap[stageName];
+  if (stageNum == null || Number.isNaN(stageNum)) return "";
 
   const codesInStage = existingCodes
     .filter((c) => {
@@ -31,7 +30,7 @@ function suggestNextCode(stageName: string, existingCodes: string[]): string {
   return `${stageNum}.${next < 10 ? "0" : ""}${next}`;
 }
 
-export function CreateAccommodationForm({ stages, towns, existingCodes = [] }: Props) {
+export function CreateAccommodationForm({ stages, towns, existingCodes = [], stageNumberMap = {} }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -71,9 +70,9 @@ export function CreateAccommodationForm({ stages, towns, existingCodes = [] }: P
     setStageName(s);
     setStageSearch(s);
     setShowStages(false);
-    const suggested = suggestNextCode(s, existingCodes);
+    const suggested = suggestNextCode(s, existingCodes, stageNumberMap);
     if (suggested) setExternalCode(suggested);
-  }, [existingCodes]);
+  }, [existingCodes, stageNumberMap]);
 
   const handleTownSelect = useCallback((t: string) => {
     setTown(t);

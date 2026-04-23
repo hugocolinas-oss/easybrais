@@ -1,16 +1,22 @@
 import Link from "next/link";
-import { getDistinctStages } from "@/lib/gestion/accommodation-queries";
+import { getStagesInfo } from "@/lib/gestion/accommodation-queries";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { CreateAccommodationForm } from "@/components/gestion/alojamientos/create-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function NuevoAlojamientoPage() {
-  const [stages, towns, existingCodes] = await Promise.all([
-    getDistinctStages(),
+  const [stagesInfo, towns, existingCodes] = await Promise.all([
+    getStagesInfo(),
     getDistinctTowns(),
     getExistingCodes(),
   ]);
+
+  const stages = stagesInfo.map((s) => s.name);
+  const stageNumberMap: Record<string, number> = {};
+  for (const s of stagesInfo) {
+    stageNumberMap[s.name] = s.stageNumber;
+  }
 
   return (
     <div className="space-y-6">
@@ -24,7 +30,7 @@ export default async function NuevoAlojamientoPage() {
         <h2 className="text-lg font-bold text-gray-900">Nuevo alojamiento</h2>
       </div>
 
-      <CreateAccommodationForm stages={stages} towns={towns} existingCodes={existingCodes} />
+      <CreateAccommodationForm stages={stages} towns={towns} existingCodes={existingCodes} stageNumberMap={stageNumberMap} />
     </div>
   );
 }
