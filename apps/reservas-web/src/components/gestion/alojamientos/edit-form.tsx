@@ -24,6 +24,7 @@ export function EditAccommodationForm({ accommodation: a }: Props) {
 
     const fields = {
       display_name: (fd.get("display_name") as string) || a.name,
+      external_code: (fd.get("external_code") as string)?.trim() || null,
       active: fd.get("active") === "on",
       visible_in_reservations: fd.get("visible_in_reservations") === "on",
       internal_notes: (fd.get("internal_notes") as string) || null,
@@ -65,7 +66,14 @@ export function EditAccommodationForm({ accommodation: a }: Props) {
         </Field>
 
         <Field label="Código externo">
-          <input type="text" value={a.external_code ?? "—"} disabled className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500" />
+          <input
+            type="text"
+            name="external_code"
+            defaultValue={a.external_code ?? ""}
+            placeholder="Ej: 7.01"
+            maxLength={20}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
+          />
         </Field>
 
         {/* Editable fields */}

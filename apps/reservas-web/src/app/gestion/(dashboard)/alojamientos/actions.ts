@@ -103,6 +103,7 @@ export async function updateAccommodation(
   id: string,
   fields: {
     display_name?: string;
+    external_code?: string | null;
     active?: boolean;
     visible_in_reservations?: boolean;
     internal_notes?: string | null;
