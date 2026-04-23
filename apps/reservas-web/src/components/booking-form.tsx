@@ -78,8 +78,10 @@ export function BookingForm({ allAccommodations }: Props) {
     const townMinStage = new Map<string, number>();
     allAccommodations.forEach((a) => {
       if (!a.town) return;
-      const key = a.town.trim().toLowerCase();
-      if (!townDisplay.has(key)) townDisplay.set(key, a.town.trim());
+      const raw = a.town.trim();
+      const normalized = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+      const key = normalized.toLowerCase();
+      if (!townDisplay.has(key)) townDisplay.set(key, normalized);
       const stage = stageNumberFromCode(a) ?? 999;
       const cur = townMinStage.get(key);
       if (cur === undefined || stage < cur) townMinStage.set(key, stage);

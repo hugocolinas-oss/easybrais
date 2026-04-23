@@ -27,7 +27,8 @@ function suggestNextCode(stageName: string, existingCodes: string[]): string {
     });
 
   const maxSeq = codesInStage.length > 0 ? Math.max(...codesInStage) : 0;
-  return `${stageNum}.${maxSeq + 1}`;
+  const next = maxSeq + 1;
+  return `${stageNum}.${next < 10 ? "0" : ""}${next}`;
 }
 
 export function CreateAccommodationForm({ stages, towns, existingCodes = [] }: Props) {
@@ -71,8 +72,8 @@ export function CreateAccommodationForm({ stages, towns, existingCodes = [] }: P
     setStageSearch(s);
     setShowStages(false);
     const suggested = suggestNextCode(s, existingCodes);
-    if (suggested && !externalCode) setExternalCode(suggested);
-  }, [existingCodes, externalCode]);
+    if (suggested) setExternalCode(suggested);
+  }, [existingCodes]);
 
   const handleTownSelect = useCallback((t: string) => {
     setTown(t);
@@ -157,8 +158,8 @@ export function CreateAccommodationForm({ stages, towns, existingCodes = [] }: P
           <Field label="Nombre público" hint="Lo que ve el cliente (si es distinto)">
             <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={name || "Se usará el nombre interno"} maxLength={200} className={inputClass} />
           </Field>
-          <Field label="Código externo" hint="Se sugiere al elegir etapa">
-            <input type="text" value={externalCode} onChange={(e) => setExternalCode(e.target.value)} placeholder="Ej: 5.01" maxLength={20} className={inputClass} />
+          <Field label="Código externo" hint="Se asigna automáticamente al elegir etapa">
+            <input type="text" value={externalCode} onChange={(e) => setExternalCode(e.target.value)} placeholder="Selecciona una etapa primero" maxLength={20} className={`${inputClass} bg-gray-50`} readOnly={false} />
           </Field>
           <Field label="Orden" hint="Menor = aparece antes">
             <input type="number" value={sortOrder} onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)} min={0} className={inputClass} />

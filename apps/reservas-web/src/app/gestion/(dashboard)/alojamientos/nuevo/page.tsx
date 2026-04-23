@@ -29,6 +29,14 @@ export default async function NuevoAlojamientoPage() {
   );
 }
 
+function normalizeTown(raw: string): string {
+  const t = raw.trim();
+  if (!t) return t;
+  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()
+    .replace(/\b(de|del|da|do|dos|das|la|las|el|los|a|o|e)\b/gi, (m) => m.toLowerCase())
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
 async function getDistinctTowns(): Promise<string[]> {
   const supabase = await getServerSupabase();
   const { data } = await supabase
@@ -37,11 +45,14 @@ async function getDistinctTowns(): Promise<string[]> {
     .not("town", "is", null)
     .order("town", { ascending: true });
 
-  const unique = new Set<string>();
+  const seen = new Map<string, string>();
   (data ?? []).forEach((r) => {
-    if (r.town) unique.add(r.town.trim());
+    if (!r.town) return;
+    const normalized = normalizeTown(r.town);
+    const key = normalized.toLowerCase();
+    if (!seen.has(key)) seen.set(key, normalized);
   });
-  return Array.from(unique);
+  return Array.from(seen.values()).sort((a, b) => a.localeCompare(b, "es"));
 }
 
 async function getExistingCodes(): Promise<string[]> {

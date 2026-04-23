@@ -271,6 +271,7 @@ function Stepper({
         min={min}
         max={max}
         value={value}
+        onFocus={(e) => e.target.select()}
         onChange={(e) => onChange(Math.max(min, Math.min(max, parseInt(e.target.value) || min)))}
         className="h-10 w-full rounded-xl border border-cream-300 text-center text-sm font-bold text-brand-900 focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700 sm:h-11"
       />
