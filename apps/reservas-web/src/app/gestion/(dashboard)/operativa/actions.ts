@@ -161,7 +161,7 @@ async function syncBookingStatus(
 
     const { data: booking, error: bookFetchErr } = await supabase
       .from("bookings")
-      .select("status")
+      .select("status, payment_status")
       .eq("id", bookingId)
       .single();
 
@@ -170,12 +170,28 @@ async function syncBookingStatus(
       return;
     }
 
-    const currentStatus = (booking as { status: string }).status;
-    if (currentStatus === "cancelled" || currentStatus === derivedBookingStatus) return;
+    const { status: currentStatus, payment_status: payStatus } = booking as {
+      status: string;
+      payment_status: string;
+    };
+
+    const updates: Record<string, unknown> = {};
+
+    if (currentStatus !== "cancelled" && currentStatus !== derivedBookingStatus) {
+      updates.status = derivedBookingStatus;
+    }
+
+    const hasPickup = statuses.some((s) => s === "picked_up" || s === "delivered");
+    if (hasPickup && payStatus !== "paid") {
+      updates.payment_status = "paid";
+      updates.paid_at = new Date().toISOString();
+    }
+
+    if (Object.keys(updates).length === 0) return;
 
     const { error: updateErr } = await supabase
       .from("bookings")
-      .update({ status: derivedBookingStatus } as never)
+      .update(updates as never)
       .eq("id", bookingId);
 
     if (updateErr) {
@@ -183,20 +199,28 @@ async function syncBookingStatus(
       return;
     }
 
-    const { error: eventErr } = await supabase.from("booking_events").insert({
-      booking_id: bookingId,
-      event_type: "status_changed" as const,
-      actor_type: "system" as const,
-      actor_id: userId,
-      payload_json: {
-        from: currentStatus,
-        to: derivedBookingStatus,
-        reason: "auto_sync_from_items",
-      },
-    });
+    if (updates.status) {
+      await supabase.from("booking_events").insert({
+        booking_id: bookingId,
+        event_type: "status_changed" as const,
+        actor_type: "system" as const,
+        actor_id: userId,
+        payload_json: {
+          from: currentStatus,
+          to: derivedBookingStatus,
+          reason: "auto_sync_from_items",
+        },
+      });
+    }
 
-    if (eventErr) {
-      console.error("[syncBookingStatus] event insert failed:", eventErr.message);
+    if (updates.payment_status) {
+      await supabase.from("booking_events").insert({
+        booking_id: bookingId,
+        event_type: "payment_confirmed" as const,
+        actor_type: "system" as const,
+        actor_id: userId,
+        payload_json: { from: payStatus, to: "paid", reason: "auto_on_pickup" },
+      });
     }
   } catch (err) {
     console.error("[syncBookingStatus] unexpected:", err instanceof Error ? err.message : err);

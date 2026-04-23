@@ -392,26 +392,54 @@ async function syncBookingStatusFromItems(
 
     const { data: booking } = await supabase
       .from("bookings")
-      .select("status")
+      .select("status, payment_status")
       .eq("id", bookingId)
       .single();
 
     if (!booking) return;
-    const current = (booking as { status: string }).status;
-    if (current === "cancelled" || current === derived) return;
+    const { status: current, payment_status: payStatus } = booking as {
+      status: string;
+      payment_status: string;
+    };
+
+    const updates: Record<string, unknown> = {};
+
+    if (current !== "cancelled" && current !== derived) {
+      updates.status = derived;
+    }
+
+    const hasPickup = statuses.some((s) => s === "picked_up" || s === "delivered");
+    if (hasPickup && payStatus !== "paid") {
+      updates.payment_status = "paid";
+      updates.paid_at = new Date().toISOString();
+    }
+
+    if (Object.keys(updates).length === 0) return;
 
     await supabase
       .from("bookings")
-      .update({ status: derived } as never)
+      .update(updates as never)
       .eq("id", bookingId);
 
-    await supabase.from("booking_events").insert({
-      booking_id: bookingId,
-      event_type: "status_changed" as const,
-      actor_type: "system" as const,
-      actor_id: userId,
-      payload_json: { from: current, to: derived, reason: "auto_sync_from_route" },
-    });
+    if (updates.status) {
+      await supabase.from("booking_events").insert({
+        booking_id: bookingId,
+        event_type: "status_changed" as const,
+        actor_type: "system" as const,
+        actor_id: userId,
+        payload_json: { from: current, to: derived, reason: "auto_sync_from_route" },
+      });
+    }
+
+    if (updates.payment_status) {
+      await supabase.from("booking_events").insert({
+        booking_id: bookingId,
+        event_type: "payment_confirmed" as const,
+        actor_type: "system" as const,
+        actor_id: userId,
+        payload_json: { from: payStatus, to: "paid", reason: "auto_on_pickup" },
+      });
+    }
   } catch (err) {
     console.error("[syncBookingStatusFromItems] unexpected:", err instanceof Error ? err.message : err);
   }
