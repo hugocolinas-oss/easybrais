@@ -175,7 +175,7 @@ export function CreateAccommodationForm({ stages, towns, existingCodes = [], sta
                 value={showStages ? stageSearch : stageName}
                 onChange={(e) => { setStageSearch(e.target.value); setStageName(e.target.value); setShowStages(true); }}
                 onFocus={() => { setStageSearch(stageName); setShowStages(true); }}
-                onBlur={() => setTimeout(() => setShowStages(false), 200)}
+                onBlur={() => setTimeout(() => setShowStages(false), 300)}
                 placeholder="Buscar etapa..."
                 className={inputClass}
               />
@@ -183,7 +183,7 @@ export function CreateAccommodationForm({ stages, towns, existingCodes = [], sta
                 <ul className="absolute z-20 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
                   {filteredStages.map((s) => (
                     <li key={s}>
-                      <button type="button" onMouseDown={() => handleStageSelect(s)} className="w-full px-3 py-2 text-left text-sm hover:bg-brand-50">
+                      <button type="button" onMouseDown={(e) => { e.preventDefault(); handleStageSelect(s); }} className="w-full px-3 py-2 text-left text-sm hover:bg-brand-50">
                         {s}
                       </button>
                     </li>
@@ -199,7 +199,7 @@ export function CreateAccommodationForm({ stages, towns, existingCodes = [], sta
                 value={showTowns ? townSearch : town}
                 onChange={(e) => { setTownSearch(e.target.value); setTown(e.target.value); setShowTowns(true); }}
                 onFocus={() => { setTownSearch(town); setShowTowns(true); }}
-                onBlur={() => setTimeout(() => setShowTowns(false), 200)}
+                onBlur={() => setTimeout(() => setShowTowns(false), 300)}
                 placeholder="Buscar localidad..."
                 className={inputClass}
               />
@@ -207,7 +207,7 @@ export function CreateAccommodationForm({ stages, towns, existingCodes = [], sta
                 <ul className="absolute z-20 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
                   {filteredTowns.map((t) => (
                     <li key={t}>
-                      <button type="button" onMouseDown={() => handleTownSelect(t)} className="w-full px-3 py-2 text-left text-sm hover:bg-brand-50">
+                      <button type="button" onMouseDown={(e) => { e.preventDefault(); handleTownSelect(t); }} className="w-full px-3 py-2 text-left text-sm hover:bg-brand-50">
                         {t}
                       </button>
                     </li>

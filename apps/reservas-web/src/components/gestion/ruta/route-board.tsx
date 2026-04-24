@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import type { DailyRoute, RouteStop } from "@/lib/gestion/route-queries";
 import { reorderStops } from "@/app/gestion/(dashboard)/ruta/actions";
 import { StopRow } from "./stop-row";
@@ -22,6 +22,10 @@ const TABS: { key: FilterTab; label: string }[] = [
 export function RouteBoard({ route }: Props) {
   const [tab, setTab] = useState<FilterTab>("all");
   const [localStops, setLocalStops] = useState<RouteStop[]>(route.stops);
+
+  useEffect(() => {
+    setLocalStops(route.stops);
+  }, [route.stops]);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();

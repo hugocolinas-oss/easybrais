@@ -559,19 +559,20 @@ function PaymentMethodSelector({ value, onChange }: { value: PaymentMethod; onCh
 }
 
 function PriceBreakdown({ pricing }: { pricing: ReturnType<typeof calculatePricing> }) {
-  const { BASE_PRICE, REDUCED_PRICE, OVERWEIGHT_FEE } = PRICING_RULES;
+  const { OVERWEIGHT_FEE, VOLUME_DISCOUNT } = PRICING_RULES;
+  const reducedPrice = PRICING_RULES.BASE_PRICE - VOLUME_DISCOUNT;
   return (
     <div className="mt-2 space-y-1 rounded-lg bg-white p-3 text-[11px]">
-      {pricing.normalBags > 0 && (
+      {pricing.subtotalAmount > 0 && (
         <div className="flex justify-between text-brand-800/50">
-          <span>{pricing.normalBags} × {formatEUR(BASE_PRICE)}</span>
-          <span>{formatEUR(pricing.normalBags * BASE_PRICE)}</span>
+          <span>Subtotal transporte</span>
+          <span>{formatEUR(pricing.subtotalAmount)}</span>
         </div>
       )}
       {pricing.discountedBags > 0 && (
         <div className="flex justify-between text-sage-600">
-          <span>{pricing.discountedBags} × {formatEUR(REDUCED_PRICE)} (dto. volumen)</span>
-          <span>{formatEUR(pricing.discountedBags * REDUCED_PRICE)}</span>
+          <span>Dto. volumen ({pricing.discountedBags} × −{formatEUR(VOLUME_DISCOUNT)})</span>
+          <span>−{formatEUR(pricing.discountAmount)}</span>
         </div>
       )}
       {pricing.extraWeightAmount > 0 && (

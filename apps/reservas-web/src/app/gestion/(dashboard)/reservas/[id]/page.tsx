@@ -7,6 +7,9 @@ import { StatusSelect } from "@/components/gestion/reservas/status-select";
 import { NotesEditor } from "@/components/gestion/reservas/notes-editor";
 import { EventTimeline } from "@/components/gestion/reservas/event-timeline";
 import { BackToBookings } from "@/components/gestion/reservas/back-button";
+import { PriceEditor } from "@/components/gestion/reservas/price-editor";
+import { ItemBagsEditor } from "@/components/gestion/reservas/item-bags-editor";
+import { DeleteBookingButton } from "@/components/gestion/reservas/delete-booking-button";
 
 export const dynamic = "force-dynamic";
 
@@ -115,7 +118,10 @@ export default async function BookingDetailPage({
                     <span className="truncate font-medium text-gray-900">{item.dropoff_name}</span>
                   </div>
                   <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                    <span>{item.bags_count} mochilas{item.overweight_bags_count > 0 ? ` (+${item.overweight_bags_count} sobrepeso)` : ""}</span>
+                    <div className="flex items-center gap-1">
+                      <ItemBagsEditor itemId={item.id} bagsCount={item.bags_count} overweightBagsCount={item.overweight_bags_count} />
+                      <span>mochilas{item.overweight_bags_count > 0 ? ` (+${item.overweight_bags_count} sob.)` : ""}</span>
+                    </div>
                     <span className="font-semibold text-gray-900">{formatEUR(item.line_total)}</span>
                   </div>
                 </div>
@@ -148,7 +154,9 @@ export default async function BookingDetailPage({
                         <p className="text-gray-900">{item.dropoff_name}</p>
                         {item.dropoff_town && <p className="text-xs text-gray-400">{item.dropoff_town}</p>}
                       </td>
-                      <td className="px-5 py-2.5 text-center font-medium text-gray-700">{item.bags_count}</td>
+                      <td className="px-5 py-2.5 text-center">
+                        <ItemBagsEditor itemId={item.id} bagsCount={item.bags_count} overweightBagsCount={item.overweight_bags_count} />
+                      </td>
                       <td className="px-5 py-2.5 text-center text-gray-500">
                         {item.overweight_bags_count > 0 ? item.overweight_bags_count : "—"}
                       </td>
@@ -188,7 +196,10 @@ export default async function BookingDetailPage({
                 />
               )}
               <div className="border-t border-gray-200 pt-2">
-                <Row label="Total" value={formatEUR(booking.total_amount)} cls="font-semibold text-gray-900" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-gray-900">Total</span>
+                  <PriceEditor bookingId={booking.id} currentTotal={booking.total_amount} />
+                </div>
               </div>
             </div>
           </Card>
@@ -252,6 +263,8 @@ export default async function BookingDetailPage({
           <Card title="Notas internas">
             <NotesEditor bookingId={booking.id} initialNotes={booking.notes_internal ?? ""} />
           </Card>
+
+          <DeleteBookingButton bookingId={booking.id} bookingCode={booking.booking_code} />
         </div>
       </div>
     </div>
