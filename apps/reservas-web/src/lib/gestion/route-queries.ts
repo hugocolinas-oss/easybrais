@@ -8,6 +8,7 @@ export interface RouteStop {
   accommodation_name: string;
   accommodation_town: string | null;
   accommodation_address: string | null;
+  accommodation_internal_notes: string | null;
   booking_item_id: string | null;
   booking_code: string;
   booking_id: string | null;
@@ -91,14 +92,15 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
 
   const [{ data: accs }, { data: items }] = await Promise.all([
     accIds.length > 0
-      ? supabase.from("accommodations").select("id, address").in("id", accIds)
+      ? supabase.from("accommodations").select("id, address, internal_notes").in("id", accIds)
       : Promise.resolve({ data: [] }),
     itemIds.length > 0
       ? supabase.from("booking_items").select("id, booking_id, bookings(id, customers(phone))").in("id", itemIds)
       : Promise.resolve({ data: [] }),
   ]);
 
-  const addressMap = new Map((accs ?? []).map((a: { id: string; address: string | null }) => [a.id, a.address]));
+  type AccInfo = { id: string; address: string | null; internal_notes: string | null };
+  const accInfoMap = new Map((accs ?? []).map((a: AccInfo) => [a.id, a]));
 
   interface ItemWithBooking { id: string; booking_id: string | null; bookings: { id: string; customers: { phone: string | null } | null } | null }
   const itemMap = new Map(
@@ -117,7 +119,8 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
       accommodation_id: s.accommodation_id,
       accommodation_name: s.accommodation_name,
       accommodation_town: s.accommodation_town,
-      accommodation_address: s.accommodation_id ? addressMap.get(s.accommodation_id) ?? null : null,
+      accommodation_address: s.accommodation_id ? accInfoMap.get(s.accommodation_id)?.address ?? null : null,
+      accommodation_internal_notes: s.accommodation_id ? accInfoMap.get(s.accommodation_id)?.internal_notes ?? null : null,
       booking_item_id: s.booking_item_id,
       booking_code: s.booking_code,
       booking_id: itemInfo?.booking_id ?? null,
