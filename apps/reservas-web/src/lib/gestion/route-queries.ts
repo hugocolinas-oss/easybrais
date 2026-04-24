@@ -15,6 +15,7 @@ export interface RouteStop {
   customer_name: string;
   customer_phone: string | null;
   bags_count: number;
+  booking_total: number | null;
   completed: boolean;
   completed_at: string | null;
   notes: string | null;
@@ -95,18 +96,22 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
       ? supabase.from("accommodations").select("id, address, internal_notes").in("id", accIds)
       : Promise.resolve({ data: [] }),
     itemIds.length > 0
-      ? supabase.from("booking_items").select("id, booking_id, bookings(id, customers(phone))").in("id", itemIds)
+      ? supabase.from("booking_items").select("id, booking_id, bookings(id, total_amount, customers(phone))").in("id", itemIds)
       : Promise.resolve({ data: [] }),
   ]);
 
   type AccInfo = { id: string; address: string | null; internal_notes: string | null };
   const accInfoMap = new Map((accs ?? []).map((a: AccInfo) => [a.id, a]));
 
-  interface ItemWithBooking { id: string; booking_id: string | null; bookings: { id: string; customers: { phone: string | null } | null } | null }
+  interface ItemWithBooking { id: string; booking_id: string | null; bookings: { id: string; total_amount: number | null; customers: { phone: string | null } | null } | null }
   const itemMap = new Map(
     ((items ?? []) as unknown as ItemWithBooking[]).map((i) => [
       i.id,
-      { booking_id: i.booking_id ?? i.bookings?.id ?? null, phone: i.bookings?.customers?.phone ?? null },
+      {
+        booking_id: i.booking_id ?? i.bookings?.id ?? null,
+        phone: i.bookings?.customers?.phone ?? null,
+        total: i.bookings?.total_amount != null ? Number(i.bookings.total_amount) : null,
+      },
     ]),
   );
 
@@ -127,6 +132,7 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
       customer_name: s.customer_name,
       customer_phone: itemInfo?.phone ?? null,
       bags_count: s.bags_count,
+      booking_total: itemInfo?.total ?? null,
       completed: s.completed,
       completed_at: s.completed_at,
       notes: s.notes,

@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import type { RouteStop } from "@/lib/gestion/route-queries";
+import { formatEUR } from "@easybrais/utils";
 import { toggleStopCompleted, swapStopPositions } from "@/app/gestion/(dashboard)/ruta/actions";
 
 interface Props {
@@ -134,6 +135,9 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
               <p className="font-mono text-xs font-semibold text-brand-600">{stop.booking_code}</p>
             )}
             <p className="text-xs text-gray-400">{stop.customer_name}</p>
+            {stop.booking_total != null && (
+              <p className="text-xs font-bold text-green-700">{formatEUR(stop.booking_total)}</p>
+            )}
             {stop.customer_phone && (
               <div className="flex items-center gap-1.5">
                 <a href={`tel:${stop.customer_phone}`} className="text-[10px] text-brand-500 hover:underline">
@@ -189,14 +193,21 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
 
         {/* Mobile extra info */}
         <div className="border-t border-gray-100 px-4 py-2 sm:hidden">
-          {stop.booking_id ? (
-            <Link href={`/gestion/reservas/${stop.booking_id}`} className="font-mono text-xs font-semibold text-brand-600 hover:underline">
-              {stop.booking_code}
-            </Link>
-          ) : (
-            <p className="font-mono text-xs font-semibold text-brand-600">{stop.booking_code}</p>
-          )}
-          <p className="text-xs text-gray-400">{stop.customer_name}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              {stop.booking_id ? (
+                <Link href={`/gestion/reservas/${stop.booking_id}`} className="font-mono text-xs font-semibold text-brand-600 hover:underline">
+                  {stop.booking_code}
+                </Link>
+              ) : (
+                <p className="font-mono text-xs font-semibold text-brand-600">{stop.booking_code}</p>
+              )}
+              <p className="text-xs text-gray-400">{stop.customer_name}</p>
+            </div>
+            {stop.booking_total != null && (
+              <span className="text-sm font-bold text-green-700">{formatEUR(stop.booking_total)}</span>
+            )}
+          </div>
           {stop.customer_phone && (
             <div className="flex items-center gap-2">
               <a href={`tel:${stop.customer_phone}`} className="text-xs text-brand-500 hover:underline">
