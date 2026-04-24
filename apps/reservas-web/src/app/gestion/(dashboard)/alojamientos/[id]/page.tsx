@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getAccommodationById } from "@/lib/gestion/accommodation-queries";
 import { EditAccommodationForm } from "@/components/gestion/alojamientos/edit-form";
 import { MarkVerifiedButton } from "@/components/gestion/alojamientos/toggle-buttons";
+import { DeleteAccommodationButton } from "@/components/gestion/alojamientos/delete-accommodation-button";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,11 @@ export default async function AccommodationDetailPage({
       <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6">
         <EditAccommodationForm accommodation={accommodation} />
       </div>
+
+      <DeleteAccommodationButton
+        id={accommodation.id}
+        name={accommodation.display_name ?? accommodation.name}
+      />
     </div>
   );
 }

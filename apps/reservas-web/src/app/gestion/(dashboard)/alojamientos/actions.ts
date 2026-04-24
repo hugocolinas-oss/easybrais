@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createAdminClient } from "@easybrais/utils";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/gestion/auth";
 
@@ -212,6 +213,45 @@ export async function markVerified(
   } catch (err) {
     console.error("[alojamientos] markVerified unexpected:", err);
     return { error: "Error inesperado." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Delete
+// ---------------------------------------------------------------------------
+
+export async function deleteAccommodation(
+  id: string,
+): Promise<{ ok: true } | { error: string }> {
+  try {
+    await requireAuth();
+    const supabase = createAdminClient();
+
+    const { data: refs } = await supabase
+      .from("booking_items")
+      .select("id")
+      .or(`pickup_accommodation_id.eq.${id},dropoff_accommodation_id.eq.${id}`)
+      .limit(1);
+
+    if (refs && refs.length > 0) {
+      return { error: "No se puede eliminar: este alojamiento tiene reservas asociadas. Desactívalo en su lugar." };
+    }
+
+    const { error } = await supabase
+      .from("accommodations")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("[alojamientos] deleteAccommodation error:", error.message);
+      return { error: "No se pudo eliminar el alojamiento." };
+    }
+
+    revalidatePath("/gestion/alojamientos");
+    return { ok: true };
+  } catch (err) {
+    console.error("[alojamientos] deleteAccommodation unexpected:", err);
+    return { error: "Error inesperado al eliminar." };
   }
 }
 

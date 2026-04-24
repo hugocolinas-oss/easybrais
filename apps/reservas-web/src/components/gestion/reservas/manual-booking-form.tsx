@@ -139,6 +139,7 @@ export function ManualBookingForm({ accommodations }: Props) {
     setSubmitting(true);
 
     try {
+      const currentKey = idempotencyKeyRef.current;
       const res = await createBooking(
         {
           bookingType: "single_stage",
@@ -160,15 +161,18 @@ export function ManualBookingForm({ accommodations }: Props) {
             notes: notes.trim(),
           },
           paymentMethod: "cash",
+          sourceChannel: "walk_in",
         },
-        idempotencyKeyRef.current,
+        currentKey,
       );
 
       if (!res.ok) {
         setError(res.error);
+        idempotencyKeyRef.current = crypto.randomUUID();
         return;
       }
 
+      idempotencyKeyRef.current = crypto.randomUUID();
       setSuccess(`Reserva creada: ${res.bookingCode}`);
       setTimeout(() => {
         router.push(`/gestion/reservas/${res.bookingId}`);

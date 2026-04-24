@@ -455,6 +455,20 @@ export async function reorderStops(
     await requireAuth();
     const supabase = createAdminClient();
 
+    const OFFSET = 10000;
+    for (let i = 0; i < orderedStopIds.length; i++) {
+      const { error } = await supabase
+        .from("daily_route_stops")
+        .update({ position: OFFSET + i + 1 } as never)
+        .eq("id", orderedStopIds[i]!)
+        .eq("route_id", routeId);
+
+      if (error) {
+        console.error("[reorderStops] temp update failed:", error.message);
+        return { error: "Error al reordenar." };
+      }
+    }
+
     for (let i = 0; i < orderedStopIds.length; i++) {
       const { error } = await supabase
         .from("daily_route_stops")
@@ -463,7 +477,7 @@ export async function reorderStops(
         .eq("route_id", routeId);
 
       if (error) {
-        console.error("[reorderStops] update failed:", error.message);
+        console.error("[reorderStops] final update failed:", error.message);
         return { error: "Error al reordenar." };
       }
     }

@@ -34,4 +34,5 @@ export interface BookingFormData {
     notes: string;
   };
   paymentMethod?: "online" | "cash";
+  sourceChannel?: "web" | "phone" | "walk_in" | "other";
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createAdminClient, calculatePricing, getRealEtapas, resolvePerBagPrice, type PricingBreakdown } from "@easybrais/utils";
 import {
   sendEmail,
@@ -241,7 +242,7 @@ export async function createBooking(
         booking_type: "luggage_transfer" as const,
         service_date: firstDate,
         status: "pending" as const,
-        source_channel: "web" as const,
+        source_channel: (data.sourceChannel ?? "web") as never,
         language: data.customer.language || "es",
         notes_customer: data.customer.notes.trim() || null,
         notes_internal: tag,
@@ -323,6 +324,11 @@ export async function createBooking(
     if (!wantsOnline) {
       sendConfirmationEmail(supabase, booking.id, bookingCode, email, data, pricing).catch(() => {});
     }
+
+    revalidatePath("/gestion/reservas");
+    revalidatePath("/gestion/operativa");
+    revalidatePath("/gestion/ruta");
+    revalidatePath("/gestion");
 
     return {
       ok: true,

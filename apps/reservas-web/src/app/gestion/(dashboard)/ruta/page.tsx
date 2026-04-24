@@ -5,6 +5,8 @@ import { RouteHeader } from "@/components/gestion/ruta/route-header";
 import { RouteBoard } from "@/components/gestion/ruta/route-board";
 import { GenerateRouteButton } from "@/components/gestion/ruta/generate-route-button";
 
+export const dynamic = "force-dynamic";
+
 interface Props {
   searchParams: Promise<{ date?: string }>;
 }

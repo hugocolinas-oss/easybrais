@@ -111,6 +111,12 @@ export default async function AlojamientosPage({
                     {a.stage_name && <span>{a.stage_name}</span>}
                     {a.town && <span>· {a.town}</span>}
                   </div>
+                  {a.internal_notes && (
+                    <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5">
+                      <p className="text-[11px] font-semibold uppercase text-amber-700">Notas internas</p>
+                      <p className="mt-0.5 whitespace-pre-line text-xs text-amber-900">{a.internal_notes}</p>
+                    </div>
+                  )}
                 </Link>
               );
             })}
@@ -165,6 +171,11 @@ export default async function AlojamientosPage({
                               <p className="text-[11px] text-gray-400">{a.stage_name}</p>
                             )}
                           </Link>
+                          {a.internal_notes && (
+                            <div className="mt-1 rounded border border-amber-200 bg-amber-50 px-2 py-1">
+                              <p className="whitespace-pre-line text-[11px] text-amber-900">{a.internal_notes}</p>
+                            </div>
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">{a.town ?? "—"}</td>
                         <td className="px-4 py-2.5 text-center">
