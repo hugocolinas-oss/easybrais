@@ -198,9 +198,20 @@ export async function getBookings(filters: BookingFilters): Promise<BookingListR
   if (filters.q) {
     const term = filters.q.trim().replace(/[,.*()"\\\[\]]/g, "");
     if (term.length > 0) {
-      query = query.or(
-        `booking_code.ilike.%${term}%,customers.full_name.ilike.%${term}%,customers.email.ilike.%${term}%,customers.phone.ilike.%${term}%`,
-      );
+      const { data: matchingCustomers } = await supabase
+        .from("customers")
+        .select("id")
+        .or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
+
+      const customerIds = (matchingCustomers ?? []).map((c: { id: string }) => c.id);
+
+      if (customerIds.length > 0) {
+        query = query.or(
+          `booking_code.ilike.%${term}%,customer_id.in.(${customerIds.join(",")})`,
+        );
+      } else {
+        query = query.ilike("booking_code", `%${term}%`);
+      }
     }
   }
 
