@@ -132,11 +132,12 @@ export async function getStagesInfo(): Promise<StageInfo[]> {
     const name = row.stage_name;
     if (!name) continue;
     let info = map.get(name);
+    const [num] = parseCode(row.external_code);
     if (!info) {
-      const [num] = parseCode(row.external_code);
       info = { name, stageNumber: num, total: 0, active: 0, visible: 0 };
       map.set(name, info);
     }
+    if (num < info.stageNumber) info.stageNumber = num;
     info.total++;
     if (row.active) info.active++;
     if (row.visible_in_reservations) info.visible++;
