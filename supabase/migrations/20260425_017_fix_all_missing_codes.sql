@@ -59,5 +59,5 @@ BEGIN
     END LOOP;
   END LOOP;
 
-  RAISE NOTICE 'Fixed % accommodations with missing external_code', fixed;
+  RAISE NOTICE 'Fixed accommodations with missing external_code: %', fixed;
 END $$;

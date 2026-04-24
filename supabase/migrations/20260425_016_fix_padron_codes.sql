@@ -34,5 +34,5 @@ BEGIN
     WHERE id = r.id;
   END LOOP;
 
-  RAISE NOTICE 'Assigned codes 11.% to % Padrón accommodations (starting from 11.%)', counter - max_sub, max_sub + 1;
+  RAISE NOTICE 'Assigned codes to Padrón accommodations: %', counter - max_sub;
 END $$;
