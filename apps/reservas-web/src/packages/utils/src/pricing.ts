@@ -58,9 +58,9 @@ const PAIR_PRICES: Record<string, number> = {
   "7:8": 6,   // 1 etapa
   "7:9": 6,   // 1 etapa
   "7:10": 12, // 2 etapas
-  "7:11": 18, // 3 etapas
-  "7:12": 24, // 4 etapas
-  "7:13": 30, // 5 etapas
+  "7:11": 12, // 2 etapas
+  "7:12": 18, // 3 etapas
+  "7:13": 24, // 4 etapas
   // Desde Caldas (8)
   "8:9": 6,   // 1 etapa
   "8:10": 6,  // 1 etapa

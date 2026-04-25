@@ -18,6 +18,9 @@ const CHANNEL_LABELS: Record<string, string> = {
   phone: "Teléfono",
   email: "Email",
   backoffice: "Backoffice",
+  walk_in: "Presencial",
+  partner: "Colaborador",
+  other: "Otro",
 };
 
 const PAYMENT_LABELS: Record<string, { label: string; cls: string }> = {

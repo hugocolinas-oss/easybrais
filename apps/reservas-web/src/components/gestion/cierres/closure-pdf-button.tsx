@@ -126,7 +126,7 @@ export function ClosurePdfButton({ closure }: Props) {
       doc.line(15, y, pageW - 15, y);
       y += 8;
 
-      const payLabel: Record<string, string> = { paid: "Pagado", pending: "Pendiente", refunded: "Reembolsado" };
+      const payLabel: Record<string, string> = { paid: "Pagado", pending: "Pendiente", partial: "Parcial", refunded: "Reembolsado" };
 
       autoTable(doc, {
         startY: y,
