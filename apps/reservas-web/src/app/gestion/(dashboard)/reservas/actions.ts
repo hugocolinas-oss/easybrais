@@ -242,7 +242,7 @@ export async function deleteBooking(bookingId: string) {
   if (!UUID_RE.test(bookingId)) return { error: "ID de reserva inválido." };
 
   try {
-    const { userId } = await requireAuth();
+    await requireAuth();
     const supabase = createAdminClient();
 
     const { data: booking, error: fetchErr } = await supabase
@@ -253,9 +253,39 @@ export async function deleteBooking(bookingId: string) {
 
     if (fetchErr || !booking) return { error: "Reserva no encontrada." };
 
+    // 1. Obtener booking_items y sus fechas de servicio para regenerar cierres
+    const { data: bookingItems } = await supabase
+      .from("booking_items")
+      .select("id, service_date")
+      .eq("booking_id", bookingId);
+
+    const itemIds = (bookingItems ?? []).map((i: { id: string }) => i.id);
+    const affectedDates = [
+      ...new Set(
+        (bookingItems ?? [])
+          .map((i: { service_date: string | null }) => i.service_date)
+          .filter(Boolean) as string[],
+      ),
+    ];
+
+    // 2. Eliminar paradas de ruta diaria que referencian estos items
+    //    (daily_route_stops.booking_item_id no tiene ON DELETE CASCADE)
+    if (itemIds.length > 0) {
+      const { error: stopErr } = await supabase
+        .from("daily_route_stops")
+        .delete()
+        .in("booking_item_id", itemIds);
+
+      if (stopErr) {
+        console.error("[deleteBooking] delete route stops failed:", stopErr.message);
+      }
+    }
+
+    // 3. Eliminar eventos y items explícitamente
     await supabase.from("booking_events").delete().eq("booking_id", bookingId);
     await supabase.from("booking_items").delete().eq("booking_id", bookingId);
 
+    // 4. Eliminar la reserva
     const { error: delErr } = await supabase
       .from("bookings")
       .delete()
@@ -266,11 +296,82 @@ export async function deleteBooking(bookingId: string) {
       return { error: "Error al eliminar la reserva." };
     }
 
+    // 5. Regenerar cierres afectados para mantener totales correctos
+    for (const date of affectedDates) {
+      const { data: existingClosures } = await supabase
+        .from("daily_cash_closures")
+        .select("id")
+        .eq("closure_date", date);
+
+      if (existingClosures && existingClosures.length > 0) {
+        for (const c of existingClosures) {
+          await supabase.from("daily_cash_closures").delete().eq("id", c.id);
+        }
+        await regenerateClosureForDate(supabase, date);
+      }
+    }
+
     revalidatePath("/gestion/reservas");
+    revalidatePath("/gestion/ruta");
+    revalidatePath("/gestion/cierres");
+    revalidatePath("/gestion/operativa");
     revalidatePath("/gestion");
     return { ok: true, deleted: true };
   } catch (err) {
     console.error("[deleteBooking] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al eliminar." };
   }
+}
+
+const OVERWEIGHT_FEE = 5;
+
+async function regenerateClosureForDate(
+  supabase: ReturnType<typeof createAdminClient>,
+  date: string,
+) {
+  const { data: items } = await supabase
+    .from("booking_items")
+    .select("bags_count, overweight_bags_count, line_total, bookings!inner(id, status, payment_status)")
+    .eq("service_date", date);
+
+  interface ClosureItem {
+    bags_count: number;
+    overweight_bags_count: number;
+    line_total: number;
+    bookings: { id: string; status: string; payment_status: string };
+  }
+
+  const rows = (items ?? []) as unknown as ClosureItem[];
+  if (rows.length === 0) return;
+
+  const active = rows.filter((i) => i.bookings.status !== "cancelled");
+  const cancelledIds = new Set(
+    rows.filter((i) => i.bookings.status === "cancelled").map((i) => i.bookings.id),
+  );
+
+  const activeBookingIds = new Set(active.map((i) => i.bookings.id));
+  const totalBags = active.reduce((s, i) => s + (i.bags_count || 0), 0);
+  const totalOverweight = active.reduce((s, i) => s + (i.overweight_bags_count || 0), 0);
+  const extrasAmount = totalOverweight * OVERWEIGHT_FEE;
+  const grossAmount = active.reduce((s, i) => s + (Number(i.line_total) || 0), 0);
+
+  const pendingIds = new Set(
+    active.filter((i) => i.bookings.payment_status === "pending").map((i) => i.bookings.id),
+  );
+  const pendingItems = active.filter((i) => pendingIds.has(i.bookings.id));
+  const pendingCollectionAmount =
+    pendingItems.reduce((s, i) => s + (Number(i.line_total) || 0), 0) +
+    pendingItems.reduce((s, i) => s + (i.overweight_bags_count || 0), 0) * OVERWEIGHT_FEE;
+
+  await supabase.from("daily_cash_closures").insert({
+    closure_date: date,
+    total_bookings: activeBookingIds.size,
+    total_bags: totalBags,
+    gross_amount: grossAmount,
+    discounts_amount: 0,
+    extras_amount: extrasAmount,
+    net_amount: grossAmount + extrasAmount,
+    pending_collection_amount: pendingCollectionAmount,
+    cancellations_count: cancelledIds.size,
+  });
 }
