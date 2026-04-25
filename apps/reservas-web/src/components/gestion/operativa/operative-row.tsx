@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
 import type { OperativeItem } from "@/lib/gestion/operative-queries";
 import { advanceItemStatus, reportIncident } from "@/app/gestion/(dashboard)/operativa/actions";
@@ -9,40 +9,131 @@ interface Props {
   item: OperativeItem;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; dot: string; bg: string; text: string }> = {
-  pending:    { label: "Pendiente",   dot: "bg-amber-500",  bg: "bg-amber-50",  text: "text-amber-700" },
-  picked_up:  { label: "Recogido",    dot: "bg-purple-500", bg: "bg-purple-50", text: "text-purple-700" },
-  delivered:  { label: "Entregado",   dot: "bg-green-500",  bg: "bg-green-50",  text: "text-green-700" },
-  incident:   { label: "Incidencia",  dot: "bg-red-500",    bg: "bg-red-50",    text: "text-red-700" },
-};
+const STATUS_OPTIONS = [
+  { key: "pending",    label: "Pendiente",  dot: "bg-amber-500",  bg: "bg-amber-50",  text: "text-amber-700",  border: "border-amber-200" },
+  { key: "picked_up",  label: "Recogido",   dot: "bg-purple-500", bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+  { key: "delivered",  label: "Entregado",  dot: "bg-green-500",  bg: "bg-green-50",  text: "text-green-700",  border: "border-green-200" },
+  { key: "incident",   label: "Incidencia", dot: "bg-red-500",    bg: "bg-red-50",    text: "text-red-700",    border: "border-red-200" },
+] as const;
+
+const STATUS_MAP = Object.fromEntries(STATUS_OPTIONS.map((s) => [s.key, s]));
 
 const FLOW_NEXT: Record<string, { status: string; label: string; icon: string }> = {
   pending:    { status: "picked_up",  label: "Recogido",    icon: "📦" },
   picked_up:  { status: "delivered",  label: "Entregado",   icon: "✅" },
 };
 
+function StatusDropdown({
+  currentStatus,
+  onSelect,
+  disabled,
+}: {
+  currentStatus: string;
+  onSelect: (status: string) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const cfg = STATUS_MAP[currentStatus] ?? STATUS_OPTIONS[0];
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => !disabled && setOpen(!open)}
+        disabled={disabled}
+        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all ${cfg.bg} ${cfg.text} ${cfg.border} border ${disabled ? "opacity-50" : "cursor-pointer hover:shadow-sm"}`}
+      >
+        <span className={`h-2 w-2 rounded-full ${cfg.dot}`} />
+        {cfg.label}
+        <svg className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-1 w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+          {STATUS_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              disabled={opt.key === currentStatus}
+              onClick={() => {
+                onSelect(opt.key);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
+                opt.key === currentStatus
+                  ? "bg-gray-50 font-bold text-gray-400"
+                  : "text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <span className={`h-2 w-2 shrink-0 rounded-full ${opt.dot}`} />
+              {opt.label}
+              {opt.key === currentStatus && (
+                <svg className="ml-auto h-3.5 w-3.5 text-brand-600" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function OperativeRow({ item }: Props) {
   const [pending, startTransition] = useTransition();
+  const [optimisticStatus, setOptimisticStatus] = useState(item.operational_status);
   const [feedback, setFeedback] = useState<{ text: string; isError: boolean } | null>(null);
   const [showIncident, setShowIncident] = useState(false);
   const [incidentMsg, setIncidentMsg] = useState("");
   const [expanded, setExpanded] = useState(false);
 
-  const cfg = STATUS_CONFIG[item.operational_status] ?? { label: "Pendiente", dot: "bg-amber-500", bg: "bg-amber-50", text: "text-amber-700" };
-  const next = FLOW_NEXT[item.operational_status] as { status: string; label: string; icon: string } | undefined;
+  useEffect(() => {
+    setOptimisticStatus(item.operational_status);
+  }, [item.operational_status]);
+
+  const cfg = STATUS_MAP[optimisticStatus] ?? STATUS_OPTIONS[0];
+  const next = FLOW_NEXT[optimisticStatus] as { status: string; label: string; icon: string } | undefined;
+
+  function changeStatus(newStatus: string) {
+    if (newStatus === optimisticStatus) return;
+
+    if (newStatus === "incident") {
+      setShowIncident(true);
+      return;
+    }
+
+    const prevStatus = optimisticStatus;
+    setOptimisticStatus(newStatus);
+    setFeedback(null);
+
+    startTransition(async () => {
+      const res = await advanceItemStatus(item.id, newStatus);
+      if ("error" in res && res.error) {
+        setOptimisticStatus(prevStatus);
+        setFeedback({ text: res.error, isError: true });
+      } else {
+        const label = STATUS_MAP[newStatus]?.label ?? newStatus;
+        setFeedback({ text: `Marcado como ${label}`, isError: false });
+        setTimeout(() => setFeedback(null), 2500);
+      }
+    });
+  }
 
   function handleAdvance() {
     if (!next) return;
-    setFeedback(null);
-    startTransition(async () => {
-      const res = await advanceItemStatus(item.id, next.status);
-      if ("error" in res && res.error) {
-        setFeedback({ text: res.error, isError: true });
-      } else {
-        setFeedback({ text: `Marcado como ${next.label}`, isError: false });
-        setTimeout(() => setFeedback(null), 2000);
-      }
-    });
+    changeStatus(next.status);
   }
 
   function handleIncident() {
@@ -53,20 +144,21 @@ export function OperativeRow({ item }: Props) {
       if ("error" in res && res.error) {
         setFeedback({ text: res.error, isError: true });
       } else {
+        setOptimisticStatus("incident");
         setFeedback({ text: "Incidencia registrada", isError: false });
         setShowIncident(false);
         setIncidentMsg("");
-        setTimeout(() => setFeedback(null), 2000);
+        setTimeout(() => setFeedback(null), 2500);
       }
     });
   }
 
   return (
-    <div className={`rounded-lg border bg-white shadow-sm transition-all ${item.operational_status === "incident" ? "border-red-200" : "border-gray-200"}`}>
-      {/* Main row — mobile-first layout */}
+    <div className={`rounded-lg border bg-white shadow-sm transition-all ${optimisticStatus === "incident" ? "border-red-200" : "border-gray-200"}`}>
+      {/* Main row */}
       <div className="px-3 py-3 sm:px-4">
         <div className="flex items-center gap-2 sm:gap-3">
-          <span className={`h-3 w-3 shrink-0 rounded-full ${cfg.dot}`} />
+          <span className={`h-3 w-3 shrink-0 rounded-full transition-colors ${cfg.dot}`} />
           <Link href={`/gestion/reservas/${item.booking_id}`} className="shrink-0 font-mono text-xs font-bold text-brand-700 hover:underline sm:text-sm">
             {item.booking_code}
           </Link>
@@ -86,19 +178,20 @@ export function OperativeRow({ item }: Props) {
             {item.bags_count} 🎒
           </span>
 
-          <span className={`hidden shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold sm:inline-flex ${cfg.bg} ${cfg.text}`}>
-            {cfg.label}
-          </span>
+          {/* Status dropdown — desktop */}
+          <div className="hidden sm:block">
+            <StatusDropdown currentStatus={optimisticStatus} onSelect={changeStatus} disabled={pending} />
+          </div>
 
-          {/* Desktop actions */}
+          {/* Desktop quick advance */}
           <div className="hidden items-center gap-1.5 sm:flex">
-            {next && item.operational_status !== "incident" && (
+            {next && optimisticStatus !== "incident" && (
               <button type="button" onClick={handleAdvance} disabled={pending}
                 className="shrink-0 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 disabled:opacity-50">
                 {pending ? "…" : `${next.icon} ${next.label}`}
               </button>
             )}
-            {item.operational_status !== "delivered" && item.operational_status !== "incident" && (
+            {optimisticStatus !== "delivered" && optimisticStatus !== "incident" && (
               <button type="button" onClick={() => setShowIncident(!showIncident)}
                 className="shrink-0 rounded-lg border border-red-200 px-2 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50" title="Reportar incidencia">
                 ⚠
@@ -115,26 +208,25 @@ export function OperativeRow({ item }: Props) {
           </button>
         </div>
 
-        {/* Mobile: route + customer + status + action buttons */}
+        {/* Mobile: route + customer + dropdown + actions */}
         <div className="mt-2 sm:hidden">
           <div className="flex items-center gap-1.5 text-xs text-gray-600">
             <span className="truncate font-medium">{item.pickup_name}</span>
             <span className="text-gray-400">→</span>
             <span className="truncate font-medium">{item.dropoff_name}</span>
           </div>
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1.5 flex items-center gap-2">
             <span className="text-xs text-gray-400">{item.customer_name}</span>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
+            <StatusDropdown currentStatus={optimisticStatus} onSelect={changeStatus} disabled={pending} />
           </div>
-          {/* Mobile action buttons — large touch targets */}
           <div className="mt-2.5 flex gap-2">
-            {next && item.operational_status !== "incident" && (
+            {next && optimisticStatus !== "incident" && (
               <button type="button" onClick={handleAdvance} disabled={pending}
                 className="flex-1 rounded-lg bg-brand-600 py-2.5 text-center text-sm font-semibold text-white shadow-sm active:bg-brand-700 disabled:opacity-50">
                 {pending ? "…" : `${next.icon} ${next.label}`}
               </button>
             )}
-            {item.operational_status !== "delivered" && item.operational_status !== "incident" && (
+            {optimisticStatus !== "delivered" && optimisticStatus !== "incident" && (
               <button type="button" onClick={() => setShowIncident(!showIncident)}
                 className="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 active:bg-red-50">
                 ⚠ Incidencia
@@ -146,7 +238,7 @@ export function OperativeRow({ item }: Props) {
 
       {/* Feedback */}
       {feedback && (
-        <div className={`border-t px-4 py-2 text-xs font-medium ${feedback.isError ? "border-red-100 bg-red-50 text-red-700" : "border-green-100 bg-green-50 text-green-700"}`}>
+        <div className={`border-t px-4 py-2 text-xs font-medium transition-all ${feedback.isError ? "border-red-100 bg-red-50 text-red-700" : "border-green-100 bg-green-50 text-green-700"}`}>
           {feedback.text}
         </div>
       )}
