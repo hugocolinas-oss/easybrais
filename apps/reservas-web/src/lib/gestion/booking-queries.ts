@@ -57,8 +57,10 @@ export interface BookingDetail {
 export interface BookingItemRow {
   id: string;
   service_date: string;
+  pickup_accommodation_id: string;
   pickup_name: string;
   pickup_town: string;
+  dropoff_accommodation_id: string;
   dropoff_name: string;
   dropoff_town: string;
   bags_count: number;
@@ -149,6 +151,8 @@ interface RawBookingItem {
   unit_price: number;
   line_total: number;
   operational_status: string;
+  pickup_accommodation_id: string;
+  dropoff_accommodation_id: string;
   pickup: { name: string; town: string | null } | null;
   dropoff: { name: string; town: string | null } | null;
 }
@@ -263,7 +267,7 @@ export async function getBookingDetail(id: string): Promise<BookingDetail | null
   const [{ data: rawItems }, { data: rawEvents }] = await Promise.all([
     supabase
       .from("booking_items")
-      .select("id, service_date, bags_count, overweight_bags_count, unit_price, line_total, operational_status, pickup:pickup_accommodation_id(name, town), dropoff:dropoff_accommodation_id(name, town)")
+      .select("id, service_date, bags_count, overweight_bags_count, unit_price, line_total, operational_status, pickup_accommodation_id, dropoff_accommodation_id, pickup:pickup_accommodation_id(name, town), dropoff:dropoff_accommodation_id(name, town)")
       .eq("booking_id", id)
       .order("service_date", { ascending: true }),
     supabase
@@ -276,8 +280,10 @@ export async function getBookingDetail(id: string): Promise<BookingDetail | null
   const items: BookingItemRow[] = ((rawItems ?? []) as unknown as RawBookingItem[]).map((i) => ({
     id: i.id,
     service_date: i.service_date,
+    pickup_accommodation_id: i.pickup_accommodation_id,
     pickup_name: i.pickup?.name ?? "—",
     pickup_town: i.pickup?.town ?? "",
+    dropoff_accommodation_id: i.dropoff_accommodation_id,
     dropoff_name: i.dropoff?.name ?? "—",
     dropoff_town: i.dropoff?.town ?? "",
     bags_count: i.bags_count,

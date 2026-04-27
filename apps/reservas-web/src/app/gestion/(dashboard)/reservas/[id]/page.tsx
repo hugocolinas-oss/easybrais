@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatEUR, fmtDateShort } from "@easybrais/utils";
 import { getBookingDetail } from "@/lib/gestion/booking-queries";
+import { getServerSupabase } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/gestion/reservas/status-badge";
 import { StatusSelect } from "@/components/gestion/reservas/status-select";
 import { NotesEditor } from "@/components/gestion/reservas/notes-editor";
@@ -9,7 +10,9 @@ import { EventTimeline } from "@/components/gestion/reservas/event-timeline";
 import { BackToBookings } from "@/components/gestion/reservas/back-button";
 import { PriceEditor } from "@/components/gestion/reservas/price-editor";
 import { ItemBagsEditor } from "@/components/gestion/reservas/item-bags-editor";
+import { ItemAccommodationEditor } from "@/components/gestion/reservas/item-accommodation-editor";
 import { DeleteBookingButton } from "@/components/gestion/reservas/delete-booking-button";
+import { BookingPdfButton } from "@/components/gestion/reservas/booking-pdf-button";
 
 export const dynamic = "force-dynamic";
 
@@ -43,8 +46,22 @@ export default async function BookingDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const booking = await getBookingDetail(id);
+  const [booking, supabase] = await Promise.all([getBookingDetail(id), getServerSupabase()]);
   if (!booking) notFound();
+
+  const { data: accRows } = await supabase
+    .from("accommodations")
+    .select("id, name, display_name, town")
+    .eq("active", true)
+    .order("name");
+
+  type AccRow = { id: string; name: string; display_name: string | null; town: string | null };
+  const accommodations = (accRows ?? []).map((a: AccRow) => ({
+    id: a.id,
+    name: a.name,
+    display_name: a.display_name ?? a.name,
+    town: a.town,
+  }));
 
   const totalBags = booking.items.reduce((s, i) => s + i.bags_count, 0);
   const totalOverweight = booking.items.reduce((s, i) => s + i.overweight_bags_count, 0);
@@ -116,9 +133,9 @@ export default async function BookingDetailPage({
                     <StatusBadge status={item.operational_status} />
                   </div>
                   <div className="mt-1.5 flex items-center gap-1.5 text-sm">
-                    <span className="truncate font-medium text-gray-900">{item.pickup_name}</span>
+                    <ItemAccommodationEditor itemId={item.id} field="pickup" currentName={item.pickup_name} currentTown={item.pickup_town} accommodations={accommodations} />
                     <span className="shrink-0 text-gray-400">→</span>
-                    <span className="truncate font-medium text-gray-900">{item.dropoff_name}</span>
+                    <ItemAccommodationEditor itemId={item.id} field="dropoff" currentName={item.dropoff_name} currentTown={item.dropoff_town} accommodations={accommodations} />
                   </div>
                   <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
                     <div className="flex items-center gap-1">
@@ -150,12 +167,10 @@ export default async function BookingDetailPage({
                     <tr key={item.id}>
                       <td className="whitespace-nowrap px-5 py-2.5 text-gray-700">{fmtDateShort(item.service_date)}</td>
                       <td className="px-5 py-2.5">
-                        <p className="text-gray-900">{item.pickup_name}</p>
-                        {item.pickup_town && <p className="text-xs text-gray-400">{item.pickup_town}</p>}
+                        <ItemAccommodationEditor itemId={item.id} field="pickup" currentName={item.pickup_name} currentTown={item.pickup_town} accommodations={accommodations} />
                       </td>
                       <td className="px-5 py-2.5">
-                        <p className="text-gray-900">{item.dropoff_name}</p>
-                        {item.dropoff_town && <p className="text-xs text-gray-400">{item.dropoff_town}</p>}
+                        <ItemAccommodationEditor itemId={item.id} field="dropoff" currentName={item.dropoff_name} currentTown={item.dropoff_town} accommodations={accommodations} />
                       </td>
                       <td className="px-5 py-2.5 text-center">
                         <ItemBagsEditor itemId={item.id} bagsCount={item.bags_count} overweightBagsCount={item.overweight_bags_count} />
@@ -266,6 +281,8 @@ export default async function BookingDetailPage({
           <Card title="Notas internas">
             <NotesEditor bookingId={booking.id} initialNotes={booking.notes_internal ?? ""} />
           </Card>
+
+          <BookingPdfButton booking={booking} />
 
           <DeleteBookingButton bookingId={booking.id} bookingCode={booking.booking_code} />
         </div>

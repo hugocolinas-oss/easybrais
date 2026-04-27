@@ -128,10 +128,24 @@ export function AccommodationCombobox({
       </div>
 
       {selected && !open && (
-        <p className="mt-1 truncate pl-1 text-[11px] text-brand-800/35">
-          {selected.town ? `${selected.town}` : ""}
-          {selected.address ? ` · ${selected.address}` : ""}
-        </p>
+        <>
+          <p className="mt-1 truncate pl-1 text-[11px] text-brand-800/35">
+            {selected.town ? `${selected.town}` : ""}
+            {selected.address ? ` · ${selected.address}` : ""}
+          </p>
+          {selected.reservation_notes && (
+            <div className="mt-1.5 rounded-lg border border-gold-300/60 bg-gradient-to-r from-gold-50 to-amber-50/50 px-3 py-2">
+              <div className="flex items-start gap-2">
+                <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                </svg>
+                <p className="whitespace-pre-line text-[11px] leading-relaxed text-gold-900/80">
+                  {selected.reservation_notes}
+                </p>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {open && !disabled && (
@@ -167,7 +181,12 @@ export function AccommodationCombobox({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-brand-900">{a.display_name}</p>
                     {a.town && <p className="truncate text-[11px] text-brand-800/35">{a.town}</p>}
-                    {a.reservation_notes && <p className="mt-0.5 truncate text-[10px] text-gold-600/60">{a.reservation_notes}</p>}
+                    {a.reservation_notes && (
+                      <div className="mt-1 rounded-md border border-gold-200/60 bg-gold-50/50 px-2 py-1.5">
+                        <p className="text-[10px] font-bold uppercase text-gold-700/70">Info importante</p>
+                        <p className="mt-0.5 whitespace-pre-line text-[11px] leading-relaxed text-gold-900/80">{a.reservation_notes}</p>
+                      </div>
+                    )}
                   </div>
                   {isSelected && (
                     <svg className="mt-0.5 h-4 w-4 shrink-0 text-brand-900" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">

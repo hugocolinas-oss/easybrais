@@ -200,6 +200,73 @@ export async function updateBookingItem(
   }
 }
 
+export async function updateBookingItemAccommodation(
+  itemId: string,
+  field: "pickup" | "dropoff",
+  accommodationId: string,
+) {
+  if (!UUID_RE.test(itemId)) return { error: "ID de tramo inválido." };
+  if (!UUID_RE.test(accommodationId)) return { error: "ID de alojamiento inválido." };
+
+  try {
+    const { userId } = await requireAuth();
+    const supabase = createAdminClient();
+
+    const { data: item, error: fetchErr } = await supabase
+      .from("booking_items")
+      .select("id, booking_id, pickup_accommodation_id, dropoff_accommodation_id")
+      .eq("id", itemId)
+      .single();
+
+    if (fetchErr || !item) return { error: "Tramo no encontrado." };
+
+    const col = field === "pickup" ? "pickup_accommodation_id" : "dropoff_accommodation_id";
+    const oldId = field === "pickup" ? item.pickup_accommodation_id : item.dropoff_accommodation_id;
+
+    if (oldId === accommodationId) return { ok: true };
+
+    const { error: updateErr } = await supabase
+      .from("booking_items")
+      .update({ [col]: accommodationId } as never)
+      .eq("id", itemId);
+
+    if (updateErr) {
+      console.error("[updateBookingItemAccommodation] update failed:", updateErr.message);
+      return { error: "Error al actualizar el alojamiento." };
+    }
+
+    const { data: newAcc } = await supabase
+      .from("accommodations")
+      .select("name")
+      .eq("id", accommodationId)
+      .single();
+
+    const bookingId = item.booking_id as string;
+    await supabase.from("booking_events").insert({
+      booking_id: bookingId,
+      event_type: "item_updated" as const,
+      actor_type: "staff" as const,
+      actor_id: userId,
+      payload_json: {
+        item_id: itemId,
+        field: `${field}_accommodation`,
+        from: oldId,
+        to: accommodationId,
+        new_name: newAcc?.name ?? "—",
+      },
+    });
+
+    revalidatePath(`/gestion/reservas/${bookingId}`);
+    revalidatePath("/gestion/reservas");
+    revalidatePath("/gestion/operativa");
+    revalidatePath("/gestion/ruta");
+    return { ok: true };
+  } catch (err) {
+    console.error("[updateBookingItemAccommodation] unexpected:", err instanceof Error ? err.message : err);
+    return { error: "Error inesperado." };
+  }
+}
+
 export async function updateInternalNotes(bookingId: string, notes: string) {
   if (!UUID_RE.test(bookingId)) return { error: "ID de reserva inválido." };
   if (notes.length > 1000) return { error: "Las notas son demasiado largas." };
