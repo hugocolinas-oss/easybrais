@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import type { Accommodation } from "@/lib/types";
+import { useT } from "@/lib/i18n/context";
 
 interface Props {
   value: string;
@@ -20,6 +21,7 @@ export function AccommodationCombobox({
   error,
   onChange,
 }: Props) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -109,7 +111,7 @@ export function AccommodationCombobox({
             if (!open) setOpen(true);
           }}
           onFocus={handleFocus}
-          placeholder={disabled ? "Selecciona primero la etapa" : placeholder}
+          placeholder={disabled ? t("combo.selectFirst") : placeholder}
           disabled={disabled}
           className="w-full border-0 bg-transparent text-sm text-brand-900 placeholder:text-brand-800/25 focus:outline-none disabled:text-brand-800/25"
         />
@@ -155,7 +157,7 @@ export function AccommodationCombobox({
         >
           {filtered.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-brand-800/30">
-              No se encontraron alojamientos
+              {t("combo.noResults")}
             </div>
           ) : (
             filtered.map((a) => {
@@ -183,7 +185,7 @@ export function AccommodationCombobox({
                     {a.town && <p className="truncate text-[11px] text-brand-800/35">{a.town}</p>}
                     {a.reservation_notes && (
                       <div className="mt-1 rounded-md border border-gold-200/60 bg-gold-50/50 px-2 py-1.5">
-                        <p className="text-[10px] font-bold uppercase text-gold-700/70">Info importante</p>
+                        <p className="text-[10px] font-bold uppercase text-gold-700/70">{t("combo.importantInfo")}</p>
                         <p className="mt-0.5 whitespace-pre-line text-[11px] leading-relaxed text-gold-900/80">{a.reservation_notes}</p>
                       </div>
                     )}

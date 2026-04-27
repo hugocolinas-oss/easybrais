@@ -2,7 +2,7 @@
 
 import { useTransition, useState } from "react";
 import type { DailyRoute } from "@/lib/gestion/route-queries";
-import { updateRouteStatus, deleteRoute } from "@/app/gestion/(dashboard)/ruta/actions";
+import { updateRouteStatus, deleteRoute, refreshRoute } from "@/app/gestion/(dashboard)/ruta/actions";
 import { GoogleMapsButton } from "./google-maps-button";
 
 interface Props {
@@ -38,6 +38,15 @@ export function RouteHeader({ route }: Props) {
     });
   }
 
+  function handleRefresh() {
+    startTransition(async () => {
+      const res = await refreshRoute(route.id, route.route_date);
+      if (res && "error" in res) {
+        alert(res.error);
+      }
+    });
+  }
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
       {/* Top bar: status + actions */}
@@ -54,6 +63,20 @@ export function RouteHeader({ route }: Props) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={pending}
+            className="rounded-lg border border-brand-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 shadow-sm transition-colors hover:bg-brand-50 disabled:opacity-50"
+            title="Sincroniza nuevas reservas sin perder el progreso"
+          >
+            <span className="flex items-center gap-1.5">
+              <svg className={`h-3.5 w-3.5 ${pending ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+              </svg>
+              Actualizar ruta
+            </span>
+          </button>
           {route.status === "draft" && (
             <button
               type="button"

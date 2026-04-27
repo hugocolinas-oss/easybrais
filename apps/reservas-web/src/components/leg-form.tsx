@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { StageLeg, Accommodation } from "@/lib/types";
+import { useT } from "@/lib/i18n/context";
 import { AccommodationCombobox } from "./accommodation-combobox";
 
 interface Props {
@@ -66,6 +67,7 @@ export function LegForm({
     onUpdate(next);
   }
 
+  const { t } = useT();
   const prefix = `leg_${index}`;
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -83,11 +85,11 @@ export function LegForm({
             {index + 1}
           </span>
           <h4 className="text-sm font-semibold text-brand-900">
-            Transporte {index + 1}
+            {t("leg.transport")} {index + 1}
           </h4>
           {stagesCount > 1 && (
             <span className="rounded bg-gold-100 px-1.5 py-0.5 text-[9px] font-bold text-gold-700">
-              {stagesCount} etapas
+              {stagesCount} {t("leg.stages")}
             </span>
           )}
         </div>
@@ -97,14 +99,14 @@ export function LegForm({
             onClick={onRemove}
             className="rounded-lg px-2.5 py-1 text-xs font-medium text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
           >
-            Eliminar
+            {t("leg.delete")}
           </button>
         )}
       </div>
 
       <div className="space-y-4 p-4 sm:space-y-5 sm:p-5">
         {/* Fecha */}
-        <Field label="Fecha del servicio" required error={errors[`${prefix}_date`]}>
+        <Field label={t("leg.date")} required error={errors[`${prefix}_date`]}>
           <input
             type="date"
             value={leg.serviceDate}
@@ -131,27 +133,27 @@ export function LegForm({
                 <div className="w-full space-y-3">
                   <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sage-700/80">
                     <span className="h-2 w-2 rounded-full bg-sage-500 sm:hidden" />
-                    Recogida
+                    {t("leg.pickup")}
                   </p>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field label="Localidad de salida">
+                    <Field label={t("leg.departure")}>
                       <select
                         value={leg.departureTown}
                         onChange={(e) => update("departureTown", e.target.value)}
                         disabled={pickupLocked}
                         className={selectClass()}
                       >
-                        <option value="">Todas las localidades</option>
-                        {towns.map((t) => (
-                          <option key={t} value={t}>{t}</option>
+                        <option value="">{t("leg.allTowns")}</option>
+                        {towns.map((tw) => (
+                          <option key={tw} value={tw}>{tw}</option>
                         ))}
                       </select>
                     </Field>
-                    <Field label="Alojamiento" required error={errors[`${prefix}_pickup`]}>
+                    <Field label={t("leg.accommodation")} required error={errors[`${prefix}_pickup`]}>
                       <AccommodationCombobox
                         value={leg.pickupAccommodationId}
                         accommodations={pickupAccommodations}
-                        placeholder="Busca alojamiento..."
+                        placeholder={t("leg.searchAccommodation")}
                         error={errors[`${prefix}_pickup`]}
                         onChange={(v) => update("pickupAccommodationId", v)}
                       />
@@ -162,7 +164,7 @@ export function LegForm({
                       <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.07-9.07l4.5-4.5a4.5 4.5 0 016.364 6.364l-1.757 1.757" />
                       </svg>
-                      Vinculado a la entrega anterior
+                      {t("leg.linked")}
                     </p>
                   )}
                 </div>
@@ -187,26 +189,26 @@ export function LegForm({
                 <div className="w-full space-y-3">
                   <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gold-700/80">
                     <span className="h-2 w-2 rounded-full bg-gold-500 sm:hidden" />
-                    Entrega
+                    {t("leg.dropoff")}
                   </p>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field label="Localidad de llegada">
+                    <Field label={t("leg.arrival")}>
                       <select
                         value={leg.arrivalTown}
                         onChange={(e) => update("arrivalTown", e.target.value)}
                         className={selectClass()}
                       >
-                        <option value="">Todas las localidades</option>
-                        {towns.map((t) => (
-                          <option key={t} value={t}>{t}</option>
+                        <option value="">{t("leg.allTowns")}</option>
+                        {towns.map((tw) => (
+                          <option key={tw} value={tw}>{tw}</option>
                         ))}
                       </select>
                     </Field>
-                    <Field label="Alojamiento" required error={errors[`${prefix}_dropoff`]}>
+                    <Field label={t("leg.accommodation")} required error={errors[`${prefix}_dropoff`]}>
                       <AccommodationCombobox
                         value={leg.dropoffAccommodationId}
                         accommodations={dropoffAccommodations}
-                        placeholder="Busca alojamiento..."
+                        placeholder={t("leg.searchAccommodation")}
                         error={errors[`${prefix}_dropoff`]}
                         onChange={(v) => update("dropoffAccommodationId", v)}
                       />
@@ -220,7 +222,7 @@ export function LegForm({
 
         {/* Mochilas */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          <Field label="Mochilas" required error={errors[`${prefix}_bags`]}>
+          <Field label={t("leg.bags")} required error={errors[`${prefix}_bags`]}>
             <Stepper
               value={leg.bagsCount}
               min={1}
@@ -229,7 +231,7 @@ export function LegForm({
             />
           </Field>
 
-          <Field label="Con sobrepeso (+20 kg)">
+          <Field label={t("leg.overweight")}>
             <Stepper
               value={leg.overweightBagsCount}
               min={0}

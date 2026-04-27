@@ -174,6 +174,146 @@ export async function generateRoute(date: string) {
   }
 }
 
+export async function refreshRoute(routeId: string, routeDate: string) {
+  if (!UUID_RE.test(routeId) || !DATE_RE.test(routeDate))
+    return { error: "Parámetros inválidos." };
+
+  try {
+    const { userId } = await requireAuth();
+    const supabase = createAdminClient();
+
+    const { data: existingStops } = await supabase
+      .from("daily_route_stops")
+      .select("id, booking_item_id, stop_type, completed, completed_at, notes, position")
+      .eq("route_id", routeId)
+      .order("position", { ascending: true });
+
+    const completedMap = new Map<string, { completed: boolean; completed_at: string | null; notes: string | null }>();
+    for (const s of (existingStops ?? []) as { id: string; booking_item_id: string | null; stop_type: string; completed: boolean; completed_at: string | null; notes: string | null }[]) {
+      if (s.booking_item_id) {
+        completedMap.set(`${s.booking_item_id}:${s.stop_type}`, { completed: s.completed, completed_at: s.completed_at, notes: s.notes });
+      }
+    }
+
+    const { data: items, error: fetchErr } = await supabase
+      .from("booking_items")
+      .select(
+        `id, bags_count, pickup_accommodation_id, dropoff_accommodation_id,
+         pickup:accommodations!booking_items_pickup_accommodation_id_fkey(name, town, external_code),
+         dropoff:accommodations!booking_items_dropoff_accommodation_id_fkey(name, town, external_code),
+         bookings!inner(booking_code, status, customers(full_name, phone))`,
+      )
+      .eq("service_date", routeDate)
+      .not("bookings.status", "in", "(cancelled,payment_expired)");
+
+    if (fetchErr) {
+      console.error("[refreshRoute] fetch items failed:", fetchErr.message);
+      return { error: "Error al consultar las reservas del día." };
+    }
+
+    const rows = (items ?? []) as unknown as RawBookingItem[];
+
+    await supabase.from("daily_route_stops").delete().eq("route_id", routeId);
+
+    if (rows.length === 0) {
+      await supabase.from("daily_routes").update({ total_stops: 0, total_bags: 0 } as never).eq("id", routeId);
+      revalidatePath("/gestion/ruta");
+      return { ok: true };
+    }
+
+    const allStops: Array<{
+      stop_type: string;
+      accommodation_id: string | null;
+      accommodation_name: string;
+      accommodation_town: string | null;
+      accommodation_code: string | null;
+      booking_item_id: string;
+      booking_code: string;
+      customer_name: string;
+      bags_count: number;
+    }> = [];
+
+    for (const item of rows) {
+      const code = item.bookings?.booking_code ?? "—";
+      const customer = item.bookings?.customers?.full_name ?? "—";
+
+      allStops.push({
+        stop_type: "pickup",
+        accommodation_id: item.pickup_accommodation_id,
+        accommodation_name: item.pickup?.name ?? "—",
+        accommodation_town: item.pickup?.town ?? null,
+        accommodation_code: item.pickup?.external_code ?? null,
+        booking_item_id: item.id,
+        booking_code: code,
+        customer_name: customer,
+        bags_count: item.bags_count,
+      });
+
+      allStops.push({
+        stop_type: "dropoff",
+        accommodation_id: item.dropoff_accommodation_id,
+        accommodation_name: item.dropoff?.name ?? "—",
+        accommodation_town: item.dropoff?.town ?? null,
+        accommodation_code: item.dropoff?.external_code ?? null,
+        booking_item_id: item.id,
+        booking_code: code,
+        customer_name: customer,
+        bags_count: item.bags_count,
+      });
+    }
+
+    allStops.sort((a, b) => {
+      const [a1, a2] = parseStageCode(a.accommodation_code);
+      const [b1, b2] = parseStageCode(b.accommodation_code);
+      if (a1 !== b1) return a1 - b1;
+      if (a2 !== b2) return a2 - b2;
+      if (a.stop_type !== b.stop_type) return a.stop_type === "dropoff" ? -1 : 1;
+      return 0;
+    });
+
+    const totalBags = rows.reduce((s, i) => s + i.bags_count, 0);
+
+    const stopsToInsert = allStops.map((stop, i) => {
+      const prevStop = completedMap.get(`${stop.booking_item_id}:${stop.stop_type}`);
+      return {
+        route_id: routeId,
+        position: i + 1,
+        stop_type: stop.stop_type,
+        accommodation_id: stop.accommodation_id,
+        accommodation_name: stop.accommodation_name,
+        accommodation_town: stop.accommodation_town,
+        booking_item_id: stop.booking_item_id,
+        booking_code: stop.booking_code,
+        customer_name: stop.customer_name,
+        bags_count: stop.bags_count,
+        completed: prevStop?.completed ?? false,
+        completed_at: prevStop?.completed_at ?? null,
+        notes: prevStop?.notes ?? null,
+      };
+    });
+
+    const { error: stopsErr } = await supabase
+      .from("daily_route_stops")
+      .insert(stopsToInsert);
+
+    if (stopsErr) {
+      console.error("[refreshRoute] stops insert failed:", stopsErr.message);
+      return { error: "Error al actualizar las paradas." };
+    }
+
+    await supabase
+      .from("daily_routes")
+      .update({ total_stops: allStops.length, total_bags: totalBags } as never)
+      .eq("id", routeId);
+
+    revalidatePath("/gestion/ruta");
+    return { ok: true };
+  } catch (err) {
+    console.error("[refreshRoute] unexpected:", err instanceof Error ? err.message : err);
+    return { error: "Error inesperado al actualizar la ruta." };
+  }
+}
+
 export async function deleteRoute(routeId: string) {
   if (!UUID_RE.test(routeId)) return { error: "ID inválido." };
 

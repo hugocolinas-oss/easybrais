@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/context";
+
 interface CustomerData {
   fullName: string;
   email: string;
@@ -25,6 +27,8 @@ const LANGUAGES = [
 ];
 
 export function CustomerFields({ value, onChange, errors }: Props) {
+  const { t } = useT();
+
   function update(field: keyof CustomerData, v: string) {
     onChange({ ...value, [field]: v });
   }
@@ -34,7 +38,7 @@ export function CustomerFields({ value, onChange, errors }: Props) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
           id="customer-fullName"
-          label="Nombre completo"
+          label={t("customer.name")}
           required
           error={errors.fullName}
         >
@@ -43,13 +47,13 @@ export function CustomerFields({ value, onChange, errors }: Props) {
             type="text"
             value={value.fullName}
             onChange={(e) => update("fullName", e.target.value)}
-            placeholder="Tu nombre y apellidos"
+            placeholder={t("customer.name.placeholder")}
             maxLength={120}
             className={inputClass(errors.fullName)}
           />
         </Field>
 
-        <Field id="customer-email" label="Email" required error={errors.email}>
+        <Field id="customer-email" label={t("customer.email")} required error={errors.email}>
           <input
             id="customer-email"
             type="email"
@@ -61,7 +65,7 @@ export function CustomerFields({ value, onChange, errors }: Props) {
           />
         </Field>
 
-        <Field id="customer-phone" label="Teléfono" required error={errors.phone}>
+        <Field id="customer-phone" label={t("customer.phone")} required error={errors.phone}>
           <input
             id="customer-phone"
             type="tel"
@@ -73,7 +77,7 @@ export function CustomerFields({ value, onChange, errors }: Props) {
           />
         </Field>
 
-        <Field id="customer-language" label="Idioma">
+        <Field id="customer-language" label={t("customer.language")}>
           <select
             id="customer-language"
             value={value.language}
@@ -89,14 +93,14 @@ export function CustomerFields({ value, onChange, errors }: Props) {
         </Field>
       </div>
 
-      <Field id="customer-notes" label="Observaciones">
+      <Field id="customer-notes" label={t("customer.notes")}>
         <textarea
           id="customer-notes"
           value={value.notes}
           onChange={(e) => update("notes", e.target.value)}
           rows={3}
           maxLength={500}
-          placeholder="Información adicional, instrucciones especiales..."
+          placeholder={t("customer.notes.placeholder")}
           className={inputClass()}
         />
       </Field>

@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useMemo } from "react";
 import type { Accommodation, BookingType, StageLeg, BookingFormData } from "@/lib/types";
 import { calculatePricing, formatEUR, fmtDateShort, PRICING_RULES, getRealEtapas } from "@easybrais/utils";
 import { createBooking, type BookingSuccess } from "@/app/actions";
+import { useT } from "@/lib/i18n/context";
 import { BookingTypeSelector } from "./booking-type-selector";
 import { LegForm } from "./leg-form";
 import { CustomerFields } from "./customer-fields";
@@ -56,9 +57,10 @@ function getStagesCount(
 }
 
 export function BookingForm({ allAccommodations }: Props) {
+  const { t, locale } = useT();
   const [bookingType, setBookingType] = useState<BookingType>("single_stage");
   const [legs, setLegs] = useState<StageLeg[]>([createLeg()]);
-  const [customer, setCustomer] = useState(EMPTY_CUSTOMER);
+  const [customer, setCustomer] = useState({ ...EMPTY_CUSTOMER, language: "es" });
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("online");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -67,6 +69,13 @@ export function BookingForm({ allAccommodations }: Props) {
   const [result, setResult] = useState<BookingSuccess | null>(null);
 
   const idempotencyKeyRef = useRef(crypto.randomUUID());
+
+  // Sync customer language with detected browser locale on first render
+  const langSynced = useRef(false);
+  if (!langSynced.current && locale !== "es") {
+    langSynced.current = true;
+    setCustomer((prev) => ({ ...prev, language: locale }));
+  }
 
   const accMap = useMemo(
     () => new Map(allAccommodations.map((a) => [a.id, a])),
@@ -187,26 +196,26 @@ export function BookingForm({ allAccommodations }: Props) {
   function validate(): Record<string, string> {
     const errs: Record<string, string> = {};
 
-    if (!customer.fullName.trim()) errs.fullName = "Obligatorio";
-    if (!customer.email.trim()) errs.email = "Obligatorio";
+    if (!customer.fullName.trim()) errs.fullName = t("val.required");
+    if (!customer.email.trim()) errs.email = t("val.required");
     else if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(customer.email))
-      errs.email = "Email no válido";
-    if (!customer.phone.trim()) errs.phone = "Obligatorio";
+      errs.email = t("val.invalidEmail");
+    if (!customer.phone.trim()) errs.phone = t("val.required");
 
     legs.forEach((leg, i) => {
       const p = `leg_${i}`;
-      if (!leg.serviceDate) errs[`${p}_date`] = "Selecciona fecha";
+      if (!leg.serviceDate) errs[`${p}_date`] = t("val.selectDate");
       if (!leg.pickupAccommodationId)
-        errs[`${p}_pickup`] = "Selecciona recogida";
+        errs[`${p}_pickup`] = t("val.selectPickup");
       if (!leg.dropoffAccommodationId)
-        errs[`${p}_dropoff`] = "Selecciona entrega";
-      if (leg.bagsCount < 1) errs[`${p}_bags`] = "Mínimo 1";
+        errs[`${p}_dropoff`] = t("val.selectDropoff");
+      if (leg.bagsCount < 1) errs[`${p}_bags`] = t("val.min1");
       if (
         leg.pickupAccommodationId &&
         leg.dropoffAccommodationId &&
         leg.pickupAccommodationId === leg.dropoffAccommodationId
       ) {
-        errs[`${p}_dropoff`] = "Debe ser diferente a la recogida";
+        errs[`${p}_dropoff`] = t("val.differentDropoff");
       }
     });
 
@@ -257,7 +266,7 @@ export function BookingForm({ allAccommodations }: Props) {
 
       setResult(res);
     } catch {
-      setServerError("Error de conexión. Comprueba tu conexión a internet e inténtalo de nuevo.");
+      setServerError(t("val.connectionError"));
     } finally {
       setSubmitting(false);
     }
@@ -284,12 +293,12 @@ export function BookingForm({ allAccommodations }: Props) {
         {/* Left column — Form */}
         <div className="space-y-6 sm:space-y-8">
           {/* Section 1: Booking Type */}
-          <FormSection step={1} title="Tipo de reserva" subtitle="Elige el tipo de servicio que necesitas">
+          <FormSection step={1} title={t("section.type")} subtitle={t("section.type.sub")}>
             <BookingTypeSelector value={bookingType} onChange={handleTypeChange} />
           </FormSection>
 
           {/* Section 2: Transport Legs */}
-          <FormSection step={2} title="Detalles del servicio" subtitle="Configura cada transporte">
+          <FormSection step={2} title={t("section.details")} subtitle={t("section.details.sub")}>
             <div className="space-y-4">
               {legs.map((leg, i) => {
                 const pickup = accMap.get(leg.pickupAccommodationId);
@@ -321,14 +330,14 @@ export function BookingForm({ allAccommodations }: Props) {
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
-                  Añadir otro transporte
+                  {t("leg.add")}
                 </button>
               )}
             </div>
           </FormSection>
 
           {/* Section 3: Customer */}
-          <FormSection step={3} title="Tus datos" subtitle="Necesitamos tus datos de contacto para la reserva">
+          <FormSection step={3} title={t("section.customer")} subtitle={t("section.customer.sub")}>
             <div className="rounded-2xl border border-cream-300/80 bg-white p-4 shadow-card sm:p-6">
               <CustomerFields
                 value={customer}
@@ -339,7 +348,7 @@ export function BookingForm({ allAccommodations }: Props) {
           </FormSection>
 
           {/* Section 4: Payment Method */}
-          <FormSection step={4} title="Método de pago" subtitle="Elige cómo prefieres pagar">
+          <FormSection step={4} title={t("section.payment")} subtitle={t("section.payment.sub")}>
             <PaymentMethodSelector value={paymentMethod} onChange={setPaymentMethod} />
           </FormSection>
 
@@ -350,7 +359,7 @@ export function BookingForm({ allAccommodations }: Props) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
               </svg>
               <p className="text-sm font-medium text-red-700">
-                Revisa los campos marcados en rojo antes de continuar.
+                {t("val.checkFields")}
               </p>
             </div>
           )}
@@ -382,8 +391,8 @@ export function BookingForm({ allAccommodations }: Props) {
             <div className="overflow-hidden rounded-2xl border border-cream-300/80 bg-white shadow-soft">
               {/* Summary header */}
               <div className="bg-brand-900 px-6 py-4">
-                <h3 className="text-sm font-bold tracking-wide text-white">Resumen de tu reserva</h3>
-                <p className="mt-0.5 text-[11px] text-white/50">Revisa antes de confirmar</p>
+                <h3 className="text-sm font-bold tracking-wide text-white">{t("summary.title")}</h3>
+                <p className="mt-0.5 text-[11px] text-white/50">{t("summary.review")}</p>
               </div>
 
               {/* Legs list */}
@@ -400,10 +409,10 @@ export function BookingForm({ allAccommodations }: Props) {
                         <span className="flex h-5 w-5 items-center justify-center rounded-md bg-gold-500/15 text-[10px] font-bold text-gold-700">
                           {i + 1}
                         </span>
-                        <span className="text-xs font-semibold text-brand-900">Transporte {i + 1}</span>
+                        <span className="text-xs font-semibold text-brand-900">{t("leg.transport")} {i + 1}</span>
                         {stages > 1 && (
                           <span className="rounded bg-gold-100 px-1.5 py-0.5 text-[9px] font-bold text-gold-700">
-                            {stages} etapas
+                            {stages} {t("leg.stages")}
                           </span>
                         )}
                       </div>
@@ -414,7 +423,7 @@ export function BookingForm({ allAccommodations }: Props) {
                           {leg.serviceDate && <SummaryRow icon="date" label={fmtDateShort(leg.serviceDate)} />}
                         </div>
                       ) : (
-                        <p className="ml-7 mt-1 text-[11px] italic text-brand-800/25">Sin completar</p>
+                        <p className="ml-7 mt-1 text-[11px] italic text-brand-800/25">{t("summary.incomplete")}</p>
                       )}
                     </div>
                   );
@@ -424,24 +433,24 @@ export function BookingForm({ allAccommodations }: Props) {
               {/* Totals */}
               <div className="border-t border-cream-200 bg-cream-50 px-6 py-4">
                 <div className="flex justify-between text-[13px] text-brand-800/70">
-                  <span>Total equipaje</span>
+                  <span>{t("summary.luggage")}</span>
                   <span className="font-semibold text-brand-900">
-                    {pricing.totalBags} {pricing.totalBags === 1 ? "mochila" : "mochilas"}
+                    {pricing.totalBags} {pricing.totalBags === 1 ? t("summary.backpack") : t("summary.backpacks")}
                   </span>
                 </div>
                 <div className="mt-1 flex justify-between text-[13px] text-brand-800/70">
-                  <span>Transportes</span>
+                  <span>{t("summary.transports")}</span>
                   <span className="font-semibold text-brand-900">{legs.length}</span>
                 </div>
                 {pricing.totalTransportUnits > pricing.totalBags && (
                   <div className="mt-1 flex justify-between text-[13px] text-brand-800/70">
-                    <span>Unidades de transporte</span>
+                    <span>{t("summary.units")}</span>
                     <span className="font-semibold text-gold-700">{pricing.totalTransportUnits}</span>
                   </div>
                 )}
 
                 <div className="mt-4 flex items-baseline justify-between border-t border-cream-300/60 pt-4">
-                  <span className="text-sm font-bold text-brand-900">Precio total</span>
+                  <span className="text-sm font-bold text-brand-900">{t("summary.total")}</span>
                   <span className="text-2xl font-extrabold tracking-tight text-gold-600">
                     {formatEUR(pricing.totalAmount)}
                   </span>
@@ -449,13 +458,13 @@ export function BookingForm({ allAccommodations }: Props) {
 
                 {pricing.totalBags === 0 && (
                   <p className="mt-2 text-center text-[10px] text-brand-800/30">
-                    El precio se calcula según los transportes seleccionados
+                    {t("summary.priceCalc")}
                   </p>
                 )}
 
                 <details className="mt-3 group">
                   <summary className="flex cursor-pointer items-center justify-between rounded-lg px-1 py-1 text-[11px] font-medium text-brand-800/40 transition-colors hover:text-brand-800/60">
-                    <span>Ver desglose</span>
+                    <span>{t("summary.breakdown")}</span>
                     <svg className="h-3.5 w-3.5 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                     </svg>
@@ -475,7 +484,7 @@ export function BookingForm({ allAccommodations }: Props) {
                   <svg className="h-3.5 w-3.5 shrink-0 text-sage-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                   </svg>
-                  <span>Entrega garantizada antes de las 15:30</span>
+                  <span>{t("summary.guarantee")}</span>
                 </div>
               </div>
             </div>
@@ -489,11 +498,12 @@ export function BookingForm({ allAccommodations }: Props) {
 /* ── Sub-components ────────────────────────────────────────────────────── */
 
 function PaymentMethodSelector({ value, onChange }: { value: PaymentMethod; onChange: (v: PaymentMethod) => void }) {
+  const { t } = useT();
   const options: { id: PaymentMethod; label: string; desc: string; icon: React.ReactNode }[] = [
     {
       id: "online",
-      label: "Pago online",
-      desc: "Tarjeta de crédito/débito (Stripe)",
+      label: t("pay.online"),
+      desc: t("pay.online.desc"),
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
@@ -502,8 +512,8 @@ function PaymentMethodSelector({ value, onChange }: { value: PaymentMethod; onCh
     },
     {
       id: "cash",
-      label: "Pago en efectivo",
-      desc: "Paga al recoger el equipaje",
+      label: t("pay.cash"),
+      desc: t("pay.cash.desc"),
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
@@ -559,25 +569,25 @@ function PaymentMethodSelector({ value, onChange }: { value: PaymentMethod; onCh
 }
 
 function PriceBreakdown({ pricing }: { pricing: ReturnType<typeof calculatePricing> }) {
+  const { t } = useT();
   const { OVERWEIGHT_FEE, VOLUME_DISCOUNT } = PRICING_RULES;
-  const reducedPrice = PRICING_RULES.BASE_PRICE - VOLUME_DISCOUNT;
   return (
     <div className="mt-2 space-y-1 rounded-lg bg-white p-3 text-[11px]">
       {pricing.subtotalAmount > 0 && (
         <div className="flex justify-between text-brand-800/50">
-          <span>Subtotal transporte</span>
+          <span>{t("summary.subtotal")}</span>
           <span>{formatEUR(pricing.subtotalAmount)}</span>
         </div>
       )}
       {pricing.discountedBags > 0 && (
         <div className="flex justify-between text-sage-600">
-          <span>Dto. volumen ({pricing.discountedBags} × −{formatEUR(VOLUME_DISCOUNT)})</span>
+          <span>{t("summary.discount")} ({pricing.discountedBags} × −{formatEUR(VOLUME_DISCOUNT)})</span>
           <span>−{formatEUR(pricing.discountAmount)}</span>
         </div>
       )}
       {pricing.extraWeightAmount > 0 && (
         <div className="flex justify-between text-gold-700">
-          <span>Sobrepeso ({pricing.totalOverweightBags} × {formatEUR(OVERWEIGHT_FEE)})</span>
+          <span>{t("summary.overweight")} ({pricing.totalOverweightBags} × {formatEUR(OVERWEIGHT_FEE)})</span>
           <span>+{formatEUR(pricing.extraWeightAmount)}</span>
         </div>
       )}
@@ -615,9 +625,10 @@ function FormSection({
 }
 
 function SubmitButton({ submitting, total, paymentMethod }: { submitting: boolean; total: number; paymentMethod: PaymentMethod }) {
+  const { t } = useT();
   const label = paymentMethod === "cash"
-    ? `Confirmar reserva${total > 0 ? ` — ${formatEUR(total)}` : ""}`
-    : `Reservar y pagar${total > 0 ? ` — ${formatEUR(total)}` : ""}`;
+    ? `${t("submit.confirm")}${total > 0 ? ` — ${formatEUR(total)}` : ""}`
+    : `${t("submit.pay")}${total > 0 ? ` — ${formatEUR(total)}` : ""}`;
 
   return (
     <button
@@ -631,7 +642,7 @@ function SubmitButton({ submitting, total, paymentMethod }: { submitting: boolea
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
-          <span>Procesando...</span>
+          <span>{t("submit.processing")}</span>
         </>
       ) : (
         <>
@@ -658,29 +669,30 @@ function MobileSummary({
   submitting: boolean;
   paymentMethod: PaymentMethod;
 }) {
+  const { t } = useT();
   return (
     <div className="overflow-hidden rounded-2xl border border-cream-300/80 bg-white shadow-soft">
       <div className="bg-brand-900 px-5 py-3.5">
-        <h3 className="text-sm font-bold text-white">Resumen</h3>
+        <h3 className="text-sm font-bold text-white">{t("summary.resumen")}</h3>
       </div>
       <div className="space-y-2.5 px-5 py-4">
         <div className="flex justify-between text-[13px] text-brand-800/70">
-          <span>Equipaje</span>
-          <span className="font-semibold text-brand-900">{pricing.totalBags} mochilas</span>
+          <span>{t("summary.luggage")}</span>
+          <span className="font-semibold text-brand-900">{pricing.totalBags} {pricing.totalBags === 1 ? t("summary.backpack") : t("summary.backpacks")}</span>
         </div>
         <div className="flex justify-between text-[13px] text-brand-800/70">
-          <span>Transportes</span>
+          <span>{t("summary.transports")}</span>
           <span className="font-semibold text-brand-900">{legs.length}</span>
         </div>
         {pricing.totalTransportUnits > pricing.totalBags && (
           <div className="flex justify-between text-[13px] text-brand-800/70">
-            <span>Uds. transporte</span>
+            <span>{t("summary.units")}</span>
             <span className="font-semibold text-gold-700">{pricing.totalTransportUnits}</span>
           </div>
         )}
         <PriceBreakdown pricing={pricing} />
         <div className="flex items-baseline justify-between border-t border-cream-200 pt-3">
-          <span className="text-sm font-bold text-brand-900">Total</span>
+          <span className="text-sm font-bold text-brand-900">{t("summary.total")}</span>
           <span className="text-2xl font-extrabold tracking-tight text-gold-600">{formatEUR(pricing.totalAmount)}</span>
         </div>
       </div>
@@ -692,7 +704,7 @@ function MobileSummary({
           <svg className="h-3.5 w-3.5 shrink-0 text-sage-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
           </svg>
-          <span>Entrega garantizada antes de las 15:30</span>
+          <span>{t("summary.guarantee")}</span>
         </div>
       </div>
     </div>
