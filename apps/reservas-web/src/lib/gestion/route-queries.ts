@@ -9,6 +9,7 @@ export interface RouteStop {
   accommodation_town: string | null;
   accommodation_address: string | null;
   accommodation_internal_notes: string | null;
+  accommodation_phone: string | null;
   booking_item_id: string | null;
   booking_code: string;
   booking_id: string | null;
@@ -93,14 +94,14 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
 
   const [{ data: accs }, { data: items }] = await Promise.all([
     accIds.length > 0
-      ? supabase.from("accommodations").select("id, address, internal_notes").in("id", accIds)
+      ? supabase.from("accommodations").select("id, address, internal_notes, contact_phone").in("id", accIds)
       : Promise.resolve({ data: [] }),
     itemIds.length > 0
       ? supabase.from("booking_items").select("id, booking_id, bookings(id, total_amount, customers(phone))").in("id", itemIds)
       : Promise.resolve({ data: [] }),
   ]);
 
-  type AccInfo = { id: string; address: string | null; internal_notes: string | null };
+  type AccInfo = { id: string; address: string | null; internal_notes: string | null; contact_phone: string | null };
   const accInfoMap = new Map((accs ?? []).map((a: AccInfo) => [a.id, a]));
 
   interface ItemWithBooking { id: string; booking_id: string | null; bookings: { id: string; total_amount: number | null; customers: { phone: string | null } | null } | null }
@@ -126,6 +127,7 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
       accommodation_town: s.accommodation_town,
       accommodation_address: s.accommodation_id ? accInfoMap.get(s.accommodation_id)?.address ?? null : null,
       accommodation_internal_notes: s.accommodation_id ? accInfoMap.get(s.accommodation_id)?.internal_notes ?? null : null,
+      accommodation_phone: s.accommodation_id ? accInfoMap.get(s.accommodation_id)?.contact_phone ?? null : null,
       booking_item_id: s.booking_item_id,
       booking_code: s.booking_code,
       booking_id: itemInfo?.booking_id ?? null,
@@ -145,11 +147,20 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
     townCounts.set(t, (townCounts.get(t) ?? 0) + 1);
   }
 
+  // Count bags from unique booking items to avoid doubling (each item has pickup + dropoff)
+  const uniqueItemBags = new Map<string, number>();
+  for (const s of stops) {
+    if (s.booking_item_id && !uniqueItemBags.has(s.booking_item_id)) {
+      uniqueItemBags.set(s.booking_item_id, s.bags_count);
+    }
+  }
+  const realBags = [...uniqueItemBags.values()].reduce((sum, c) => sum + c, 0);
+
   const summary: RouteSummary = {
     totalStops: stops.length,
     pickupStops: stops.filter((s) => s.stop_type === "pickup").length,
     dropoffStops: stops.filter((s) => s.stop_type === "dropoff").length,
-    totalBags: stops.reduce((sum, s) => sum + s.bags_count, 0),
+    totalBags: realBags,
     completedStops: stops.filter((s) => s.completed).length,
     localities: [...townCounts.entries()]
       .map(([town, count]) => ({ town, count }))

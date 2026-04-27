@@ -112,9 +112,22 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
 
           {/* Accommodation */}
           <div className="min-w-0 flex-1">
-            <p className={`truncate text-sm font-semibold ${isCompleted ? "line-through text-gray-400" : "text-gray-900"}`}>
-              {stop.accommodation_name}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className={`truncate text-sm font-semibold ${isCompleted ? "line-through text-gray-400" : "text-gray-900"}`}>
+                {stop.accommodation_name}
+              </p>
+              {stop.accommodation_phone && (
+                <a
+                  href={`tel:${stop.accommodation_phone}`}
+                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600 transition-colors hover:bg-brand-200"
+                  title={`Llamar al alojamiento: ${stop.accommodation_phone}`}
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                  </svg>
+                </a>
+              )}
+            </div>
             <div className="flex flex-wrap items-center gap-x-2 text-xs text-gray-400">
               {stop.accommodation_town && <span>{stop.accommodation_town}</span>}
               {stop.accommodation_address && (
@@ -208,8 +221,21 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
               <span className="text-sm font-bold text-green-700">{formatEUR(stop.booking_total)}</span>
             )}
           </div>
+          {/* Accommodation phone */}
+          {stop.accommodation_phone && (
+            <div className="mt-1 flex items-center gap-2">
+              <svg className="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+              </svg>
+              <a href={`tel:${stop.accommodation_phone}`} className="text-xs font-medium text-brand-600 hover:underline">
+                {stop.accommodation_phone}
+              </a>
+              <span className="text-[10px] text-gray-400">Alojamiento</span>
+            </div>
+          )}
+          {/* Customer phone */}
           {stop.customer_phone && (
-            <div className="flex items-center gap-2">
+            <div className="mt-1 flex items-center gap-2">
               <a href={`tel:${stop.customer_phone}`} className="text-xs text-brand-500 hover:underline">
                 {stop.customer_phone}
               </a>
@@ -225,6 +251,7 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
                   <path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 00.61.61l4.458-1.495A11.952 11.952 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.387 0-4.607-.798-6.378-2.143l-.446-.344-2.914.977.977-2.914-.344-.446A9.935 9.935 0 012 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/>
                 </svg>
               </a>
+              <span className="text-[10px] text-gray-400">Cliente</span>
             </div>
           )}
         </div>

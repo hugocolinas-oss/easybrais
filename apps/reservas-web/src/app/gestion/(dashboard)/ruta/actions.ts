@@ -118,7 +118,8 @@ export async function generateRoute(date: string) {
       const [b1, b2] = parseStageCode(b.accommodation_code);
       if (a1 !== b1) return a1 - b1;
       if (a2 !== b2) return a2 - b2;
-      if (a.stop_type !== b.stop_type) return a.stop_type === "pickup" ? -1 : 1;
+      // Same accommodation: delivery (dropoff) before pickup
+      if (a.stop_type !== b.stop_type) return a.stop_type === "dropoff" ? -1 : 1;
       return 0;
     });
     const totalBags = rows.reduce((s, i) => s + i.bags_count, 0);
