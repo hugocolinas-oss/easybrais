@@ -10,7 +10,7 @@ interface Props {
 
 export function BookingConfirmation({ result, onNewBooking }: Props) {
   const { pricing } = result;
-  const { BASE_PRICE, REDUCED_PRICE, OVERWEIGHT_FEE } = PRICING_RULES;
+  const { VOLUME_DISCOUNT, OVERWEIGHT_FEE } = PRICING_RULES;
 
   return (
     <div className="mx-auto max-w-lg">
@@ -68,19 +68,19 @@ export function BookingConfirmation({ result, onNewBooking }: Props) {
             <p className="text-[10px] font-semibold uppercase tracking-widest text-brand-800/40">Desglose de precios</p>
           </div>
           <div className="space-y-1.5 px-4 py-3 text-sm">
-            {pricing.normalBags > 0 && (
+            {pricing.subtotalAmount > 0 && (
               <div className="flex justify-between text-brand-800/60">
-                <span>{pricing.normalBags} × {formatEUR(BASE_PRICE)}</span>
-                <span>{formatEUR(pricing.normalBags * BASE_PRICE)}</span>
+                <span>Subtotal transporte ({pricing.totalBags} {pricing.totalBags === 1 ? "mochila" : "mochilas"})</span>
+                <span>{formatEUR(pricing.subtotalAmount)}</span>
               </div>
             )}
             {pricing.discountedBags > 0 && (
               <div className="flex justify-between text-sage-700">
                 <span className="flex items-center gap-1.5">
-                  {pricing.discountedBags} × {formatEUR(REDUCED_PRICE)}
-                  <span className="rounded bg-sage-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-sage-600">Dto. volumen</span>
+                  Dto. volumen ({pricing.discountedBags} × −{formatEUR(VOLUME_DISCOUNT)})
+                  <span className="rounded bg-sage-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-sage-600">Ahorro</span>
                 </span>
-                <span>{formatEUR(pricing.discountedBags * REDUCED_PRICE)}</span>
+                <span>−{formatEUR(pricing.discountAmount)}</span>
               </div>
             )}
             {pricing.extraWeightAmount > 0 && (

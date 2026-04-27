@@ -9,6 +9,7 @@ export default async function HomePage() {
     .from("accommodations")
     .select("id, external_code, name, display_name, stage_name, town, address, reservation_notes, sort_order")
     .eq("active", true)
+    .eq("visible_in_reservations", true)
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
