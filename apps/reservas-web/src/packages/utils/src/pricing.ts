@@ -16,10 +16,8 @@
 export const PRICING_RULES = {
   /** Price per bag per etapa */
   BASE_PRICE: 6,
-  /** Total bags threshold before volume discount kicks in */
-  VOLUME_THRESHOLD: 9,
-  /** Discount per bag beyond VOLUME_THRESHOLD */
-  VOLUME_DISCOUNT: 1,
+  VOLUME_THRESHOLD: 0,
+  VOLUME_DISCOUNT: 0,
   /** Extra fee per overweight bag (>20 kg) */
   OVERWEIGHT_FEE: 5,
 } as const;

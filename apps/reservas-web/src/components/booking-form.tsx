@@ -85,12 +85,27 @@ export function BookingForm({ allAccommodations }: Props) {
   const towns = useMemo(() => {
     const townDisplay = new Map<string, string>();
     const townMinStage = new Map<string, number>();
+
+    function normalizeTown(raw: string): string {
+      return raw
+        .trim()
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ");
+    }
+
+    function titleCase(s: string): string {
+      const lower = ["de", "do", "da", "dos", "das", "del", "a", "o", "e"];
+      return s.trim().split(/\s+/).map((w, i) => {
+        if (i > 0 && lower.includes(w.toLowerCase())) return w.toLowerCase();
+        return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+      }).join(" ");
+    }
+
     allAccommodations.forEach((a) => {
       if (!a.town) return;
-      const raw = a.town.trim();
-      const normalized = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
-      const key = normalized.toLowerCase();
-      if (!townDisplay.has(key)) townDisplay.set(key, normalized);
+      const key = normalizeTown(a.town);
+      if (!townDisplay.has(key)) townDisplay.set(key, titleCase(a.town));
       const stage = stageNumberFromCode(a) ?? 999;
       const cur = townMinStage.get(key);
       if (cur === undefined || stage < cur) townMinStage.set(key, stage);
@@ -144,6 +159,21 @@ export function BookingForm({ allAccommodations }: Props) {
   function updateLeg(index: number, updated: StageLeg) {
     setLegs((prev) => {
       const next = prev.map((l, i) => (i === index ? updated : l));
+
+      // Sync bag counts across all legs when changed
+      const bagsChanged = prev[index]?.bagsCount !== updated.bagsCount;
+      const overweightChanged = prev[index]?.overweightBagsCount !== updated.overweightBagsCount;
+      if (bagsChanged || overweightChanged) {
+        for (let i = 0; i < next.length; i++) {
+          if (i !== index && next[i]) {
+            next[i] = {
+              ...next[i],
+              bagsCount: updated.bagsCount,
+              overweightBagsCount: Math.min(updated.overweightBagsCount, updated.bagsCount),
+            };
+          }
+        }
+      }
 
       const dropoffChanged = prev[index]?.dropoffAccommodationId !== updated.dropoffAccommodationId;
       if (dropoffChanged && updated.dropoffAccommodationId && index < next.length - 1) {

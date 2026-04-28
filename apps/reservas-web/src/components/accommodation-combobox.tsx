@@ -32,14 +32,16 @@ export function AccommodationCombobox({
 
   const filtered = useMemo(() => {
     if (!query.trim()) return accommodations;
-    const q = query.toLowerCase();
-    return accommodations.filter(
-      (a) =>
-        a.display_name.toLowerCase().includes(q) ||
-        a.name.toLowerCase().includes(q) ||
-        a.town?.toLowerCase().includes(q) ||
-        a.address?.toLowerCase().includes(q),
-    );
+    const q = query.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return accommodations.filter((a) => {
+      const strip = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return (
+        strip(a.display_name).includes(q) ||
+        strip(a.name).includes(q) ||
+        (a.town && strip(a.town).includes(q)) ||
+        (a.address && strip(a.address).includes(q))
+      );
+    });
   }, [accommodations, query]);
 
   useEffect(() => {

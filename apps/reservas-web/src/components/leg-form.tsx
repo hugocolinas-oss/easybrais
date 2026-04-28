@@ -5,6 +5,10 @@ import type { StageLeg, Accommodation } from "@/lib/types";
 import { useT } from "@/lib/i18n/context";
 import { AccommodationCombobox } from "./accommodation-combobox";
 
+function stripAccents(s: string): string {
+  return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+}
+
 interface Props {
   leg: StageLeg;
   index: number;
@@ -34,7 +38,7 @@ export function LegForm({
     () =>
       leg.departureTown
         ? allAccommodations.filter(
-            (a) => a.town?.trim().toLowerCase() === leg.departureTown.trim().toLowerCase(),
+            (a) => stripAccents(a.town ?? "") === stripAccents(leg.departureTown),
           )
         : allAccommodations,
     [allAccommodations, leg.departureTown],
@@ -44,7 +48,7 @@ export function LegForm({
     () =>
       leg.arrivalTown
         ? allAccommodations.filter(
-            (a) => a.town?.trim().toLowerCase() === leg.arrivalTown.trim().toLowerCase(),
+            (a) => stripAccents(a.town ?? "") === stripAccents(leg.arrivalTown),
           )
         : allAccommodations,
     [allAccommodations, leg.arrivalTown],
