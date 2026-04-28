@@ -202,6 +202,19 @@ export function BookingForm({ allAccommodations }: Props) {
         }
       }
 
+      const dateChanged = prev[index]?.serviceDate !== updated.serviceDate;
+      if (dateChanged && updated.serviceDate && index < next.length - 1) {
+        const nextLeg = next[index + 1];
+        if (nextLeg && !nextLeg.serviceDate) {
+          const d = new Date(updated.serviceDate);
+          d.setDate(d.getDate() + 1);
+          next[index + 1] = {
+            ...nextLeg,
+            serviceDate: d.toISOString().slice(0, 10),
+          };
+        }
+      }
+
       return next;
     });
   }

@@ -159,6 +159,15 @@ export function ManualBookingForm({ accommodations }: Props) {
         next[index + 1] = { ...next[index + 1], pickupId: value };
       }
 
+      if (field === "serviceDate" && value && index < next.length - 1) {
+        const d = new Date(value);
+        d.setDate(d.getDate() + 1);
+        const nextDate = d.toISOString().slice(0, 10);
+        if (!next[index + 1]?.serviceDate) {
+          next[index + 1] = { ...next[index + 1], serviceDate: nextDate };
+        }
+      }
+
       return next;
     });
   }
