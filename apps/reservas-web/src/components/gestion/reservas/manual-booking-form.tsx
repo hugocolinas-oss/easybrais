@@ -178,29 +178,17 @@ export function ManualBookingForm({ accommodations }: Props) {
   }
 
   const pricing = useMemo(() => {
-    if (legs.length <= 1 || bookingType === "single_stage") {
-      const pickup = accMap.get(legs[0]?.pickupId ?? "");
-      const dropoff = accMap.get(legs[0]?.dropoffId ?? "");
-      const p = pickup ? stageNumberFromCode(pickup) : null;
-      const d = dropoff ? stageNumberFromCode(dropoff) : null;
-      const stages = p !== null && d !== null ? getRealEtapas(p, d) : 1;
-      return calculatePricing([{ bagsCount, overweightBagsCount: overweightBags, stagesCount: stages, pickupPrefix: p, dropoffPrefix: d }]);
-    }
-
-    const firstPickup = accMap.get(legs[0]?.pickupId ?? "");
-    const lastDropoff = accMap.get(legs[legs.length - 1]?.dropoffId ?? "");
-    const p = firstPickup ? stageNumberFromCode(firstPickup) : null;
-    const d = lastDropoff ? stageNumberFromCode(lastDropoff) : null;
-    const stages = p !== null && d !== null ? getRealEtapas(p, d) : 1;
-
-    return calculatePricing([{
-      bagsCount,
-      overweightBagsCount: overweightBags,
-      stagesCount: stages,
-      pickupPrefix: p,
-      dropoffPrefix: d,
-    }]);
-  }, [legs, accMap, bagsCount, overweightBags, bookingType]);
+    return calculatePricing(
+      legs.map((leg) => {
+        const pickup = accMap.get(leg.pickupId);
+        const dropoff = accMap.get(leg.dropoffId);
+        const p = pickup ? stageNumberFromCode(pickup) : null;
+        const d = dropoff ? stageNumberFromCode(dropoff) : null;
+        const stages = p !== null && d !== null ? getRealEtapas(p, d) : 1;
+        return { bagsCount, overweightBagsCount: overweightBags, stagesCount: stages, pickupPrefix: p, dropoffPrefix: d };
+      }),
+    );
+  }, [legs, accMap, bagsCount, overweightBags]);
 
   const routeStages = useMemo(() => {
     const firstPickup = accMap.get(legs[0]?.pickupId ?? "");

@@ -115,9 +115,9 @@ export function BookingForm({ allAccommodations }: Props) {
       .map(([, display]) => display);
   }, [allAccommodations]);
 
-  const pricing = useMemo(() => {
-    if (legs.length <= 1 || bookingType === "single_stage") {
-      return calculatePricing(
+  const pricing = useMemo(
+    () =>
+      calculatePricing(
         legs.map((l) => {
           const pickup = accMap.get(l.pickupAccommodationId);
           const dropoff = accMap.get(l.dropoffAccommodationId);
@@ -129,24 +129,9 @@ export function BookingForm({ allAccommodations }: Props) {
             dropoffPrefix: stageNumberFromCode(dropoff ?? ({} as Accommodation)),
           };
         }),
-      );
-    }
-
-    const firstPickup = accMap.get(legs[0]?.pickupAccommodationId ?? "");
-    const lastDropoff = accMap.get(legs[legs.length - 1]?.dropoffAccommodationId ?? "");
-    const routePickupPrefix = stageNumberFromCode(firstPickup ?? ({} as Accommodation));
-    const routeDropoffPrefix = stageNumberFromCode(lastDropoff ?? ({} as Accommodation));
-    const bags = legs[0]?.bagsCount ?? 1;
-    const overweight = legs[0]?.overweightBagsCount ?? 0;
-
-    return calculatePricing([{
-      bagsCount: bags,
-      overweightBagsCount: overweight,
-      stagesCount: getStagesCount(firstPickup, lastDropoff),
-      pickupPrefix: routePickupPrefix,
-      dropoffPrefix: routeDropoffPrefix,
-    }]);
-  }, [legs, accMap, bookingType]);
+      ),
+    [legs, accMap],
+  );
 
   const handleTypeChange = useCallback(
     (type: BookingType) => {
