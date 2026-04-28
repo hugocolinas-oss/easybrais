@@ -9,6 +9,12 @@ function stripAccents(s: string): string {
   return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
 }
 
+function codePrefix(acc: Accommodation): number | null {
+  if (!acc.external_code) return null;
+  const n = parseInt(acc.external_code.split(".")[0], 10);
+  return Number.isNaN(n) ? null : n;
+}
+
 interface Props {
   leg: StageLeg;
   index: number;
@@ -44,15 +50,46 @@ export function LegForm({
     [allAccommodations, leg.departureTown],
   );
 
-  const dropoffAccommodations = useMemo(
-    () =>
-      leg.arrivalTown
-        ? allAccommodations.filter(
-            (a) => stripAccents(a.town ?? "") === stripAccents(leg.arrivalTown),
-          )
-        : allAccommodations,
-    [allAccommodations, leg.arrivalTown],
-  );
+  const pickupCode = useMemo(() => {
+    const pickupAcc = allAccommodations.find((a) => a.id === leg.pickupAccommodationId);
+    return pickupAcc ? codePrefix(pickupAcc) : null;
+  }, [allAccommodations, leg.pickupAccommodationId]);
+
+  const arrivalTowns = useMemo(() => {
+    if (pickupCode === null) return towns;
+    const validTowns = new Set<string>();
+    allAccommodations.forEach((a) => {
+      const c = codePrefix(a);
+      if (c === null || c >= pickupCode) {
+        if (a.town) validTowns.add(a.town.trim());
+      }
+    });
+    return towns.filter((tw) => {
+      const twNorm = stripAccents(tw);
+      return allAccommodations.some((a) => {
+        if (!a.town) return false;
+        const c = codePrefix(a);
+        return stripAccents(a.town) === twNorm && (c === null || c >= pickupCode);
+      });
+    });
+  }, [towns, allAccommodations, pickupCode]);
+
+  const dropoffAccommodations = useMemo(() => {
+    let list = leg.arrivalTown
+      ? allAccommodations.filter(
+          (a) => stripAccents(a.town ?? "") === stripAccents(leg.arrivalTown),
+        )
+      : allAccommodations;
+
+    if (pickupCode !== null) {
+      list = list.filter((a) => {
+        const c = codePrefix(a);
+        return c === null || c >= pickupCode;
+      });
+    }
+
+    return list;
+  }, [allAccommodations, leg.arrivalTown, pickupCode]);
 
   function update(field: keyof StageLeg, value: string | number) {
     const next = { ...leg, [field]: value };
@@ -203,7 +240,7 @@ export function LegForm({
                         className={selectClass()}
                       >
                         <option value="">{t("leg.allTowns")}</option>
-                        {towns.map((tw) => (
+                        {arrivalTowns.map((tw) => (
                           <option key={tw} value={tw}>{tw}</option>
                         ))}
                       </select>

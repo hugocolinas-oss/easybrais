@@ -360,6 +360,14 @@ export function ManualBookingForm({ accommodations }: Props) {
       <div className="space-y-4">
         {legs.map((leg, i) => {
           const pickupLocked = i > 0 && legs[i - 1]?.dropoffId === leg.pickupId && !!leg.pickupId;
+          const pickupAcc = accMap.get(leg.pickupId);
+          const pCode = pickupAcc ? stageNumberFromCode(pickupAcc) : null;
+          const dropoffFiltered = pCode !== null
+            ? sortedAccommodations.filter((a) => {
+                const c = stageNumberFromCode(a);
+                return c === null || c >= pCode;
+              })
+            : sortedAccommodations;
           return (
             <div key={leg.id} className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6">
               <div className="mb-3 flex items-center justify-between">
@@ -394,7 +402,7 @@ export function ManualBookingForm({ accommodations }: Props) {
                   <AccommodationCombobox
                     label="Entrega *"
                     value={leg.dropoffId}
-                    accommodations={sortedAccommodations}
+                    accommodations={dropoffFiltered}
                     onChange={(v) => updateLeg(i, "dropoffId", v)}
                   />
                 </div>
