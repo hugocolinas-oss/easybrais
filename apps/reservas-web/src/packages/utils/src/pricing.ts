@@ -91,23 +91,33 @@ const PAIR_PRICES: Record<string, number> = {
  * - Both ≥ 5: direct PAIR_PRICES lookup.
  * - Mixed (one ≤ 4, other ≥ 5): stages to code 5 + lookup from 5.
  */
+/** Max valid code in the route (Santiago = 13) */
+const MAX_VALID_CODE = 13;
+/** Maximum per-bag price (full camino A Guarda→Santiago = 8 etapas) */
+const MAX_PER_BAG = 48;
+
 function getDirectPrice(a: number, b: number): number {
   const { BASE_PRICE } = PRICING_RULES;
+
+  // Guard against invalid codes (e.g. 9999 from data bugs)
+  if (a > MAX_VALID_CODE || b > MAX_VALID_CODE || a < 1 || b < 1) {
+    return BASE_PRICE;
+  }
 
   if (a === b) return BASE_PRICE;
 
   const [lo, hi] = a <= b ? [a, b] : [b, a];
 
-  if (hi <= 4) return (hi - lo) * BASE_PRICE;
+  if (hi <= 4) return Math.min((hi - lo) * BASE_PRICE, MAX_PER_BAG);
 
   if (lo >= 5) {
-    return PAIR_PRICES[`${lo}:${hi}`] ?? Math.abs(hi - lo) * BASE_PRICE;
+    return PAIR_PRICES[`${lo}:${hi}`] ?? Math.min(Math.abs(hi - lo) * BASE_PRICE, MAX_PER_BAG);
   }
 
   // Mixed: lo ≤ 4, hi ≥ 5 — route goes through code 5
   const toFive = (5 - lo) * BASE_PRICE;
-  if (hi === 5) return toFive;
-  return toFive + (PAIR_PRICES[`5:${hi}`] ?? (hi - 5) * BASE_PRICE);
+  if (hi === 5) return Math.min(toFive, MAX_PER_BAG);
+  return Math.min(toFive + (PAIR_PRICES[`5:${hi}`] ?? (hi - 5) * BASE_PRICE), MAX_PER_BAG);
 }
 
 /** Compute the approximate number of pricing etapas between two codes (for display). */

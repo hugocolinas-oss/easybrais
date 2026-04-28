@@ -15,6 +15,7 @@ export function HeroSection() {
       </p>
 
       <div className="mx-auto mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 sm:mt-8">
+        <TrustBadge icon="clock" text={t("trust.pickup")} />
         <TrustBadge icon="shield" text={t("trust.secure")} />
         <TrustBadge icon="clock" text={t("trust.delivery")} />
         <TrustBadge icon="check" text={t("trust.email")} />

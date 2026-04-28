@@ -70,6 +70,14 @@ const t = {
     de: "Lieferung vor 15:30",
     it: "Consegna entro le 15:30",
   },
+  "trust.pickup": {
+    es: "Mochilas listas a las 8:00",
+    en: "Backpacks ready at 8:00 AM",
+    pt: "Mochilas prontas às 8:00",
+    fr: "Sacs prêts à 8h00",
+    de: "Rucksäcke um 8:00 bereit",
+    it: "Zaini pronti alle 8:00",
+  },
   "trust.email": {
     es: "Confirmación por email",
     en: "Email confirmation",
@@ -531,12 +539,12 @@ const t = {
     it: "Sovrappeso",
   },
   "summary.guarantee": {
-    es: "Entrega garantizada antes de las 15:30",
-    en: "Guaranteed delivery before 3:30 PM",
-    pt: "Entrega garantida antes das 15:30",
-    fr: "Livraison garantie avant 15h30",
-    de: "Garantierte Lieferung vor 15:30",
-    it: "Consegna garantita entro le 15:30",
+    es: "Mochilas listas a las 8:00 · Entrega antes de las 15:30",
+    en: "Backpacks ready at 8:00 AM · Delivery before 3:30 PM",
+    pt: "Mochilas prontas às 8:00 · Entrega antes das 15:30",
+    fr: "Sacs prêts à 8h00 · Livraison avant 15h30",
+    de: "Rucksäcke um 8:00 bereit · Lieferung vor 15:30",
+    it: "Zaini pronti alle 8:00 · Consegna entro le 15:30",
   },
   "summary.resumen": {
     es: "Resumen",
