@@ -654,6 +654,14 @@ const t = {
     de: "Muss sich von der Abholung unterscheiden",
     it: "Deve essere diverso dal ritiro",
   },
+  "val.reverseDirection": {
+    es: "La entrega no puede ser anterior a la recogida",
+    en: "Dropoff cannot be before pickup on the route",
+    pt: "A entrega não pode ser anterior à recolha",
+    fr: "La livraison ne peut pas précéder le ramassage",
+    de: "Die Lieferung darf nicht vor der Abholung liegen",
+    it: "La consegna non può essere prima del ritiro",
+  },
   "val.checkFields": {
     es: "Revisa los campos marcados en rojo antes de continuar.",
     en: "Please review the fields marked in red before continuing.",

@@ -178,15 +178,29 @@ export function BookingForm({ allAccommodations }: Props) {
         }
       }
 
-      const dropoffChanged = prev[index]?.dropoffAccommodationId !== updated.dropoffAccommodationId;
-      if (dropoffChanged && updated.dropoffAccommodationId && index < next.length - 1) {
-        const dropoffAcc = accMap.get(updated.dropoffAccommodationId);
+      const pickupChanged = prev[index]?.pickupAccommodationId !== updated.pickupAccommodationId;
+      if (pickupChanged && updated.pickupAccommodationId) {
+        const newPickupAcc = accMap.get(updated.pickupAccommodationId);
+        const newPickupCode = newPickupAcc ? stageNumberFromCode(newPickupAcc) : null;
+        if (newPickupCode !== null && updated.dropoffAccommodationId) {
+          const dropoffAcc = accMap.get(updated.dropoffAccommodationId);
+          const dropoffCode = dropoffAcc ? stageNumberFromCode(dropoffAcc) : null;
+          if (dropoffCode !== null && dropoffCode < newPickupCode) {
+            next[index] = { ...next[index], dropoffAccommodationId: "", arrivalTown: "" };
+          }
+        }
+      }
+
+      const currentDropoff = next[index]?.dropoffAccommodationId ?? "";
+      const dropoffChanged = prev[index]?.dropoffAccommodationId !== currentDropoff;
+      if (dropoffChanged && currentDropoff && index < next.length - 1) {
+        const dropoffAcc = accMap.get(currentDropoff);
         const nextLeg = next[index + 1];
         if (nextLeg) {
           next[index + 1] = {
             ...nextLeg,
             departureTown: dropoffAcc?.town ?? "",
-            pickupAccommodationId: updated.dropoffAccommodationId,
+            pickupAccommodationId: currentDropoff,
           };
         }
       }
@@ -262,6 +276,15 @@ export function BookingForm({ allAccommodations }: Props) {
         leg.pickupAccommodationId === leg.dropoffAccommodationId
       ) {
         errs[`${p}_dropoff`] = t("val.differentDropoff");
+      }
+      if (leg.pickupAccommodationId && leg.dropoffAccommodationId) {
+        const pAcc = accMap.get(leg.pickupAccommodationId);
+        const dAcc = accMap.get(leg.dropoffAccommodationId);
+        const pCode = pAcc ? stageNumberFromCode(pAcc) : null;
+        const dCode = dAcc ? stageNumberFromCode(dAcc) : null;
+        if (pCode !== null && dCode !== null && dCode < pCode) {
+          errs[`${p}_dropoff`] = t("val.reverseDirection");
+        }
       }
     });
 

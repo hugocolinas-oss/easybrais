@@ -122,6 +122,13 @@ export async function createBooking(
       return { pickupPrefix: p, dropoffPrefix: d, stagesCount: etapas };
     }
 
+    for (const [i, leg] of data.legs.entries()) {
+      const { pickupPrefix, dropoffPrefix } = getLegPrefixes(leg.pickupAccommodationId, leg.dropoffAccommodationId);
+      if (pickupPrefix !== null && dropoffPrefix !== null && dropoffPrefix < pickupPrefix) {
+        return fail(`Tramo ${i + 1}: la entrega (código ${dropoffPrefix}) no puede ser anterior a la recogida (código ${pickupPrefix}).`);
+      }
+    }
+
     const pricing = calculatePricing(
       data.legs.map((l) => {
         const { pickupPrefix, dropoffPrefix, stagesCount } = getLegPrefixes(l.pickupAccommodationId, l.dropoffAccommodationId);

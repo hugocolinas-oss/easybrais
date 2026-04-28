@@ -155,8 +155,21 @@ export function ManualBookingForm({ accommodations }: Props) {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
 
-      if (field === "dropoffId" && value && index < next.length - 1) {
-        next[index + 1] = { ...next[index + 1], pickupId: value };
+      if (field === "pickupId" && value) {
+        const newPickupAcc = accMap.get(value);
+        const newPickupCode = newPickupAcc ? stageNumberFromCode(newPickupAcc) : null;
+        const currentDropoff = next[index].dropoffId;
+        if (newPickupCode !== null && currentDropoff) {
+          const dropoffAcc = accMap.get(currentDropoff);
+          const dropoffCode = dropoffAcc ? stageNumberFromCode(dropoffAcc) : null;
+          if (dropoffCode !== null && dropoffCode < newPickupCode) {
+            next[index] = { ...next[index], dropoffId: "" };
+          }
+        }
+      }
+
+      if (field === "dropoffId" && next[index].dropoffId && index < next.length - 1) {
+        next[index + 1] = { ...next[index + 1], pickupId: next[index].dropoffId };
       }
 
       if (field === "serviceDate" && value && index < next.length - 1) {
@@ -220,6 +233,14 @@ export function ManualBookingForm({ accommodations }: Props) {
       if (!leg.pickupId) { setError(`Etapa ${i + 1}: selecciona recogida`); return; }
       if (!leg.dropoffId) { setError(`Etapa ${i + 1}: selecciona entrega`); return; }
       if (leg.pickupId === leg.dropoffId) { setError(`Etapa ${i + 1}: recogida y entrega deben ser diferentes`); return; }
+      const pAcc = accMap.get(leg.pickupId);
+      const dAcc = accMap.get(leg.dropoffId);
+      const pCode = pAcc ? stageNumberFromCode(pAcc) : null;
+      const dCode = dAcc ? stageNumberFromCode(dAcc) : null;
+      if (pCode !== null && dCode !== null && dCode < pCode) {
+        setError(`Etapa ${i + 1}: la entrega no puede ser anterior a la recogida en la dirección del Camino`);
+        return;
+      }
     }
 
     setSubmitting(true);
