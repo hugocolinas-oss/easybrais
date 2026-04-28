@@ -121,12 +121,15 @@ export function BookingForm({ allAccommodations }: Props) {
         legs.map((l) => {
           const pickup = accMap.get(l.pickupAccommodationId);
           const dropoff = accMap.get(l.dropoffAccommodationId);
+          const p = pickup ? stageNumberFromCode(pickup) : null;
+          const d = dropoff ? stageNumberFromCode(dropoff) : null;
+          const stages = p !== null && d !== null ? getRealEtapas(p, d) : 1;
           return {
             bagsCount: l.bagsCount,
             overweightBagsCount: l.overweightBagsCount,
-            stagesCount: getStagesCount(pickup, dropoff),
-            pickupPrefix: stageNumberFromCode(pickup ?? ({} as Accommodation)),
-            dropoffPrefix: stageNumberFromCode(dropoff ?? ({} as Accommodation)),
+            stagesCount: stages,
+            pickupPrefix: p,
+            dropoffPrefix: d,
           };
         }),
       ),
