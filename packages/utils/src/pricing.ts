@@ -189,7 +189,15 @@ export function calculatePricing(legs: PricingInput[]): PricingBreakdown {
   const discountedBags = Math.max(0, totalBags - VOLUME_THRESHOLD);
   const normalBags = Math.min(totalBags, VOLUME_THRESHOLD);
   const discountAmount = discountedBags * VOLUME_DISCOUNT;
-  const extraWeightAmount = totalOverweightBags * OVERWEIGHT_FEE;
+
+  let extraWeightAmount = 0;
+  for (const leg of legs) {
+    const etapas = (leg.pickupPrefix != null && leg.dropoffPrefix != null)
+      ? getRealEtapas(leg.pickupPrefix, leg.dropoffPrefix)
+      : Math.max(1, leg.stagesCount ?? 1);
+    extraWeightAmount += leg.overweightBagsCount * OVERWEIGHT_FEE * etapas;
+  }
+
   const totalAmount = subtotalAmount - discountAmount + extraWeightAmount;
 
   return {
