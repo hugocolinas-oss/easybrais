@@ -408,6 +408,22 @@ const t = {
     de: "Kredit-/Debitkarte (Stripe)",
     it: "Carta di credito/debito (Stripe)",
   },
+  "pay.online.disabled": {
+    es: "Próximamente",
+    en: "Coming soon",
+    pt: "Em breve",
+    fr: "Bientôt",
+    de: "Demnächst",
+    it: "Prossimamente",
+  },
+  "pay.online.disabled.desc": {
+    es: "Pago online no disponible temporalmente",
+    en: "Online payment temporarily unavailable",
+    pt: "Pagamento online temporariamente indisponível",
+    fr: "Paiement en ligne temporairement indisponible",
+    de: "Online-Zahlung vorübergehend nicht verfügbar",
+    it: "Pagamento online temporaneamente non disponibile",
+  },
   "pay.cash": {
     es: "Pago en efectivo",
     en: "Cash payment",

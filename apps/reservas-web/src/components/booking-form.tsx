@@ -61,7 +61,7 @@ export function BookingForm({ allAccommodations }: Props) {
   const [bookingType, setBookingType] = useState<BookingType>("single_stage");
   const [legs, setLegs] = useState<StageLeg[]>([createLeg()]);
   const [customer, setCustomer] = useState({ ...EMPTY_CUSTOMER, language: "es" });
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("online");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [submitting, setSubmitting] = useState(false);
@@ -115,9 +115,9 @@ export function BookingForm({ allAccommodations }: Props) {
       .map(([, display]) => display);
   }, [allAccommodations]);
 
-  const pricing = useMemo(
-    () =>
-      calculatePricing(
+  const pricing = useMemo(() => {
+    if (legs.length <= 1 || bookingType === "single_stage") {
+      return calculatePricing(
         legs.map((l) => {
           const pickup = accMap.get(l.pickupAccommodationId);
           const dropoff = accMap.get(l.dropoffAccommodationId);
@@ -129,9 +129,24 @@ export function BookingForm({ allAccommodations }: Props) {
             dropoffPrefix: stageNumberFromCode(dropoff ?? ({} as Accommodation)),
           };
         }),
-      ),
-    [legs, accMap],
-  );
+      );
+    }
+
+    const firstPickup = accMap.get(legs[0]?.pickupAccommodationId ?? "");
+    const lastDropoff = accMap.get(legs[legs.length - 1]?.dropoffAccommodationId ?? "");
+    const routePickupPrefix = stageNumberFromCode(firstPickup ?? ({} as Accommodation));
+    const routeDropoffPrefix = stageNumberFromCode(lastDropoff ?? ({} as Accommodation));
+    const bags = legs[0]?.bagsCount ?? 1;
+    const overweight = legs[0]?.overweightBagsCount ?? 0;
+
+    return calculatePricing([{
+      bagsCount: bags,
+      overweightBagsCount: overweight,
+      stagesCount: getStagesCount(firstPickup, lastDropoff),
+      pickupPrefix: routePickupPrefix,
+      dropoffPrefix: routeDropoffPrefix,
+    }]);
+  }, [legs, accMap, bookingType]);
 
   const handleTypeChange = useCallback(
     (type: BookingType) => {
@@ -307,7 +322,7 @@ export function BookingForm({ allAccommodations }: Props) {
     setLegs([createLeg()]);
     setCustomer(EMPTY_CUSTOMER);
     setBookingType("single_stage");
-    setPaymentMethod("online");
+    setPaymentMethod("cash");
     setErrors({});
     setServerError(null);
     idempotencyKeyRef.current = crypto.randomUUID();
@@ -555,41 +570,54 @@ function PaymentMethodSelector({ value, onChange }: { value: PaymentMethod; onCh
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {options.map((opt) => {
+        const disabled = opt.id === "online";
         const selected = value === opt.id;
         return (
           <button
             key={opt.id}
             type="button"
-            onClick={() => onChange(opt.id)}
+            disabled={disabled}
+            onClick={() => !disabled && onChange(opt.id)}
             className={[
               "group relative flex items-center gap-3 rounded-2xl border-2 px-4 py-4 text-left transition-all",
-              selected
-                ? "border-brand-900 bg-white shadow-card ring-1 ring-brand-900/10"
-                : "border-cream-300/80 bg-white/60 hover:border-cream-400 hover:bg-white hover:shadow-card",
+              disabled
+                ? "cursor-not-allowed border-cream-200 bg-cream-100/50 opacity-60"
+                : selected
+                  ? "border-brand-900 bg-white shadow-card ring-1 ring-brand-900/10"
+                  : "border-cream-300/80 bg-white/60 hover:border-cream-400 hover:bg-white hover:shadow-card",
             ].join(" ")}
           >
-            {selected && (
+            {selected && !disabled && (
               <span className="absolute -top-2 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-brand-900 shadow-sm">
                 <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
               </span>
             )}
+            {disabled && (
+              <span className="absolute -top-2 right-3 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                {t("pay.online.disabled")}
+              </span>
+            )}
             <span
               className={[
                 "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors",
-                selected
-                  ? "bg-gold-500/15 text-gold-700"
-                  : "bg-cream-200/60 text-brand-800/30 group-hover:bg-cream-200 group-hover:text-brand-800/50",
+                disabled
+                  ? "bg-cream-200/40 text-brand-800/20"
+                  : selected
+                    ? "bg-gold-500/15 text-gold-700"
+                    : "bg-cream-200/60 text-brand-800/30 group-hover:bg-cream-200 group-hover:text-brand-800/50",
               ].join(" ")}
             >
               {opt.icon}
             </span>
             <div className="min-w-0">
-              <span className={["block text-sm font-bold", selected ? "text-brand-900" : "text-brand-900/70"].join(" ")}>
+              <span className={["block text-sm font-bold", disabled ? "text-brand-800/40" : selected ? "text-brand-900" : "text-brand-900/70"].join(" ")}>
                 {opt.label}
               </span>
-              <span className="mt-0.5 block text-[11px] leading-relaxed text-brand-800/40">{opt.desc}</span>
+              <span className="mt-0.5 block text-[11px] leading-relaxed text-brand-800/40">
+                {disabled ? t("pay.online.disabled.desc") : opt.desc}
+              </span>
             </div>
           </button>
         );

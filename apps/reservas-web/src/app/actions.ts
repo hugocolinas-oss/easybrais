@@ -122,18 +122,35 @@ export async function createBooking(
       return { pickupPrefix: p, dropoffPrefix: d, stagesCount: etapas };
     }
 
-    const pricing = calculatePricing(
-      data.legs.map((l) => {
-        const { pickupPrefix, dropoffPrefix, stagesCount } = getLegPrefixes(l.pickupAccommodationId, l.dropoffAccommodationId);
-        return {
-          bagsCount: l.bagsCount,
-          overweightBagsCount: l.overweightBagsCount,
-          stagesCount,
-          pickupPrefix,
-          dropoffPrefix,
-        };
-      }),
-    );
+    let pricing: PricingBreakdown;
+    const isMultiLeg = data.legs.length > 1 && data.bookingType !== "single_stage";
+
+    if (isMultiLeg) {
+      const first = data.legs[0]!;
+      const last = data.legs[data.legs.length - 1]!;
+      const { pickupPrefix } = getLegPrefixes(first.pickupAccommodationId, first.dropoffAccommodationId);
+      const { dropoffPrefix, stagesCount } = getLegPrefixes(first.pickupAccommodationId, last.dropoffAccommodationId);
+      pricing = calculatePricing([{
+        bagsCount: first.bagsCount,
+        overweightBagsCount: first.overweightBagsCount,
+        stagesCount,
+        pickupPrefix,
+        dropoffPrefix,
+      }]);
+    } else {
+      pricing = calculatePricing(
+        data.legs.map((l) => {
+          const { pickupPrefix, dropoffPrefix, stagesCount } = getLegPrefixes(l.pickupAccommodationId, l.dropoffAccommodationId);
+          return {
+            bagsCount: l.bagsCount,
+            overweightBagsCount: l.overweightBagsCount,
+            stagesCount,
+            pickupPrefix,
+            dropoffPrefix,
+          };
+        }),
+      );
+    }
 
     /* ── Idempotency check ───────────────────────────────────────────── */
 
@@ -261,9 +278,21 @@ export async function createBooking(
 
     /* ── 4. Create booking items ──────────────────────────────────── */
 
-    const items = data.legs.map((leg) => {
-      const { pickupPrefix, dropoffPrefix, stagesCount } = getLegPrefixes(leg.pickupAccommodationId, leg.dropoffAccommodationId);
-      const perBag = resolvePerBagPrice(pickupPrefix, dropoffPrefix, stagesCount);
+    const routePerBag = isMultiLeg
+      ? pricing.subtotalAmount / Math.max(1, data.legs[0]?.bagsCount ?? 1)
+      : 0;
+
+    const items = data.legs.map((leg, idx) => {
+      let perBag: number;
+      let lineTotal: number;
+      if (isMultiLeg) {
+        perBag = idx === 0 ? routePerBag : 0;
+        lineTotal = idx === 0 ? pricing.subtotalAmount : 0;
+      } else {
+        const { pickupPrefix, dropoffPrefix, stagesCount } = getLegPrefixes(leg.pickupAccommodationId, leg.dropoffAccommodationId);
+        perBag = resolvePerBagPrice(pickupPrefix, dropoffPrefix, stagesCount);
+        lineTotal = leg.bagsCount * perBag;
+      }
       return {
         booking_id: booking.id,
         service_date: leg.serviceDate,
@@ -272,7 +301,7 @@ export async function createBooking(
         bags_count: leg.bagsCount,
         overweight_bags_count: leg.overweightBagsCount,
         unit_price: perBag,
-        line_total: leg.bagsCount * perBag,
+        line_total: lineTotal,
         operational_status: "pending" as const,
       };
     });
