@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import type { Accommodation } from "@/lib/types";
+import type { Accommodation, BookingType } from "@/lib/types";
 import { createBooking } from "@/app/actions";
 import { formatEUR, calculatePricing, getRealEtapas } from "@easybrais/utils";
 
@@ -10,10 +10,21 @@ interface Props {
   accommodations: Accommodation[];
 }
 
+interface LegState {
+  id: string;
+  serviceDate: string;
+  pickupId: string;
+  dropoffId: string;
+}
+
 function stageNumberFromCode(acc: Accommodation): number | null {
   if (!acc.external_code) return null;
   const n = parseInt(acc.external_code.split(".")[0], 10);
   return Number.isNaN(n) ? null : n;
+}
+
+function stripAccents(s: string): string {
+  return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
 }
 
 function AccommodationCombobox({
@@ -33,11 +44,11 @@ function AccommodationCombobox({
 
   const filtered = useMemo(() => {
     if (!search) return accommodations;
-    const q = search.toLowerCase();
+    const q = stripAccents(search);
     return accommodations.filter(
       (a) =>
-        (a.display_name ?? a.name).toLowerCase().includes(q) ||
-        (a.town ?? "").toLowerCase().includes(q) ||
+        stripAccents(a.display_name ?? a.name).includes(q) ||
+        stripAccents(a.town ?? "").includes(q) ||
         (a.external_code ?? "").toLowerCase().includes(q),
     );
   }, [accommodations, search]);
@@ -88,6 +99,18 @@ function AccommodationCombobox({
   );
 }
 
+function createLeg(): LegState {
+  return { id: crypto.randomUUID(), serviceDate: "", pickupId: "", dropoffId: "" };
+}
+
+const TYPE_OPTIONS: { id: BookingType; label: string }[] = [
+  { id: "single_stage", label: "Un transporte" },
+  { id: "multi_stage", label: "Varias etapas" },
+  { id: "full_camino", label: "Camino completo" },
+];
+
+const FULL_CAMINO_LEGS = 8;
+
 export function ManualBookingForm({ accommodations }: Props) {
   const router = useRouter();
   const idempotencyKeyRef = useRef(crypto.randomUUID());
@@ -96,11 +119,10 @@ export function ManualBookingForm({ accommodations }: Props) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
-  const [serviceDate, setServiceDate] = useState("");
-  const [pickupId, setPickupId] = useState("");
-  const [dropoffId, setDropoffId] = useState("");
   const [bagsCount, setBagsCount] = useState(1);
   const [overweightBags, setOverweightBags] = useState(0);
+  const [bookingType, setBookingType] = useState<BookingType>("single_stage");
+  const [legs, setLegs] = useState<LegState[]>([createLeg()]);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,17 +135,81 @@ export function ManualBookingForm({ accommodations }: Props) {
     [accommodations],
   );
 
-  const { stagesCount, pickupPrefix, dropoffPrefix } = useMemo(() => {
-    const pickup = accMap.get(pickupId);
-    const dropoff = accMap.get(dropoffId);
-    if (!pickup || !dropoff) return { stagesCount: 1, pickupPrefix: null, dropoffPrefix: null };
-    const p = stageNumberFromCode(pickup);
-    const d = stageNumberFromCode(dropoff);
-    if (p === null || d === null) return { stagesCount: 1, pickupPrefix: p, dropoffPrefix: d };
-    return { stagesCount: getRealEtapas(p, d), pickupPrefix: p, dropoffPrefix: d };
-  }, [pickupId, dropoffId, accMap]);
+  const handleTypeChange = useCallback((type: BookingType) => {
+    setBookingType(type);
+    if (type === "single_stage") {
+      setLegs([createLeg()]);
+    } else if (type === "multi_stage") {
+      setLegs((prev) => {
+        const filled = prev.slice(0, 2);
+        while (filled.length < 2) filled.push(createLeg());
+        return filled;
+      });
+    } else if (type === "full_camino") {
+      setLegs(Array.from({ length: FULL_CAMINO_LEGS }, () => createLeg()));
+    }
+  }, []);
 
-  const pricing = calculatePricing([{ bagsCount, overweightBagsCount: overweightBags, stagesCount, pickupPrefix, dropoffPrefix }]);
+  function updateLeg(index: number, field: keyof LegState, value: string) {
+    setLegs((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+
+      if (field === "dropoffId" && value && index < next.length - 1) {
+        next[index + 1] = { ...next[index + 1], pickupId: value };
+      }
+
+      return next;
+    });
+  }
+
+  function addLeg() {
+    setLegs((prev) => {
+      const last = prev[prev.length - 1];
+      const newLeg = createLeg();
+      if (last?.dropoffId) newLeg.pickupId = last.dropoffId;
+      return [...prev, newLeg];
+    });
+  }
+
+  function removeLeg(index: number) {
+    if (legs.length <= 1) return;
+    setLegs((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  const pricing = useMemo(() => {
+    if (legs.length <= 1 || bookingType === "single_stage") {
+      const pickup = accMap.get(legs[0]?.pickupId ?? "");
+      const dropoff = accMap.get(legs[0]?.dropoffId ?? "");
+      const p = pickup ? stageNumberFromCode(pickup) : null;
+      const d = dropoff ? stageNumberFromCode(dropoff) : null;
+      const stages = p !== null && d !== null ? getRealEtapas(p, d) : 1;
+      return calculatePricing([{ bagsCount, overweightBagsCount: overweightBags, stagesCount: stages, pickupPrefix: p, dropoffPrefix: d }]);
+    }
+
+    const firstPickup = accMap.get(legs[0]?.pickupId ?? "");
+    const lastDropoff = accMap.get(legs[legs.length - 1]?.dropoffId ?? "");
+    const p = firstPickup ? stageNumberFromCode(firstPickup) : null;
+    const d = lastDropoff ? stageNumberFromCode(lastDropoff) : null;
+    const stages = p !== null && d !== null ? getRealEtapas(p, d) : 1;
+
+    return calculatePricing([{
+      bagsCount,
+      overweightBagsCount: overweightBags,
+      stagesCount: stages,
+      pickupPrefix: p,
+      dropoffPrefix: d,
+    }]);
+  }, [legs, accMap, bagsCount, overweightBags, bookingType]);
+
+  const routeStages = useMemo(() => {
+    const firstPickup = accMap.get(legs[0]?.pickupId ?? "");
+    const lastDropoff = accMap.get(legs[legs.length - 1]?.dropoffId ?? "");
+    const p = firstPickup ? stageNumberFromCode(firstPickup) : null;
+    const d = lastDropoff ? stageNumberFromCode(lastDropoff) : null;
+    if (p !== null && d !== null) return getRealEtapas(p, d);
+    return 1;
+  }, [legs, accMap]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -131,10 +217,13 @@ export function ManualBookingForm({ accommodations }: Props) {
     setSuccess(null);
 
     if (!fullName.trim()) { setError("Nombre obligatorio"); return; }
-    if (!serviceDate) { setError("Fecha obligatoria"); return; }
-    if (!pickupId) { setError("Selecciona recogida"); return; }
-    if (!dropoffId) { setError("Selecciona entrega"); return; }
-    if (pickupId === dropoffId) { setError("Recogida y entrega deben ser diferentes"); return; }
+
+    for (const [i, leg] of legs.entries()) {
+      if (!leg.serviceDate) { setError(`Etapa ${i + 1}: fecha obligatoria`); return; }
+      if (!leg.pickupId) { setError(`Etapa ${i + 1}: selecciona recogida`); return; }
+      if (!leg.dropoffId) { setError(`Etapa ${i + 1}: selecciona entrega`); return; }
+      if (leg.pickupId === leg.dropoffId) { setError(`Etapa ${i + 1}: recogida y entrega deben ser diferentes`); return; }
+    }
 
     setSubmitting(true);
 
@@ -142,17 +231,17 @@ export function ManualBookingForm({ accommodations }: Props) {
       const currentKey = idempotencyKeyRef.current;
       const res = await createBooking(
         {
-          bookingType: "single_stage",
-          legs: [{
-            id: crypto.randomUUID(),
-            serviceDate,
+          bookingType,
+          legs: legs.map((leg) => ({
+            id: leg.id,
+            serviceDate: leg.serviceDate,
             departureTown: "",
-            pickupAccommodationId: pickupId,
+            pickupAccommodationId: leg.pickupId,
             arrivalTown: "",
-            dropoffAccommodationId: dropoffId,
+            dropoffAccommodationId: leg.dropoffId,
             bagsCount,
             overweightBagsCount: overweightBags,
-          }],
+          })),
           customer: {
             fullName: fullName.trim(),
             email: email.trim() || `manual+${crypto.randomUUID().slice(0, 8)}@easybrais.com`,
@@ -186,6 +275,7 @@ export function ManualBookingForm({ accommodations }: Props) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      {/* Cliente */}
       <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6">
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">Cliente</h3>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -208,13 +298,29 @@ export function ManualBookingForm({ accommodations }: Props) {
         </div>
       </div>
 
+      {/* Tipo de reserva */}
       <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6">
-        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">Transporte</h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Fecha del servicio *</label>
-            <input type="date" value={serviceDate} onChange={(e) => setServiceDate(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600" />
-          </div>
+        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">Tipo de reserva</h3>
+        <div className="flex flex-wrap gap-2">
+          {TYPE_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => handleTypeChange(opt.id)}
+              className={[
+                "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                bookingType === opt.id
+                  ? "bg-brand-800 text-white shadow-sm"
+                  : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50",
+              ].join(" ")}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Mochilas y sobrepeso (global) */}
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Mochilas</label>
             <input
@@ -223,12 +329,10 @@ export function ManualBookingForm({ accommodations }: Props) {
               max={50}
               value={bagsCount}
               onFocus={(e) => e.target.select()}
-              onChange={(e) => setBagsCount(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={(e) => { const v = Math.max(1, parseInt(e.target.value) || 1); setBagsCount(v); setOverweightBags((p) => Math.min(p, v)); }}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-center focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
             />
           </div>
-          <AccommodationCombobox label="Recogida *" value={pickupId} accommodations={sortedAccommodations} onChange={setPickupId} />
-          <AccommodationCombobox label="Entrega *" value={dropoffId} accommodations={sortedAccommodations} onChange={setDropoffId} />
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Sobrepeso (+20 kg)</label>
             <input
@@ -242,10 +346,10 @@ export function ManualBookingForm({ accommodations }: Props) {
             />
           </div>
           <div className="flex items-end">
-            <div className="rounded-lg bg-gray-50 px-4 py-2.5 text-sm">
-              {stagesCount > 1 && (
+            <div className="w-full rounded-lg bg-gray-50 px-4 py-2.5 text-sm text-center">
+              {routeStages > 1 && (
                 <span className="mr-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-700">
-                  {stagesCount} etapas
+                  {routeStages} etapas
                 </span>
               )}
               <span className="text-gray-500">Total: </span>
@@ -253,6 +357,64 @@ export function ManualBookingForm({ accommodations }: Props) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Etapas */}
+      <div className="space-y-4">
+        {legs.map((leg, i) => {
+          const pickupLocked = i > 0 && legs[i - 1]?.dropoffId === leg.pickupId && !!leg.pickupId;
+          return (
+            <div key={leg.id} className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-700">
+                  Etapa {i + 1}
+                </h3>
+                {legs.length > 1 && bookingType !== "full_camino" && (
+                  <button type="button" onClick={() => removeLeg(i)} className="text-xs text-red-400 hover:text-red-600">
+                    Eliminar
+                  </button>
+                )}
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Fecha *</label>
+                  <input
+                    type="date"
+                    value={leg.serviceDate}
+                    onChange={(e) => updateLeg(i, "serviceDate", e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
+                  />
+                </div>
+                <div>
+                  <AccommodationCombobox
+                    label={pickupLocked ? "Recogida * (vinculado)" : "Recogida *"}
+                    value={leg.pickupId}
+                    accommodations={sortedAccommodations}
+                    onChange={(v) => updateLeg(i, "pickupId", v)}
+                  />
+                </div>
+                <div>
+                  <AccommodationCombobox
+                    label="Entrega *"
+                    value={leg.dropoffId}
+                    accommodations={sortedAccommodations}
+                    onChange={(v) => updateLeg(i, "dropoffId", v)}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {bookingType === "multi_stage" && (
+          <button
+            type="button"
+            onClick={addLeg}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 py-3 text-sm font-medium text-gray-500 transition-colors hover:border-brand-600 hover:text-brand-700"
+          >
+            + Añadir etapa
+          </button>
+        )}
       </div>
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
@@ -272,7 +434,7 @@ export function ManualBookingForm({ accommodations }: Props) {
         disabled={submitting}
         className="flex items-center gap-2 rounded-lg bg-brand-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 disabled:opacity-50"
       >
-        {submitting ? "Creando..." : "Crear reserva"}
+        {submitting ? "Creando..." : `Crear reserva — ${formatEUR(pricing.totalAmount)}`}
       </button>
     </form>
   );
