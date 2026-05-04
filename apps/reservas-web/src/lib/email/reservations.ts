@@ -2,7 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@easybrais/utils";
 import { generateInvoicePdf, type InvoiceData } from "@easybrais/utils/pdf";
-import { sendEmail, type EmailAttachment } from "@easybrais/utils/email";
+import { getSmtpConfig, sendEmail, type EmailAttachment } from "@easybrais/utils/email";
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -310,7 +310,7 @@ async function insertEmailEvent(
 async function updateBookingEmailStatus(
   supabase: SupabaseAdmin,
   bookingId: string,
-  status: "sent" | "failed",
+  status: "sent" | "failed" | "not_sent",
 ) {
   try {
     await supabase.from("bookings").update({ email_status: status }).eq("id", bookingId);
@@ -424,7 +424,11 @@ export async function sendCustomerReservationConfirmationEmail(
     error: result.error,
   });
 
-  await updateBookingEmailStatus(supabase, bookingId, result.sent ? "sent" : "failed");
+  await updateBookingEmailStatus(
+    supabase,
+    bookingId,
+    result.sent ? "sent" : result.error === "SMTP not configured" ? "not_sent" : "failed",
+  );
 
   return result;
 }
@@ -432,7 +436,16 @@ export async function sendCustomerReservationConfirmationEmail(
 export async function sendReservationEmails(
   bookingId: string,
   supabase = createAdminClient(),
-): Promise<void> {
+): Promise<{
+  admin: { sent: boolean; error?: string };
+  customer: { sent: boolean; error?: string };
+}> {
+  if (!getSmtpConfig()) {
+    console.error(
+      "[reservation-email] SMTP no configurado (faltan SMTP_HOST, SMTP_USER y/o SMTP_PASS). Ningún correo se enviará.",
+    );
+  }
+
   const adminResult = await sendAdminNewReservationEmail(bookingId, supabase);
   const customerResult = await sendCustomerReservationConfirmationEmail(bookingId, supabase);
 
@@ -442,6 +455,8 @@ export async function sendReservationEmails(
   if (!customerResult.sent) {
     console.error("[reservation-email] customer send failed:", customerResult.error ?? "unknown");
   }
+
+  return { admin: adminResult, customer: customerResult };
 }
 
 // ---------------------------------------------------------------------------

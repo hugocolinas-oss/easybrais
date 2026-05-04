@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { BookingDetail } from "@/lib/gestion/booking-queries";
+import { BRAND_LOGO_SRC } from "@/lib/brand";
 
 interface Props {
   booking: BookingDetail;
@@ -45,7 +46,7 @@ export function BookingPdfButton({ booking }: Props) {
         import("jspdf-autotable"),
       ]);
       const autoTable = autoTableMod.default;
-      const logoResponse = await fetch("/brand-logo.png");
+      const logoResponse = await fetch(BRAND_LOGO_SRC);
       if (!logoResponse.ok) {
         throw new Error("No se pudo cargar el logo");
       }
@@ -59,7 +60,7 @@ export function BookingPdfButton({ booking }: Props) {
 
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageW = doc.internal.pageSize.getWidth();
-      const brandGreen: [number, number, number] = [30, 80, 50];
+      const brandGreen: [number, number, number] = [11, 61, 46];
       const gold: [number, number, number] = [180, 140, 40];
 
       doc.setFillColor(...brandGreen);

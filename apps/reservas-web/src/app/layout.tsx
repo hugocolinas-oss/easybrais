@@ -1,9 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Easy Brais — Transporte de equipaje en el Camino",
   description: "Reserva el transporte de tu equipaje en el Camino Portugués de forma sencilla y segura.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0B3D2E",
 };
 
 export default function RootLayout({

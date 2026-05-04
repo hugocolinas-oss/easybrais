@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { BrandLogo } from "@/components/brand-logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "./logout-button";
@@ -89,9 +89,7 @@ export function Sidebar({ fullName, email, role }: Props) {
     <aside className="hidden w-52 shrink-0 flex-col border-r border-gray-200 bg-white md:flex lg:w-60">
       <div className="border-b border-gray-100 px-5 py-4">
         <Link href="/gestion" className="flex items-center gap-3">
-          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-brand-50 ring-1 ring-brand-100">
-            <Image src="/brand-logo.png" alt="Easy Brais" fill className="object-contain p-1" sizes="40px" />
-          </div>
+          <BrandLogo size="md" className="ring-1 ring-brand-100" imgClassName="p-0.5" />
           <div>
             <h1 className="text-lg font-bold text-brand-700">Easy Brais</h1>
             <p className="text-[11px] text-gray-400">Panel de gestión</p>

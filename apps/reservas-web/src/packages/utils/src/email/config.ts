@@ -6,6 +6,7 @@ export interface SmtpConfig {
   pass: string;
   fromName: string;
   fromEmail: string;
+  replyTo?: string;
 }
 
 /**
@@ -27,5 +28,6 @@ export function getSmtpConfig(): SmtpConfig | null {
     pass,
     fromName: process.env.SMTP_FROM_NAME || "Easy Brais",
     fromEmail: process.env.SMTP_FROM_EMAIL || user,
+    replyTo: process.env.SMTP_REPLY_TO || undefined,
   };
 }

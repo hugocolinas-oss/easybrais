@@ -1,5 +1,7 @@
 import { createAdminClient, formatEUR, fmtDateShort } from "@easybrais/utils";
+import Image from "next/image";
 import Link from "next/link";
+import { BRAND_LOGO_SRC } from "@/lib/brand";
 
 interface Props {
   searchParams: Promise<{ session_id?: string; booking_id?: string }>;
@@ -67,13 +69,16 @@ export default async function PaymentSuccessPage({ searchParams }: Props) {
         <div className="relative overflow-hidden bg-brand-900 px-6 py-8 text-center sm:px-8 sm:py-10">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(196,154,108,0.12),transparent_60%)]" aria-hidden="true" />
           <div className="relative">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur-sm">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-white/10 p-1 ring-1 ring-white/25 shadow-lg backdrop-blur-sm">
+              <Image src={BRAND_LOGO_SRC} alt="Easy Brais" width={56} height={56} className="object-contain" />
+            </div>
+            <div className="mx-auto mb-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/15">
               {isPaid ? (
-                <svg className="h-7 w-7 text-gold-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">
+                <svg className="h-4 w-4 text-gold-300" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
               ) : (
-                <svg className="h-7 w-7 text-gold-400 animate-pulse" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                <svg className="h-4 w-4 animate-pulse text-gold-300" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               )}

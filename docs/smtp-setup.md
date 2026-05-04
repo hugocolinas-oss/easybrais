@@ -51,3 +51,9 @@ La prueba envia un email a `ADMIN_EMAIL` con asunto `Test SMTP Easy Brais`.
 - Revisa en Brevo si la IP o el origen estan autorizados para SMTP relay.
 - Comprueba que `ADMIN_EMAIL` y `SMTP_FROM_EMAIL` existan y usen un remitente validado.
 - Consulta `email_logs` y los logs del servidor para ver `error_message`.
+
+## Vercel / produccion
+
+- Las variables `SMTP_*` deben estar definidas en el proyecto de Vercel (no solo en `.env.local`). Si faltan, el codigo registra en logs: `SMTP no configurado` y no se envia nada.
+- El envio al crear la reserva se ejecuta con **`await`** dentro de la Server Action para que la funcion serverless no termine antes de que Nodemailer acabe (las promesas en segundo plano suelen cancelarse al devolver la respuesta).
+- Tras un pago con Stripe, el email de «pago recibido» se envia desde el webhook (`/api/stripe/webhook`), que ya esperaba el SMTP; si falla, busca en logs `[stripe/webhook] payment email not sent`.

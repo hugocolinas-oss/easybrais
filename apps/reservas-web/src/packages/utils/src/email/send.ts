@@ -12,6 +12,7 @@ export interface SendEmailInput {
   subject: string;
   html: string;
   attachments?: EmailAttachment[];
+  replyTo?: string;
 }
 
 export interface SendEmailResult {
@@ -41,6 +42,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       to: input.to,
       subject: input.subject,
       html: input.html,
+      replyTo: input.replyTo ?? config.replyTo,
     };
 
     if (input.attachments?.length) {

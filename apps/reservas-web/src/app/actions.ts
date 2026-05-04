@@ -20,6 +20,9 @@ export interface BookingSuccess {
   firstServiceDate: string;
   pricing: PricingBreakdown;
   stripeEnabled: boolean;
+  /** Si el correo al cliente se entregó vía SMTP (reserva nueva). */
+  customerEmailSent: boolean;
+  customerEmailError?: string;
 }
 
 export interface BookingFailure {
@@ -320,12 +323,19 @@ export async function createBooking(
         .eq("id", booking.id);
     }
 
-    /* ── 7. Send reservation emails asynchronously ───────────────────── */
+    /* ── 7. Envío de correos (await: en serverless/Vercel las promesas “sueltas” se cortan al devolver la respuesta) */
 
-    sendReservationEmails(booking.id, supabase).catch((error) => {
+    let customerEmailSent = false;
+    let customerEmailError: string | undefined;
+    try {
+      const emailOutcome = await sendReservationEmails(booking.id, supabase);
+      customerEmailSent = emailOutcome.customer.sent;
+      customerEmailError = emailOutcome.customer.error;
+    } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error("[createBooking] reservation emails failed:", message);
-    });
+      customerEmailError = message;
+    }
 
     revalidatePath("/gestion/reservas");
     revalidatePath("/gestion/operativa");
@@ -342,6 +352,8 @@ export async function createBooking(
       firstServiceDate: firstDate,
       pricing,
       stripeEnabled: wantsOnline,
+      customerEmailSent,
+      customerEmailError,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

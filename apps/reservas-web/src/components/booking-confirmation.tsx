@@ -2,6 +2,7 @@
 
 import { formatEUR, fmtDateShort, PRICING_RULES } from "@easybrais/utils";
 import type { BookingSuccess } from "@/app/actions";
+import { BrandLogo } from "@/components/brand-logo";
 import { useT } from "@/lib/i18n/context";
 
 interface Props {
@@ -21,8 +22,11 @@ export function BookingConfirmation({ result, onNewBooking }: Props) {
         <div className="relative overflow-hidden bg-brand-900 px-6 py-8 text-center sm:px-8 sm:py-10">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(196,154,108,0.12),transparent_60%)]" aria-hidden="true" />
           <div className="relative">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur-sm">
-              <svg className="h-7 w-7 text-gold-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">
+            <div className="mx-auto mb-3 flex justify-center">
+              <BrandLogo size="md" className="bg-white/10 ring-1 ring-white/25 shadow-lg backdrop-blur-sm" imgClassName="p-1" />
+            </div>
+            <div className="mx-auto mb-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/15">
+              <svg className="h-4 w-4 text-gold-300" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
             </div>
@@ -30,6 +34,12 @@ export function BookingConfirmation({ result, onNewBooking }: Props) {
             <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-white/60">
               {t("conf.subtitle")}
             </p>
+            {!result.customerEmailSent && (
+              <div className="mx-auto mt-4 max-w-sm rounded-xl border border-amber-400/35 bg-amber-950/40 px-4 py-3 text-left text-[12px] leading-relaxed text-amber-100/95">
+                <p className="font-semibold text-amber-50">{t("conf.emailIssue")}</p>
+                <p className="mt-1 text-amber-100/80">{t("conf.emailIssueHint")}</p>
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { BrandLogo } from "@/components/brand-logo";
 import { useT } from "@/lib/i18n/context";
 
 export function HeroSection() {
@@ -9,16 +9,12 @@ export function HeroSection() {
   return (
     <div className="mb-8 text-center sm:mb-12">
       <div className="mb-5 flex justify-center sm:mb-6">
-        <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-[28px] bg-gradient-to-br from-brand-900 to-brand-700 shadow-[0_18px_45px_rgba(22,50,40,0.18)] ring-1 ring-gold-300/30 sm:h-24 sm:w-24">
-          <Image
-            src="/brand-logo.png"
-            alt="Easy Brais"
-            fill
-            className="object-contain p-2"
-            sizes="(max-width: 640px) 80px, 96px"
-            priority
-          />
-        </div>
+        <BrandLogo
+          size="xl"
+          className="shadow-[0_18px_45px_rgba(11,61,46,0.22)] ring-1 ring-black/[0.06]"
+          imgClassName="p-1.5"
+          priority
+        />
       </div>
       <h2 className="text-balance text-2xl font-extrabold tracking-tight text-brand-900 sm:text-4xl">
         {t("hero.title")}

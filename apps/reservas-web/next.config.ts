@@ -6,6 +6,14 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@easybrais/utils", "@easybrais/types", "@easybrais/ui"],
   headers: async () => [
     {
+      source: "/logomochila.png",
+      headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+    },
+    {
+      source: "/brand-logo.png",
+      headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+    },
+    {
       source: "/(.*)",
       headers: [
         { key: "X-Frame-Options", value: "DENY" },

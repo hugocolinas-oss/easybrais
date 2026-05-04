@@ -696,6 +696,22 @@ const t = {
     de: "Ihre Anfrage wurde erfolgreich registriert.",
     it: "La tua richiesta è stata registrata con successo.",
   },
+  "conf.emailIssue": {
+    es: "No hemos podido enviarte el correo de confirmación.",
+    en: "We could not send you the confirmation email.",
+    pt: "Não foi possível enviar o email de confirmação.",
+    fr: "Nous n'avons pas pu vous envoyer l'e-mail de confirmation.",
+    de: "Die Bestätigungs-E-Mail konnte nicht gesendet werden.",
+    it: "Non è stato possibile inviare l'email di conferma.",
+  },
+  "conf.emailIssueHint": {
+    es: "Tu reserva está guardada. Revisa spam o contacta con nosotros indicando tu código.",
+    en: "Your booking is saved. Check spam or contact us with your booking code.",
+    pt: "A sua reserva está guardada. Verifique o spam ou contacte-nos com o código.",
+    fr: "Votre réservation est enregistrée. Vérifiez les spams ou contactez-nous avec votre code.",
+    de: "Ihre Buchung ist gespeichert. Prüfen Sie den Spam oder kontaktieren Sie uns mit Ihrem Code.",
+    it: "La prenotazione è salvata. Controlla lo spam o contattaci con il codice.",
+  },
   "conf.code": {
     es: "Tu código de reserva",
     en: "Your booking code",
