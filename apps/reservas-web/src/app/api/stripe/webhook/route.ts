@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import { createAdminClient } from "@easybrais/utils";
+import { sendPaymentConfirmedEmail } from "@/lib/email/reservations";
 import type Stripe from "stripe";
 
 export async function POST(req: NextRequest) {
@@ -134,6 +135,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   });
 
   console.log("[stripe/webhook] completed: booking", bookingId, "marked as paid+confirmed");
+
+  /* ── Email de confirmación de pago al cliente ────────────────── */
+  try {
+    const emailResult = await sendPaymentConfirmedEmail(bookingId, supabase);
+    if (!emailResult.sent) {
+      console.warn("[stripe/webhook] payment email not sent:", emailResult.error ?? "unknown");
+    } else {
+      console.log("[stripe/webhook] payment confirmation email sent for booking", bookingId);
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[stripe/webhook] payment email error:", msg);
+  }
 }
 
 // ---------------------------------------------------------------------------

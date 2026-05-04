@@ -9,6 +9,7 @@ type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 const EMAIL_PROVIDER = "brevo_smtp";
 const ADMIN_TEMPLATE = "admin_new_reservation";
 const CUSTOMER_TEMPLATE = "customer_reservation_confirmation";
+const CUSTOMER_PAYMENT_TEMPLATE = "customer_payment_confirmed";
 
 interface ReservationEmailContext {
   bookingId: string;
@@ -99,6 +100,11 @@ async function getReservationEmailContext(
     language: string;
   } | null;
 
+  if (!customer) {
+    console.error("[reservation-email] booking has no customer:", bookingId);
+    return null;
+  }
+
   const items = (data.booking_items ?? []) as unknown as Array<{
     service_date: string;
     bags_count: number;
@@ -112,8 +118,8 @@ async function getReservationEmailContext(
     bookingCode: data.booking_code,
     serviceDate: data.service_date,
     bookingType: data.booking_type,
-    customerName: customer.full_name,
-    customerFirstName: getCustomerFirstName(customer.full_name),
+    customerName: customer.full_name ?? "—",
+    customerFirstName: getCustomerFirstName(customer.full_name ?? ""),
     customerEmail: customer.email ?? null,
     customerPhone: customer.phone ?? "—",
     comments: data.notes_customer ?? "—",
@@ -228,6 +234,13 @@ function buildCustomerEmail(context: ReservationEmailContext) {
   return { subject, html };
 }
 
+function classifyEmailStatus(input: { sent: boolean; error?: string }): "sent" | "failed" | "pending" {
+  if (input.sent) return "sent";
+  // SMTP no configurado en dev/test: marcamos como `pending` para no inflar fallos
+  if (input.error === "SMTP not configured") return "pending";
+  return "failed";
+}
+
 async function insertEmailLog(
   supabase: SupabaseAdmin,
   input: {
@@ -240,13 +253,15 @@ async function insertEmailLog(
     error?: string;
   },
 ) {
+  const status = classifyEmailStatus(input);
+
   const payload = {
     booking_id: input.bookingId,
     recipient: input.recipient,
     subject: input.subject,
     template: input.template,
     template_key: input.template,
-    status: input.sent ? "sent" : "failed",
+    status,
     provider: EMAIL_PROVIDER,
     external_message_id: input.messageId ?? null,
     error_message: input.error ?? null,
@@ -427,4 +442,87 @@ export async function sendReservationEmails(
   if (!customerResult.sent) {
     console.error("[reservation-email] customer send failed:", customerResult.error ?? "unknown");
   }
+}
+
+// ---------------------------------------------------------------------------
+// Confirmación de pago (Stripe completed)
+// ---------------------------------------------------------------------------
+
+function buildPaymentConfirmedEmail(context: ReservationEmailContext) {
+  const subject = `Pago recibido · Reserva ${context.bookingCode} confirmada · Easy Brais`;
+  const firstItem = context.items[0];
+  const lastItem = context.items[context.items.length - 1];
+
+  const html = `<!DOCTYPE html>
+<html lang="gl">
+<head><meta charset="utf-8" /></head>
+<body style="margin:0;padding:24px;background:#f6f4ee;font-family:Arial,Helvetica,sans-serif;color:#163228;">
+  <div style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e3ddd0;border-radius:12px;padding:28px;">
+    <h1 style="margin:0 0 18px;font-size:22px;color:#163228;">Pago recibido ✅</h1>
+    <p style="margin:0 0 18px;line-height:1.7;">Ola ${escapeHtml(context.customerFirstName)}, recibimos correctamente o teu pago. A tua reserva queda <strong>confirmada</strong>.</p>
+    <p style="margin:0 0 16px;line-height:1.7;">🔐 <strong>Nº reserva:</strong> ${escapeHtml(context.bookingCode)}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">📅 <strong>Data de servizo:</strong> ${formatDate(context.serviceDate)}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">🏠 <strong>Recollida:</strong> ${escapeHtml(firstItem?.pickupName ?? "—")}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">🏡 <strong>Entrega:</strong> ${escapeHtml(lastItem?.dropoffName ?? "—")}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">💰 <strong>Importe pagado:</strong> ${formatPrice(context.totalPrice)}€</p>
+    <p style="margin:0 0 16px;line-height:1.7;">Adxuntámosche o PDF da reserva como xustificante.</p>
+    <p style="margin:0;line-height:1.7;">Bo Camiño!<br /><br />Easy Brais<br />Transporte de mochilas no Camiño Portugues</p>
+  </div>
+</body>
+</html>`;
+
+  return { subject, html };
+}
+
+export async function sendPaymentConfirmedEmail(
+  bookingId: string,
+  supabase = createAdminClient(),
+): Promise<{ sent: boolean; error?: string }> {
+  const context = await getReservationEmailContext(supabase, bookingId);
+  if (!context) {
+    return { sent: false, error: "Reservation not found" };
+  }
+
+  if (!context.customerEmail) {
+    return { sent: false, error: "Customer email missing" };
+  }
+
+  const { subject, html } = buildPaymentConfirmedEmail(context);
+
+  let attachments: EmailAttachment[] | undefined;
+  try {
+    const pdf = await buildReservationPdf(context);
+    attachments = pdf ? [pdf] : undefined;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[reservation-email] payment PDF generation failed:", message);
+  }
+
+  const result = await sendEmail({
+    to: context.customerEmail,
+    subject,
+    html,
+    attachments,
+  });
+
+  await insertEmailLog(supabase, {
+    bookingId,
+    recipient: context.customerEmail,
+    subject,
+    template: CUSTOMER_PAYMENT_TEMPLATE,
+    sent: result.sent,
+    messageId: result.messageId,
+    error: result.error,
+  });
+
+  await insertEmailEvent(supabase, {
+    bookingId,
+    recipient: context.customerEmail,
+    template: CUSTOMER_PAYMENT_TEMPLATE,
+    sent: result.sent,
+    messageId: result.messageId,
+    error: result.error,
+  });
+
+  return result;
 }

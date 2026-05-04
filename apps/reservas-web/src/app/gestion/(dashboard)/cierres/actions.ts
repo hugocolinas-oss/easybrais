@@ -124,7 +124,7 @@ export async function getClosureBookings(date: string): Promise<{ rows: ClosureB
         `bags_count, overweight_bags_count, line_total,
          pickup:accommodations!booking_items_pickup_accommodation_id_fkey(name),
          dropoff:accommodations!booking_items_dropoff_accommodation_id_fkey(name),
-         bookings!inner(id, booking_code, status, payment_status, total_amount, customers(full_name))`,
+         bookings!inner(id, booking_code, status, payment_status, customers(full_name))`,
       )
       .eq("service_date", date);
 
@@ -144,7 +144,6 @@ export async function getClosureBookings(date: string): Promise<{ rows: ClosureB
         booking_code: string;
         status: string;
         payment_status: string;
-        total_amount: number;
         customers: { full_name: string } | null;
       };
     }
@@ -152,25 +151,48 @@ export async function getClosureBookings(date: string): Promise<{ rows: ClosureB
     const raw = (items ?? []) as unknown as RawPdfItem[];
     const active = raw.filter((i) => i.bookings.status !== "cancelled");
 
-    const bookingMap = new Map<string, ClosureBookingRow>();
+    /* ── Agrupar por reserva, sumando SOLO las líneas del día ──────
+       (evita duplicar el total de Camino completo en cada cierre) */
+    const bookingMap = new Map<
+      string,
+      ClosureBookingRow & { route_pickup: string; route_dropoff: string }
+    >();
+
     for (const item of active) {
       const bId = item.bookings.id;
+      const lineAmount =
+        (Number(item.line_total) || 0) +
+        (item.overweight_bags_count || 0) * OVERWEIGHT_FEE;
+
       const existing = bookingMap.get(bId);
       if (existing) {
         existing.bags_count += item.bags_count || 0;
+        existing.total_amount += lineAmount;
+        existing.route_dropoff = item.dropoff?.name ?? existing.route_dropoff;
       } else {
         bookingMap.set(bId, {
           booking_code: item.bookings.booking_code,
           customer_name: item.bookings.customers?.full_name ?? "—",
+          route_pickup: item.pickup?.name ?? "—",
+          route_dropoff: item.dropoff?.name ?? "—",
           route: `${item.pickup?.name ?? "—"} → ${item.dropoff?.name ?? "—"}`,
           bags_count: item.bags_count || 0,
-          total_amount: Number(item.bookings.total_amount) || 0,
+          total_amount: lineAmount,
           payment_status: item.bookings.payment_status,
         });
       }
     }
 
-    return { rows: Array.from(bookingMap.values()) };
+    const rows: ClosureBookingRow[] = Array.from(bookingMap.values()).map((b) => ({
+      booking_code: b.booking_code,
+      customer_name: b.customer_name,
+      route: `${b.route_pickup} → ${b.route_dropoff}`,
+      bags_count: b.bags_count,
+      total_amount: b.total_amount,
+      payment_status: b.payment_status,
+    }));
+
+    return { rows };
   } catch (err) {
     console.error("[getClosureBookings] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado." };
