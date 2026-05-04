@@ -12,8 +12,8 @@ export function PublicLayoutInner({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-50 border-b border-white/5 bg-brand-900/[.98] backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:h-16 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400/25 to-gold-600/15 ring-1 ring-gold-400/20">
-              <Image src="/api/brand/logo" alt="Easy Brais" width={22} height={22} className="h-[22px] w-[22px] object-contain" />
+            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-gold-400/25 to-gold-600/15 ring-1 ring-gold-400/20">
+              <Image src="/brand-logo.png" alt="Easy Brais" fill className="object-contain p-0.5" sizes="36px" priority />
             </div>
             <div>
               <h1 className="text-base font-bold tracking-tight text-white sm:text-lg">Easy Brais</h1>
@@ -42,8 +42,8 @@ export function PublicLayoutInner({ children }: { children: React.ReactNode }) {
         <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-900/5">
-                <Image src="/api/brand/logo" alt="Easy Brais" width={16} height={16} className="h-4 w-4 object-contain opacity-70" />
+              <div className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-900/5">
+                <Image src="/brand-logo.png" alt="Easy Brais" fill className="object-contain p-0.5 opacity-80" sizes="28px" />
               </div>
               <p className="text-xs font-medium text-brand-900/35">Easy Brais</p>
             </div>

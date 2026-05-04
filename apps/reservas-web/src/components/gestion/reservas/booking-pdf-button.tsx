@@ -45,7 +45,10 @@ export function BookingPdfButton({ booking }: Props) {
         import("jspdf-autotable"),
       ]);
       const autoTable = autoTableMod.default;
-      const logoResponse = await fetch("/api/brand/logo");
+      const logoResponse = await fetch("/brand-logo.png");
+      if (!logoResponse.ok) {
+        throw new Error("No se pudo cargar el logo");
+      }
       const logoBlob = await logoResponse.blob();
       const logoDataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();

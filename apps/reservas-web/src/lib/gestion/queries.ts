@@ -28,9 +28,12 @@ export interface RecentBooking {
 // Internal row shapes for Supabase casts
 // ---------------------------------------------------------------------------
 
-interface RevenueRow {
-  total_amount: number;
-  booking_items: Array<{ bags_count: number }>;
+interface TodayItemRow {
+  booking_id: string;
+  bags_count: number;
+  overweight_bags_count: number;
+  line_total: number;
+  bookings: { status: string };
 }
 
 interface BookingRow {
@@ -52,26 +55,32 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+const OVERWEIGHT_FEE = 5;
+
 export async function getDashboardStats(): Promise<DashboardStats> {
   const supabase = await getServerSupabase();
   const today = todayISO();
 
-  const [pending, todayB, upcoming, failed, revenue] = await Promise.all([
+  const [pending, upcoming, failed, itemsResult] = await Promise.all([
     supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
-      .eq("status", "pending"),
-
-    supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("service_date", today),
+      .in("status", ["pending", "pending_payment"]),
 
     supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
       .gte("service_date", today)
-      .in("status", ["pending", "confirmed"]),
+      .in("status", [
+        "pending",
+        "pending_payment",
+        "confirmed",
+        "in_pickup",
+        "in_transit",
+        "in_progress",
+        "delivered",
+        "completed",
+      ]),
 
     supabase
       .from("booking_items")
@@ -79,28 +88,29 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       .eq("operational_status", "failed"),
 
     supabase
-      .from("bookings")
-      .select("total_amount, booking_items(bags_count)")
-      .eq("service_date", today)
-      .in("status", ["pending", "confirmed", "in_progress", "completed"]),
+      .from("booking_items")
+      .select("booking_id, bags_count, overweight_bags_count, line_total, bookings!inner(status)")
+      .eq("service_date", today),
   ]);
 
-  let todayRevenue = 0;
-  let todayBags = 0;
-
-  const rows = (revenue.data ?? []) as unknown as RevenueRow[];
-  for (const b of rows) {
-    todayRevenue += Number(b.total_amount) || 0;
-    if (Array.isArray(b.booking_items)) {
-      for (const item of b.booking_items) {
-        todayBags += item.bags_count || 0;
-      }
-    }
+  if (itemsResult.error) {
+    console.error("[getDashboardStats] booking_items fetch failed:", itemsResult.error.message);
   }
+
+  const rawItems = (itemsResult.data ?? []) as unknown as TodayItemRow[];
+  const activeItems = rawItems.filter((i) => i.bookings.status !== "cancelled");
+  const todayBookingIds = new Set(activeItems.map((i) => i.booking_id));
+  const todayBookings = todayBookingIds.size;
+  const todayBags = activeItems.reduce((s, i) => s + (i.bags_count || 0), 0);
+  const todayRevenue = activeItems.reduce(
+    (s, i) =>
+      s + (Number(i.line_total) || 0) + (i.overweight_bags_count || 0) * OVERWEIGHT_FEE,
+    0,
+  );
 
   return {
     pendingBookings: pending.count ?? 0,
-    todayBookings: todayB.count ?? 0,
+    todayBookings,
     upcomingBookings: upcoming.count ?? 0,
     failedItems: failed.count ?? 0,
     todayRevenue,
