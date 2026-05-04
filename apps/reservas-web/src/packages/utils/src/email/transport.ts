@@ -1,14 +1,14 @@
 import { createTransport, type Transporter } from "nodemailer";
 import type { SmtpConfig } from "./config";
 
-let cached: Transporter | null = null;
-
+/**
+ * Sin caché global: en serverless una conexión SMTP reutilizada entre invocaciones
+ * puede quedar colgada o con credenciales obsoletas.
+ */
 export function getTransport(config: SmtpConfig): Transporter {
-  if (cached) return cached;
-
   const useTlsUpgrade = !config.secure && config.port === 587;
 
-  cached = createTransport({
+  return createTransport({
     host: config.host,
     port: config.port,
     secure: config.secure,
@@ -17,7 +17,6 @@ export function getTransport(config: SmtpConfig): Transporter {
     connectionTimeout: 25_000,
     greetingTimeout: 20_000,
     socketTimeout: 25_000,
+    pool: false,
   });
-
-  return cached;
 }

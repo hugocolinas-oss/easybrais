@@ -14,11 +14,14 @@ export interface SmtpConfig {
  * A missing config is NOT an error — email sending is gracefully skipped.
  */
 export function getSmtpConfig(): SmtpConfig | null {
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const host = process.env.SMTP_HOST?.trim();
+  const user = process.env.SMTP_USER?.trim();
+  const pass = process.env.SMTP_PASS?.trim();
 
   if (!host || !user || !pass) return null;
+
+  const fromEmail = process.env.SMTP_FROM_EMAIL?.trim() || user;
+  const replyToRaw = process.env.SMTP_REPLY_TO?.trim();
 
   return {
     host,
@@ -26,8 +29,8 @@ export function getSmtpConfig(): SmtpConfig | null {
     secure: process.env.SMTP_SECURE === "true",
     user,
     pass,
-    fromName: process.env.SMTP_FROM_NAME || "Easy Brais",
-    fromEmail: process.env.SMTP_FROM_EMAIL || user,
-    replyTo: process.env.SMTP_REPLY_TO || undefined,
+    fromName: process.env.SMTP_FROM_NAME?.trim() || "Easy Brais",
+    fromEmail,
+    replyTo: replyToRaw || undefined,
   };
 }

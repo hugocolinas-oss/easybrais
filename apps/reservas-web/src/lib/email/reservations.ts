@@ -440,20 +440,24 @@ export async function sendReservationEmails(
   admin: { sent: boolean; error?: string };
   customer: { sent: boolean; error?: string };
 }> {
-  if (!getSmtpConfig()) {
+  const cfg = getSmtpConfig();
+  if (!cfg) {
     console.error(
       "[reservation-email] SMTP no configurado (faltan SMTP_HOST, SMTP_USER y/o SMTP_PASS). Ningún correo se enviará.",
     );
+  } else {
+    console.log("[reservation-email] SMTP listo:", { host: cfg.host, port: cfg.port, from: cfg.fromEmail });
   }
 
-  const adminResult = await sendAdminNewReservationEmail(bookingId, supabase);
+  /* Cliente primero: si hay timeout en Vercel, priorizamos el correo al peregrino. */
   const customerResult = await sendCustomerReservationConfirmationEmail(bookingId, supabase);
+  const adminResult = await sendAdminNewReservationEmail(bookingId, supabase);
 
-  if (!adminResult.sent) {
-    console.error("[reservation-email] admin send failed:", adminResult.error ?? "unknown");
-  }
   if (!customerResult.sent) {
     console.error("[reservation-email] customer send failed:", customerResult.error ?? "unknown");
+  }
+  if (!adminResult.sent) {
+    console.error("[reservation-email] admin send failed:", adminResult.error ?? "unknown");
   }
 
   return { admin: adminResult, customer: customerResult };
