@@ -1,15 +1,12 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { PDFDocument, type PDFImage } from "pdf-lib";
+import { BRAND_LOGO_PNG_BASE64 } from "./logo-data";
 
 let cachedLogoBytes: Uint8Array | null = null;
 
 async function loadLogoBytes() {
   if (cachedLogoBytes) return cachedLogoBytes;
 
-  const logoPath = path.join(process.cwd(), "assets", "LOGOMOCHILA 2.png");
-  const file = await fs.readFile(logoPath);
-  cachedLogoBytes = new Uint8Array(file);
+  cachedLogoBytes = Uint8Array.from(Buffer.from(BRAND_LOGO_PNG_BASE64, "base64"));
   return cachedLogoBytes;
 }
 
@@ -22,4 +19,8 @@ export async function embedBrandLogo(doc: PDFDocument): Promise<PDFImage | null>
     console.error("[pdf] brand logo load failed:", message);
     return null;
   }
+}
+
+export async function getBrandLogoPngBytes(): Promise<Uint8Array> {
+  return loadLogoBytes();
 }

@@ -17,7 +17,7 @@ interface ReservationEmailContext {
   bookingType: string;
   customerName: string;
   customerFirstName: string;
-  customerEmail: string;
+  customerEmail: string | null;
   customerPhone: string;
   comments: string;
   language: string;
@@ -99,8 +99,6 @@ async function getReservationEmailContext(
     language: string;
   } | null;
 
-  if (!customer?.email) return null;
-
   const items = (data.booking_items ?? []) as unknown as Array<{
     service_date: string;
     bags_count: number;
@@ -116,7 +114,7 @@ async function getReservationEmailContext(
     bookingType: data.booking_type,
     customerName: customer.full_name,
     customerFirstName: getCustomerFirstName(customer.full_name),
-    customerEmail: customer.email,
+    customerEmail: customer.email ?? null,
     customerPhone: customer.phone ?? "—",
     comments: data.notes_customer ?? "—",
     language: data.language || customer.language || "es",
@@ -140,7 +138,7 @@ async function buildReservationPdf(
   const invoiceData: InvoiceData = {
     bookingCode: context.bookingCode,
     customerName: context.customerName,
-    customerEmail: context.customerEmail,
+    customerEmail: context.customerEmail ?? "—",
     legs: context.items.map((item) => ({
       serviceDate: item.serviceDate,
       pickupName: item.pickupName,
@@ -179,7 +177,7 @@ function buildAdminEmail(context: ReservationEmailContext) {
     <h1 style="margin:0 0 18px;font-size:22px;color:#163228;">Nova reserva recibida a traves da web</h1>
     <p style="margin:0 0 16px;line-height:1.7;">🧍 <strong>Nome:</strong> ${escapeHtml(context.customerName)}</p>
     <p style="margin:0 0 16px;line-height:1.7;">📞 <strong>Telefono:</strong> ${escapeHtml(context.customerPhone)}</p>
-    <p style="margin:0 0 16px;line-height:1.7;">📧 <strong>Email:</strong> ${escapeHtml(context.customerEmail)}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">📧 <strong>Email:</strong> ${escapeHtml(context.customerEmail ?? "—")}</p>
     <p style="margin:0 0 16px;line-height:1.7;">🎒 <strong>Nº mochilas:</strong> ${bagsCount}</p>
     <p style="margin:0 0 16px;line-height:1.7;">📦 <strong>Mochilas &gt;15 kg:</strong> ${escapeHtml(overweightBagsText)}</p>
     <p style="margin:0 0 16px;line-height:1.7;">🏠 <strong>Orixe:</strong> ${escapeHtml(firstItem?.pickupName ?? "—")}</p>
@@ -318,7 +316,7 @@ export async function sendAdminNewReservationEmail(
 
   const context = await getReservationEmailContext(supabase, bookingId);
   if (!context) {
-    return { sent: false, error: "Reservation not found or missing customer email" };
+    return { sent: false, error: "Reservation not found" };
   }
 
   const { subject, html } = buildAdminEmail(context);
@@ -367,7 +365,12 @@ export async function sendCustomerReservationConfirmationEmail(
 ): Promise<{ sent: boolean; error?: string }> {
   const context = await getReservationEmailContext(supabase, bookingId);
   if (!context) {
-    return { sent: false, error: "Reservation not found or missing customer email" };
+    return { sent: false, error: "Reservation not found" };
+  }
+
+  if (!context.customerEmail) {
+    await updateBookingEmailStatus(supabase, bookingId, "failed");
+    return { sent: false, error: "Customer email missing" };
   }
 
   const { subject, html } = buildCustomerEmail(context);
