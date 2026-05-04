@@ -17,6 +17,5 @@ export function getTransport(config: SmtpConfig): Transporter {
     connectionTimeout: 25_000,
     greetingTimeout: 20_000,
     socketTimeout: 25_000,
-    pool: false,
   });
 }
