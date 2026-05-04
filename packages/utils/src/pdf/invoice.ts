@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { embedBrandLogo } from "./logo";
 
 export interface InvoiceLeg {
   serviceDate: string;
@@ -38,6 +39,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Uint8Array>
   const doc = await PDFDocument.create();
   const page = doc.addPage([595, 842]); // A4
   const { width, height } = page.getSize();
+  const logo = await embedBrandLogo(doc);
 
   const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -55,35 +57,47 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Uint8Array>
 
   // ---------- Header bar ----------
   page.drawRectangle({
-    x: 0, y: height - 80, width, height: 80,
+    x: 0, y: height - 108, width, height: 108,
     color: brandGreen,
   });
 
+  if (logo) {
+    page.drawImage(logo, {
+      x: marginL,
+      y: height - 92,
+      width: 38,
+      height: 38,
+    });
+  }
+
   page.drawText("Easy Brais", {
-    x: marginL, y: height - 35,
-    size: 22, font: fontBold, color: white,
+    x: marginL + (logo ? 50 : 0), y: height - 46,
+    size: 24, font: fontBold, color: white,
   });
-  page.drawText("Transporte de equipaje — Camino Portugues", {
-    x: marginL, y: height - 52,
+  page.drawText("Comprobante de reserva", {
+    x: marginL + (logo ? 50 : 0), y: height - 64,
+    size: 11, font: fontBold, color: gold,
+  });
+  page.drawText("Transporte de mochilas no Camino Portugues", {
+    x: marginL + (logo ? 50 : 0), y: height - 79,
     size: 9, font: fontRegular, color: rgb(0.7, 0.85, 0.75),
   });
 
-  // Invoice label
-  page.drawText("PROFORMA", {
-    x: width - marginR - fontBold.widthOfTextAtSize("PROFORMA", 14),
-    y: height - 35,
-    size: 14, font: fontBold, color: gold,
+  page.drawText("Reserva", {
+    x: width - marginR - fontBold.widthOfTextAtSize("Reserva", 12),
+    y: height - 42,
+    size: 12, font: fontBold, color: gold,
   });
   page.drawText(data.bookingCode, {
-    x: width - marginR - fontBold.widthOfTextAtSize(data.bookingCode, 11),
-    y: height - 52,
-    size: 11, font: fontBold, color: white,
+    x: width - marginR - fontBold.widthOfTextAtSize(data.bookingCode, 16),
+    y: height - 63,
+    size: 16, font: fontBold, color: white,
   });
 
   // ---------- Customer info ----------
-  let y = height - 110;
+  let y = height - 142;
 
-  page.drawText("DATOS DEL CLIENTE", {
+  page.drawText("DATOS DE LA RESERVA", {
     x: marginL, y, size: 9, font: fontBold, color: medGray,
   });
   y -= 16;
@@ -95,7 +109,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Uint8Array>
   page.drawText(data.customerEmail, {
     x: marginL, y, size: 9, font: fontRegular, color: medGray,
   });
-  y -= 10;
+  y -= 14;
 
   // Booking code + date on right
   const firstDate = data.legs[0]?.serviceDate
@@ -103,13 +117,18 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Uint8Array>
     : "—";
   page.drawText(`Fecha servicio: ${firstDate}`, {
     x: width - marginR - fontRegular.widthOfTextAtSize(`Fecha servicio: ${firstDate}`, 9),
-    y: height - 110,
+    y: height - 142,
+    size: 9, font: fontRegular, color: medGray,
+  });
+  page.drawText("Documento de comprobacion", {
+    x: width - marginR - fontRegular.widthOfTextAtSize("Documento de comprobacion", 9),
+    y: height - 156,
     size: 9, font: fontRegular, color: medGray,
   });
 
   // ---------- Legs table ----------
   y -= 20;
-  page.drawText("DETALLE DE SERVICIOS", {
+  page.drawText("DETALLE DEL SERVICIO", {
     x: marginL, y, size: 9, font: fontBold, color: medGray,
   });
   y -= 6;
@@ -231,24 +250,27 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Uint8Array>
   // ---------- Status box ----------
   y -= 30;
   page.drawRectangle({
-    x: marginL, y: y - 8, width: contentW, height: 28,
-    color: rgb(0.94, 0.99, 0.95), borderColor: rgb(0.13, 0.77, 0.35), borderWidth: 0.5,
+    x: marginL, y: y - 12, width: contentW, height: 40,
+    color: rgb(0.97, 0.95, 0.90), borderColor: gold, borderWidth: 0.7,
   });
-  page.drawText("Estado: Pendiente de confirmacion — Te confirmaremos lo antes posible.", {
-    x: marginL + 10, y: y + 2, size: 9, font: fontRegular, color: rgb(0.09, 0.39, 0.2),
+  page.drawText("Comprobante emitido correctamente.", {
+    x: marginL + 10, y: y + 10, size: 10, font: fontBold, color: brandGreen,
+  });
+  page.drawText("Guarda este PDF como justificante de tu reserva. Si necesitas cambios, responde al correo recibido.", {
+    x: marginL + 10, y: y - 2, size: 8.5, font: fontRegular, color: darkGray, maxWidth: contentW - 20,
   });
 
   // ---------- Footer ----------
   page.drawText(
-    "Easy Brais — Transporte de equipaje en el Camino Portugues — www.easybrais.es",
+    "Easy Brais — reservas.easybrais.es",
     {
-      x: width / 2 - fontRegular.widthOfTextAtSize("Easy Brais — Transporte de equipaje en el Camino Portugues — www.easybrais.es", 7) / 2,
+      x: width / 2 - fontRegular.widthOfTextAtSize("Easy Brais — reservas.easybrais.es", 7) / 2,
       y: 30,
       size: 7, font: fontRegular, color: medGray,
     },
   );
-  page.drawText("Documento proforma — No constituye factura fiscal", {
-    x: width / 2 - fontRegular.widthOfTextAtSize("Documento proforma — No constituye factura fiscal", 7) / 2,
+  page.drawText("Documento de reserva — No constituye factura fiscal", {
+    x: width / 2 - fontRegular.widthOfTextAtSize("Documento de reserva — No constituye factura fiscal", 7) / 2,
     y: 20,
     size: 7, font: fontRegular, color: lightGray,
   });

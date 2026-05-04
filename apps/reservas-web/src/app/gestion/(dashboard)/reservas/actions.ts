@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient, PRICING_RULES } from "@easybrais/utils";
 import { requireAuth } from "@/lib/gestion/auth";
 import { OPERATIONAL_STATUSES } from "@/lib/gestion/booking-status";
+import { sendReservationEmails } from "@/lib/email/reservations";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -387,6 +388,34 @@ export async function deleteBooking(bookingId: string) {
   } catch (err) {
     console.error("[deleteBooking] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al eliminar." };
+  }
+}
+
+export async function resendReservationEmails(bookingId: string) {
+  if (!UUID_RE.test(bookingId)) return { error: "ID de reserva inválido." };
+
+  try {
+    await requireAuth();
+    const supabase = createAdminClient();
+
+    const { data: booking, error } = await supabase
+      .from("bookings")
+      .select("id")
+      .eq("id", bookingId)
+      .single();
+
+    if (error || !booking) {
+      return { error: "Reserva no encontrada." };
+    }
+
+    await sendReservationEmails(bookingId, supabase);
+
+    revalidatePath(`/gestion/reservas/${bookingId}`);
+    revalidatePath("/gestion/reservas");
+    return { ok: true };
+  } catch (err) {
+    console.error("[resendReservationEmails] unexpected:", err instanceof Error ? err.message : err);
+    return { error: "Error inesperado al reenviar emails." };
   }
 }
 

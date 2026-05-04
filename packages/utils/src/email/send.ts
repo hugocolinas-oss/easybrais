@@ -12,6 +12,7 @@ export interface SendEmailInput {
   subject: string;
   html: string;
   attachments?: EmailAttachment[];
+  replyTo?: string;
 }
 
 export interface SendEmailResult {
@@ -41,6 +42,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       to: input.to,
       subject: input.subject,
       html: input.html,
+      replyTo: input.replyTo ?? config.replyTo,
     };
 
     if (input.attachments?.length) {
@@ -62,4 +64,15 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     console.error("[email] Send failed:", message);
     return { sent: false, error: message };
   }
+}
+
+export async function sendTestEmail(adminEmail: string): Promise<SendEmailResult> {
+  return sendEmail({
+    to: adminEmail,
+    subject: "Test SMTP Easy Brais",
+    html: [
+      "<p>Proba correcta de envio SMTP desde o SaaS de Easy Brais.</p>",
+      "<p>Dominio configurado: https://reservas.easybrais.es/</p>",
+    ].join(""),
+  });
 }

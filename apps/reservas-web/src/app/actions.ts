@@ -2,15 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient, calculatePricing, getRealEtapas, resolvePerBagPrice, type PricingBreakdown } from "@easybrais/utils";
-import {
-  sendEmail,
-  bookingConfirmationSubject,
-  bookingConfirmationHtml,
-  type BookingConfirmationData,
-} from "@easybrais/utils/email";
-import { generateInvoicePdf, type InvoiceData } from "@easybrais/utils/pdf";
 import type { BookingFormData } from "@/lib/types";
 import { isStripeConfigured } from "@/lib/stripe";
+import { sendReservationEmails } from "@/lib/email/reservations";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -326,11 +320,12 @@ export async function createBooking(
         .eq("id", booking.id);
     }
 
-    /* ── 7. Send confirmation email (only if no Stripe redirect — otherwise webhook handles it) */
+    /* ── 7. Send reservation emails asynchronously ───────────────────── */
 
-    if (!wantsOnline) {
-      sendConfirmationEmail(supabase, booking.id, bookingCode, email, data, pricing).catch(() => {});
-    }
+    sendReservationEmails(booking.id, supabase).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[createBooking] reservation emails failed:", message);
+    });
 
     revalidatePath("/gestion/reservas");
     revalidatePath("/gestion/operativa");
@@ -352,148 +347,5 @@ export async function createBooking(
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[createBooking] unexpected error:", msg);
     return fail("Ha ocurrido un error inesperado. Inténtalo de nuevo más tarde.");
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Email helper (runs async, doesn't block the response)
-// ---------------------------------------------------------------------------
-
-type SupabaseAdmin = ReturnType<typeof createAdminClient>;
-
-async function sendConfirmationEmail(
-  supabase: SupabaseAdmin,
-  bookingId: string,
-  bookingCode: string,
-  recipientEmail: string,
-  data: BookingFormData,
-  pricing: PricingBreakdown,
-) {
-  const TEMPLATE_KEY = "booking_confirmation";
-
-  try {
-    /* Resolve accommodation IDs → names in a single batch query */
-    const allIds = data.legs.flatMap((l) => [
-      l.pickupAccommodationId,
-      l.dropoffAccommodationId,
-    ]);
-    const uniqueIds = [...new Set(allIds)];
-
-    const { data: accs } = await supabase
-      .from("accommodations")
-      .select("id, name")
-      .in("id", uniqueIds);
-
-    const nameMap = new Map((accs ?? []).map((a) => [a.id, a.name]));
-
-    /* Build template data */
-    const templateData: BookingConfirmationData = {
-      bookingCode,
-      customerName: data.customer.fullName.trim(),
-      legs: data.legs.map((leg) => ({
-        serviceDate: leg.serviceDate,
-        pickupName: nameMap.get(leg.pickupAccommodationId) ?? "—",
-        dropoffName: nameMap.get(leg.dropoffAccommodationId) ?? "—",
-        bagsCount: leg.bagsCount,
-        overweightBagsCount: leg.overweightBagsCount,
-      })),
-      subtotalAmount: pricing.subtotalAmount,
-      discountAmount: pricing.discountAmount,
-      extraWeightAmount: pricing.extraWeightAmount,
-      totalAmount: pricing.totalAmount,
-      customerNotes: data.customer.notes.trim() || null,
-    };
-
-    const subject = bookingConfirmationSubject(bookingCode);
-    const html = bookingConfirmationHtml(templateData);
-
-    /* Generate invoice PDF */
-    const invoiceData: InvoiceData = {
-      bookingCode,
-      customerName: data.customer.fullName.trim(),
-      customerEmail: recipientEmail,
-      legs: data.legs.map((leg) => ({
-        serviceDate: leg.serviceDate,
-        pickupName: nameMap.get(leg.pickupAccommodationId) ?? "—",
-        dropoffName: nameMap.get(leg.dropoffAccommodationId) ?? "—",
-        bagsCount: leg.bagsCount,
-        overweightBagsCount: leg.overweightBagsCount,
-      })),
-      subtotalAmount: pricing.subtotalAmount,
-      discountAmount: pricing.discountAmount,
-      extraWeightAmount: pricing.extraWeightAmount,
-      totalAmount: pricing.totalAmount,
-      customerNotes: data.customer.notes.trim() || null,
-    };
-
-    let pdfAttachment: { filename: string; content: Uint8Array; contentType: string } | undefined;
-    try {
-      const pdfBytes = await generateInvoicePdf(invoiceData);
-      pdfAttachment = {
-        filename: `proforma-${bookingCode}.pdf`,
-        content: pdfBytes,
-        contentType: "application/pdf",
-      };
-    } catch (pdfErr) {
-      console.error("[booking-email] PDF generation failed:", pdfErr instanceof Error ? pdfErr.message : pdfErr);
-    }
-
-    /* Send */
-    const result = await sendEmail({
-      to: recipientEmail,
-      subject,
-      html,
-      attachments: pdfAttachment ? [pdfAttachment] : undefined,
-    });
-
-    /* Log to email_logs */
-    await supabase.from("email_logs").insert({
-      booking_id: bookingId,
-      recipient: recipientEmail,
-      template_key: TEMPLATE_KEY,
-      status: result.sent ? "sent" : "failed",
-      external_message_id: result.messageId ?? null,
-      error_message: result.error ?? null,
-    });
-
-    /* Update booking.email_status */
-    await supabase
-      .from("bookings")
-      .update({ email_status: result.sent ? ("sent" as const) : ("failed" as const) })
-      .eq("id", bookingId);
-
-    /* Log event */
-    await supabase.from("booking_events").insert({
-      booking_id: bookingId,
-      event_type: "email_sent" as const,
-      actor_type: "system" as const,
-      payload_json: {
-        template: TEMPLATE_KEY,
-        recipient: recipientEmail,
-        sent: result.sent,
-        message_id: result.messageId ?? null,
-        error: result.error ?? null,
-      },
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[booking-email] Unexpected error:", message);
-
-    try {
-      await supabase.from("email_logs").insert({
-        booking_id: bookingId,
-        recipient: recipientEmail,
-        template_key: TEMPLATE_KEY,
-        status: "failed",
-        error_message: message,
-      });
-    } catch { /* best-effort logging */ }
-
-    try {
-      await supabase
-        .from("bookings")
-        .update({ email_status: "failed" as const })
-        .eq("id", bookingId);
-    } catch { /* best-effort update */ }
   }
 }

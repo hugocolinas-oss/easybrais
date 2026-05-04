@@ -45,6 +45,14 @@ export function BookingPdfButton({ booking }: Props) {
         import("jspdf-autotable"),
       ]);
       const autoTable = autoTableMod.default;
+      const logoResponse = await fetch("/api/brand/logo");
+      const logoBlob = await logoResponse.blob();
+      const logoDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("No se pudo cargar el logo"));
+        reader.readAsDataURL(logoBlob);
+      });
 
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageW = doc.internal.pageSize.getWidth();
@@ -52,23 +60,26 @@ export function BookingPdfButton({ booking }: Props) {
       const gold: [number, number, number] = [180, 140, 40];
 
       doc.setFillColor(...brandGreen);
-      doc.rect(0, 0, pageW, 32, "F");
+      doc.rect(0, 0, pageW, 40, "F");
+      doc.addImage(logoDataUrl, "PNG", 15, 8, 16, 16);
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(18);
       doc.setFont("helvetica", "bold");
-      doc.text("Easy Brais", 15, 15);
+      doc.text("Easy Brais", 36, 16);
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text("Detalle de reserva", 15, 22);
+      doc.text("Comprobante de reserva", 36, 23);
+      doc.setFontSize(9);
+      doc.text("Transporte de mochilas no Camino Portugues", 36, 29);
 
       doc.setFillColor(...gold);
-      doc.roundedRect(pageW - 65, 8, 55, 16, 3, 3, "F");
+      doc.roundedRect(pageW - 68, 10, 58, 18, 3, 3, "F");
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      doc.text(booking.booking_code, pageW - 37.5, 18, { align: "center" });
+      doc.text(booking.booking_code, pageW - 39, 21, { align: "center" });
 
-      let y = 44;
+      let y = 52;
       doc.setTextColor(60, 60, 60);
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
@@ -184,7 +195,7 @@ export function BookingPdfButton({ booking }: Props) {
       doc.setFont("helvetica", "normal");
       doc.setTextColor(150, 150, 150);
       doc.text(
-        `Generado el ${new Date().toLocaleString("es-ES")} — Easy Brais`,
+        `Generado el ${new Date().toLocaleString("es-ES")} — Easy Brais — reservas.easybrais.es`,
         pageW / 2,
         footY,
         { align: "center" },

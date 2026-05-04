@@ -13,6 +13,7 @@ import { ItemBagsEditor } from "@/components/gestion/reservas/item-bags-editor";
 import { ItemAccommodationEditor } from "@/components/gestion/reservas/item-accommodation-editor";
 import { DeleteBookingButton } from "@/components/gestion/reservas/delete-booking-button";
 import { BookingPdfButton } from "@/components/gestion/reservas/booking-pdf-button";
+import { ResendEmailsButton } from "@/components/gestion/reservas/resend-emails-button";
 
 export const dynamic = "force-dynamic";
 
@@ -283,6 +284,8 @@ export default async function BookingDetailPage({
           </Card>
 
           <BookingPdfButton booking={booking} />
+
+          <ResendEmailsButton bookingId={booking.id} />
 
           <DeleteBookingButton bookingId={booking.id} bookingCode={booking.booking_code} />
         </div>

@@ -350,30 +350,42 @@ export interface Database {
           id: string;
           booking_id: string | null;
           recipient: string;
+          subject: string | null;
+          template: string | null;
           template_key: string;
           status: string;
+          provider: string | null;
           external_message_id: string | null;
           error_message: string | null;
+          sent_at: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           booking_id?: string | null;
           recipient: string;
+          subject?: string | null;
+          template?: string | null;
           template_key: string;
           status?: string;
+          provider?: string | null;
           external_message_id?: string | null;
           error_message?: string | null;
+          sent_at?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           booking_id?: string | null;
           recipient?: string;
+          subject?: string | null;
+          template?: string | null;
           template_key?: string;
           status?: string;
+          provider?: string | null;
           external_message_id?: string | null;
           error_message?: string | null;
+          sent_at?: string | null;
         };
         Relationships: [
           {

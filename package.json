@@ -7,7 +7,8 @@
     "lint": "turbo lint",
     "type-check": "turbo type-check",
     "clean": "turbo clean && rm -rf node_modules",
-    "db:verify": "tsx --env-file=.env.local scripts/verify-schema.ts"
+    "db:verify": "tsx --env-file=.env.local scripts/verify-schema.ts",
+    "smtp:test": "tsx --env-file=.env.local scripts/test-smtp.ts"
   },
   "packageManager": "pnpm@9.15.4",
   "engines": {

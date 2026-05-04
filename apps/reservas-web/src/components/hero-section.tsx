@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useT } from "@/lib/i18n/context";
 
 export function HeroSection() {
@@ -7,6 +8,11 @@ export function HeroSection() {
 
   return (
     <div className="mb-8 text-center sm:mb-12">
+      <div className="mb-5 flex justify-center sm:mb-6">
+        <div className="flex h-20 w-20 items-center justify-center rounded-[28px] bg-gradient-to-br from-brand-900 to-brand-700 shadow-[0_18px_45px_rgba(22,50,40,0.18)] ring-1 ring-gold-300/30 sm:h-24 sm:w-24">
+          <Image src="/api/brand/logo" alt="Easy Brais" width={52} height={52} className="h-12 w-12 object-contain sm:h-14 sm:w-14" />
+        </div>
+      </div>
       <h2 className="text-balance text-2xl font-extrabold tracking-tight text-brand-900 sm:text-4xl">
         {t("hero.title")}
       </h2>
