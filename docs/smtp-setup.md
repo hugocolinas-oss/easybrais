@@ -28,6 +28,27 @@ Define las variables anteriores en la raiz del proyecto. `SMTP_USER` y `SMTP_PAS
 
 Configura las mismas variables en el proyecto de Vercel para Production, Preview y Development si quieres probar desde despliegues previos.
 
+### Checklist (evita avisos de Turbo y fallos en runtime)
+
+Turborepo declara estas variables en `turbo.json` (`passThroughEnv` en la tarea `build`) para que no aparezcan avisos del tipo `reservas-web#build - SUPABASE_SERVICE_ROLE_KEY` y para que el build en Vercel reciba los mismos nombres que en local.
+
+Debes crear cada clave en **Vercel → Project → Settings → Environment Variables** (marca al menos **Production**; opcional **Preview**).
+
+| Variable | Para qué sirve |
+|----------|----------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave pública anon (cliente) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clave service role (solo servidor: reservas, webhooks, emails con admin client) |
+| `STRIPE_SECRET_KEY` | API Stripe (checkout) |
+| `STRIPE_WEBHOOK_SECRET` | Firma del webhook `checkout.session.completed` |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | Envío de correos (p. ej. Brevo) |
+| `SMTP_FROM_NAME`, `SMTP_FROM_EMAIL`, `SMTP_REPLY_TO` | Remitente y respuesta |
+| `ADMIN_EMAIL` | Destinatario del aviso de nueva reserva |
+| `RESERVAS_URL` | URL absoluta en enlaces de correo (si la usa el código) |
+| `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_RESERVAS_URL` | URL pública del sitio (OAuth, enlaces) |
+
+Si falta alguna de las de **SMTP** o **ADMIN_EMAIL**, los correos no se envían (ver logs `[reservation-email] SMTP no configurado` o errores SMTP). Si falta **Stripe**, el pago online no funciona. Si falta **Supabase service role**, fallan acciones de servidor y el webhook.
+
 ## Probar SMTP
 
 Ejecuta:
