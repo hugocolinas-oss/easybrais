@@ -3,6 +3,7 @@ import "server-only";
 import { createAdminClient } from "@easybrais/utils";
 import { generateInvoicePdf, type InvoiceData } from "@easybrais/utils/pdf";
 import { getSmtpConfig, sendEmail, type EmailAttachment } from "@easybrais/utils/email";
+import { SUPPORTED_LOCALES, type Locale } from "@/lib/i18n/translations";
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -33,6 +34,11 @@ interface ReservationEmailContext {
     pickupName: string;
     dropoffName: string;
   }>;
+}
+
+function resolveLocale(value: string | null | undefined): Locale {
+  const normalized = value?.trim().toLowerCase() as Locale | undefined;
+  return normalized && SUPPORTED_LOCALES.includes(normalized) ? normalized : "es";
 }
 
 function formatDate(iso: string): string {
@@ -70,6 +76,145 @@ function getOverweightText(items: ReservationEmailContext["items"]): string {
 
 function getPdfAttachmentName(bookingCode: string): string {
   return `reserva-${bookingCode}.pdf`;
+}
+
+function getCustomerEmailCopy(locale: Locale) {
+  const copy = {
+    es: {
+      subjectConfirmed: "Reserva confirmada",
+      subjectPaid: "Pago recibido",
+      greeting: "Hola",
+      confirmedIntro: "Tu reserva con Easy Brais ya está confirmada correctamente.",
+      paidIntro: "Hemos recibido correctamente tu pago. Tu reserva queda confirmada.",
+      bookingCode: "Nº reserva",
+      serviceDate: "Fecha del servicio",
+      bags: "Nº mochilas",
+      overweight: "Mochilas >15 kg",
+      pickup: "Recogida",
+      dropoff: "Entrega",
+      totalPrice: "Precio total",
+      paidAmount: "Importe pagado",
+      notes: "Comentarios",
+      noMoreSteps: "No tienes que hacer nada más. Nosotros nos encargamos de transportar tu equipaje hasta el destino indicado.",
+      saveEmail: "Guarda este correo y el PDF adjunto como justificante de la reserva.",
+      reviewData: "Si detectas algún error o necesitas modificar algún dato, responde directamente a este correo y lo revisamos contigo.",
+      attachedPdf: "Te adjuntamos el PDF de la reserva como justificante.",
+      farewell: "Buen Camino",
+      footer: "Transporte de mochilas en el Camino Portugués",
+    },
+    en: {
+      subjectConfirmed: "Booking confirmed",
+      subjectPaid: "Payment received",
+      greeting: "Hello",
+      confirmedIntro: "Your booking with Easy Brais has been confirmed successfully.",
+      paidIntro: "We have received your payment successfully. Your booking is now confirmed.",
+      bookingCode: "Booking code",
+      serviceDate: "Service date",
+      bags: "Number of bags",
+      overweight: "Bags over 15 kg",
+      pickup: "Pickup",
+      dropoff: "Drop-off",
+      totalPrice: "Total price",
+      paidAmount: "Amount paid",
+      notes: "Notes",
+      noMoreSteps: "You do not need to do anything else. We will transport your luggage to the selected destination.",
+      saveEmail: "Keep this email and the attached PDF as your booking confirmation.",
+      reviewData: "If you spot any mistake or need to change any detail, reply directly to this email and we will review it with you.",
+      attachedPdf: "We have attached the booking PDF as your receipt.",
+      farewell: "Buen Camino",
+      footer: "Luggage transport on the Portuguese Way",
+    },
+    pt: {
+      subjectConfirmed: "Reserva confirmada",
+      subjectPaid: "Pagamento recebido",
+      greeting: "Olá",
+      confirmedIntro: "A sua reserva com a Easy Brais ficou confirmada com sucesso.",
+      paidIntro: "Recebemos o seu pagamento com sucesso. A sua reserva fica agora confirmada.",
+      bookingCode: "Nº da reserva",
+      serviceDate: "Data do serviço",
+      bags: "Nº de mochilas",
+      overweight: "Mochilas >15 kg",
+      pickup: "Recolha",
+      dropoff: "Entrega",
+      totalPrice: "Preço total",
+      paidAmount: "Valor pago",
+      notes: "Observações",
+      noMoreSteps: "Não precisa de fazer mais nada. Nós tratamos do transporte da sua bagagem até ao destino indicado.",
+      saveEmail: "Guarde este email e o PDF em anexo como comprovativo da reserva.",
+      reviewData: "Se detetar algum erro ou precisar de alterar algum dado, responda diretamente a este email e revemos consigo.",
+      attachedPdf: "Enviamos em anexo o PDF da reserva como comprovativo.",
+      farewell: "Bom Caminho",
+      footer: "Transporte de mochilas no Caminho Português",
+    },
+    fr: {
+      subjectConfirmed: "Réservation confirmée",
+      subjectPaid: "Paiement reçu",
+      greeting: "Bonjour",
+      confirmedIntro: "Votre réservation avec Easy Brais est bien confirmée.",
+      paidIntro: "Nous avons bien reçu votre paiement. Votre réservation est maintenant confirmée.",
+      bookingCode: "Nº de réservation",
+      serviceDate: "Date du service",
+      bags: "Nombre de bagages",
+      overweight: "Bagages >15 kg",
+      pickup: "Prise en charge",
+      dropoff: "Livraison",
+      totalPrice: "Prix total",
+      paidAmount: "Montant payé",
+      notes: "Observations",
+      noMoreSteps: "Vous n'avez rien d'autre à faire. Nous nous chargeons de transporter vos bagages jusqu'à la destination indiquée.",
+      saveEmail: "Conservez cet email et le PDF joint comme justificatif de réservation.",
+      reviewData: "Si vous repérez une erreur ou devez modifier une information, répondez directement à cet email et nous la vérifierons avec vous.",
+      attachedPdf: "Le PDF de la réservation est joint à cet email comme justificatif.",
+      farewell: "Bon Chemin",
+      footer: "Transport de bagages sur le Chemin Portugais",
+    },
+    de: {
+      subjectConfirmed: "Buchung bestätigt",
+      subjectPaid: "Zahlung erhalten",
+      greeting: "Hallo",
+      confirmedIntro: "Ihre Buchung bei Easy Brais wurde erfolgreich bestätigt.",
+      paidIntro: "Wir haben Ihre Zahlung erfolgreich erhalten. Ihre Buchung ist nun bestätigt.",
+      bookingCode: "Buchungscode",
+      serviceDate: "Servicedatum",
+      bags: "Anzahl Gepäckstücke",
+      overweight: "Gepäckstücke >15 kg",
+      pickup: "Abholung",
+      dropoff: "Lieferung",
+      totalPrice: "Gesamtpreis",
+      paidAmount: "Bezahlter Betrag",
+      notes: "Hinweise",
+      noMoreSteps: "Sie müssen nichts weiter tun. Wir kümmern uns um den Transport Ihres Gepäcks zum angegebenen Ziel.",
+      saveEmail: "Bewahren Sie diese E-Mail und das beigefügte PDF als Buchungsbestätigung auf.",
+      reviewData: "Wenn Ihnen ein Fehler auffällt oder Sie Angaben ändern müssen, antworten Sie direkt auf diese E-Mail und wir prüfen es mit Ihnen.",
+      attachedPdf: "Das PDF der Buchung ist als Beleg beigefügt.",
+      farewell: "Buen Camino",
+      footer: "Gepäcktransport auf dem Portugiesischen Weg",
+    },
+    it: {
+      subjectConfirmed: "Prenotazione confermata",
+      subjectPaid: "Pagamento ricevuto",
+      greeting: "Ciao",
+      confirmedIntro: "La tua prenotazione con Easy Brais è stata confermata correttamente.",
+      paidIntro: "Abbiamo ricevuto correttamente il tuo pagamento. La tua prenotazione è ora confermata.",
+      bookingCode: "Codice prenotazione",
+      serviceDate: "Data del servizio",
+      bags: "Nº bagagli",
+      overweight: "Bagagli >15 kg",
+      pickup: "Ritiro",
+      dropoff: "Consegna",
+      totalPrice: "Prezzo totale",
+      paidAmount: "Importo pagato",
+      notes: "Note",
+      noMoreSteps: "Non devi fare altro. Ci occupiamo noi di trasportare il tuo bagaglio fino alla destinazione indicata.",
+      saveEmail: "Conserva questa email e il PDF allegato come conferma della prenotazione.",
+      reviewData: "Se noti un errore o hai bisogno di modificare qualche dato, rispondi direttamente a questa email e lo controlleremo con te.",
+      attachedPdf: "Ti alleghiamo il PDF della prenotazione come ricevuta.",
+      farewell: "Buen Camino",
+      footer: "Trasporto bagagli sul Cammino Portoghese",
+    },
+  } as const;
+
+  return copy[locale];
 }
 
 async function getReservationEmailContext(
@@ -203,30 +348,32 @@ function buildAdminEmail(context: ReservationEmailContext) {
 }
 
 function buildCustomerEmail(context: ReservationEmailContext) {
+  const locale = resolveLocale(context.language);
+  const copy = getCustomerEmailCopy(locale);
   const firstItem = context.items[0];
   const bagsCount = context.items.reduce((sum, item) => sum + item.bagsCount, 0);
   const overweightBagsText = getOverweightText(context.items);
-  const subject = `Reserva confirmada · Easy Brais · ${context.bookingCode}`;
+  const subject = `${copy.subjectConfirmed} · Easy Brais · ${context.bookingCode}`;
 
   const html = `<!DOCTYPE html>
-<html lang="gl">
+<html lang="${locale}">
 <head><meta charset="utf-8" /></head>
 <body style="margin:0;padding:24px;background:#f6f4ee;font-family:Arial,Helvetica,sans-serif;color:#163228;">
   <div style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e3ddd0;border-radius:12px;padding:28px;">
-    <h1 style="margin:0 0 18px;font-size:22px;color:#163228;">Ola, ${escapeHtml(context.customerFirstName)} 👋</h1>
-    <p style="margin:0 0 18px;line-height:1.7;">A tua reserva con Easy Brais xa esta confirmada correctamente.</p>
-    <p style="margin:0 0 16px;line-height:1.7;">🔐 <strong>Nº reserva:</strong> ${escapeHtml(context.bookingCode)}</p>
-    <p style="margin:0 0 16px;line-height:1.7;">📅 <strong>Data de servizo:</strong> ${formatDate(context.serviceDate)}</p>
-    <p style="margin:0 0 16px;line-height:1.7;">🎒 <strong>Nº mochilas:</strong> ${bagsCount}</p>
-    <p style="margin:0 0 16px;line-height:1.7;">📦 <strong>Mochilas &gt;15 kg:</strong> ${escapeHtml(overweightBagsText)}</p>
-    <p style="margin:0 0 16px;line-height:1.7;">🏠 <strong>Recollida:</strong> ${escapeHtml(firstItem?.pickupName ?? "—")}</p>
-    <p style="margin:0 0 16px;line-height:1.7;">🏡 <strong>Entrega:</strong> ${escapeHtml(context.items[context.items.length - 1]?.dropoffName ?? "—")}</p>
-    <p style="margin:0 0 16px;line-height:1.7;">💰 <strong>Prezo total:</strong> ${formatPrice(context.totalPrice)}€</p>
-    <p style="margin:0 0 16px;line-height:1.7;">📝 <strong>Comentarios:</strong><br />${nl2br(context.comments)}</p>
-    <p style="margin:0 0 16px;line-height:1.7;">Non tes que facer nada mais. Nos encargamonos de transportar a tua equipaxe ata o destino indicado.</p>
-    <p style="margin:0 0 16px;line-height:1.7;">Garda este correo e o PDF adxunto como xustificante da reserva.</p>
-    <p style="margin:0 0 16px;line-height:1.7;">Se detectas algun erro ou necesitas modificar algun dato, responde directamente a este correo e revisamolo contigo.</p>
-    <p style="margin:0;line-height:1.7;">Bo Camiño!<br /><br />Easy Brais<br />Transporte de mochilas no Camiño Portugues</p>
+    <h1 style="margin:0 0 18px;font-size:22px;color:#163228;">${copy.greeting}, ${escapeHtml(context.customerFirstName)} 👋</h1>
+    <p style="margin:0 0 18px;line-height:1.7;">${copy.confirmedIntro}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">🔐 <strong>${copy.bookingCode}:</strong> ${escapeHtml(context.bookingCode)}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">📅 <strong>${copy.serviceDate}:</strong> ${formatDate(context.serviceDate)}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">🎒 <strong>${copy.bags}:</strong> ${bagsCount}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">📦 <strong>${copy.overweight}:</strong> ${escapeHtml(overweightBagsText)}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">🏠 <strong>${copy.pickup}:</strong> ${escapeHtml(firstItem?.pickupName ?? "—")}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">🏡 <strong>${copy.dropoff}:</strong> ${escapeHtml(context.items[context.items.length - 1]?.dropoffName ?? "—")}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">💰 <strong>${copy.totalPrice}:</strong> ${formatPrice(context.totalPrice)}€</p>
+    <p style="margin:0 0 16px;line-height:1.7;">📝 <strong>${copy.notes}:</strong><br />${nl2br(context.comments)}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">${copy.noMoreSteps}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">${copy.saveEmail}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">${copy.reviewData}</p>
+    <p style="margin:0;line-height:1.7;">${copy.farewell}!<br /><br />Easy Brais<br />${copy.footer}</p>
   </div>
 </body>
 </html>`;
@@ -468,24 +615,26 @@ export async function sendReservationEmails(
 // ---------------------------------------------------------------------------
 
 function buildPaymentConfirmedEmail(context: ReservationEmailContext) {
-  const subject = `Pago recibido · Reserva ${context.bookingCode} confirmada · Easy Brais`;
+  const locale = resolveLocale(context.language);
+  const copy = getCustomerEmailCopy(locale);
+  const subject = `${copy.subjectPaid} · ${copy.bookingCode} ${context.bookingCode} · Easy Brais`;
   const firstItem = context.items[0];
   const lastItem = context.items[context.items.length - 1];
 
   const html = `<!DOCTYPE html>
-<html lang="gl">
+<html lang="${locale}">
 <head><meta charset="utf-8" /></head>
 <body style="margin:0;padding:24px;background:#f6f4ee;font-family:Arial,Helvetica,sans-serif;color:#163228;">
   <div style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e3ddd0;border-radius:12px;padding:28px;">
-    <h1 style="margin:0 0 18px;font-size:22px;color:#163228;">Pago recibido ✅</h1>
-    <p style="margin:0 0 18px;line-height:1.7;">Ola ${escapeHtml(context.customerFirstName)}, recibimos correctamente o teu pago. A tua reserva queda <strong>confirmada</strong>.</p>
-    <p style="margin:0 0 16px;line-height:1.7;">🔐 <strong>Nº reserva:</strong> ${escapeHtml(context.bookingCode)}</p>
-    <p style="margin:0 0 16px;line-height:1.7;">📅 <strong>Data de servizo:</strong> ${formatDate(context.serviceDate)}</p>
-    <p style="margin:0 0 16px;line-height:1.7;">🏠 <strong>Recollida:</strong> ${escapeHtml(firstItem?.pickupName ?? "—")}</p>
-    <p style="margin:0 0 16px;line-height:1.7;">🏡 <strong>Entrega:</strong> ${escapeHtml(lastItem?.dropoffName ?? "—")}</p>
-    <p style="margin:0 0 16px;line-height:1.7;">💰 <strong>Importe pagado:</strong> ${formatPrice(context.totalPrice)}€</p>
-    <p style="margin:0 0 16px;line-height:1.7;">Adxuntámosche o PDF da reserva como xustificante.</p>
-    <p style="margin:0;line-height:1.7;">Bo Camiño!<br /><br />Easy Brais<br />Transporte de mochilas no Camiño Portugues</p>
+    <h1 style="margin:0 0 18px;font-size:22px;color:#163228;">${copy.subjectPaid} ✅</h1>
+    <p style="margin:0 0 18px;line-height:1.7;">${copy.greeting} ${escapeHtml(context.customerFirstName)}, ${copy.paidIntro}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">🔐 <strong>${copy.bookingCode}:</strong> ${escapeHtml(context.bookingCode)}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">📅 <strong>${copy.serviceDate}:</strong> ${formatDate(context.serviceDate)}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">🏠 <strong>${copy.pickup}:</strong> ${escapeHtml(firstItem?.pickupName ?? "—")}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">🏡 <strong>${copy.dropoff}:</strong> ${escapeHtml(lastItem?.dropoffName ?? "—")}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">💰 <strong>${copy.paidAmount}:</strong> ${formatPrice(context.totalPrice)}€</p>
+    <p style="margin:0 0 16px;line-height:1.7;">${copy.attachedPdf}</p>
+    <p style="margin:0;line-height:1.7;">${copy.farewell}!<br /><br />Easy Brais<br />${copy.footer}</p>
   </div>
 </body>
 </html>`;

@@ -50,17 +50,17 @@ export function PhoneInput({
     <div className={className}>
       <div
         className={[
-          "flex overflow-hidden rounded-xl border bg-white transition-all focus-within:ring-1",
+          "grid grid-cols-[8.5rem_minmax(0,1fr)] overflow-hidden rounded-xl border bg-white transition-all focus-within:ring-1 sm:grid-cols-[9.5rem_minmax(0,1fr)]",
           borderClass,
         ].join(" ")}
       >
-        <div className="relative min-w-[152px] border-r border-cream-200 bg-cream-50">
+        <div className="relative border-r border-cream-200 bg-cream-50">
           <select
             id={id}
             value={countryCode}
             onChange={(e) => handleCountryChange(e.target.value)}
             disabled={disabled}
-            className="h-full w-full appearance-none bg-transparent px-3 py-2.5 pr-8 text-sm text-brand-900 outline-none sm:py-3"
+            className="h-full w-full appearance-none bg-transparent px-3 py-2.5 pr-8 text-sm font-medium tabular-nums text-brand-900 outline-none sm:py-3"
           >
             {PHONE_COUNTRIES.map((country) => (
               <option key={`${country.code}-${country.dialCode}`} value={country.code}>
@@ -81,7 +81,7 @@ export function PhoneInput({
           placeholder={placeholder}
           disabled={disabled}
           maxLength={24}
-          className="block min-w-0 flex-1 px-3 py-2.5 text-sm text-brand-900 outline-none placeholder:text-brand-800/25 sm:py-3"
+          className="block min-w-0 w-full px-3 py-2.5 text-sm tabular-nums text-brand-900 outline-none placeholder:text-brand-800/25 sm:py-3"
         />
       </div>
     </div>

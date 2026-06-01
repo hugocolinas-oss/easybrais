@@ -1,6 +1,7 @@
 "use client";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useT } from "@/lib/i18n/context";
 
 export function HeroSection() {
@@ -8,6 +9,9 @@ export function HeroSection() {
 
   return (
     <div className="mb-8 text-center sm:mb-12">
+      <div className="mb-4 flex justify-center sm:justify-end">
+        <LocaleSwitcher />
+      </div>
       <div className="mb-5 flex justify-center sm:mb-6">
         <BrandLogo
           size="xl"

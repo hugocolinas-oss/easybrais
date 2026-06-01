@@ -5,13 +5,17 @@ import { type Locale, SUPPORTED_LOCALES, getTranslation, type TranslationKey } f
 
 interface I18nContextValue {
   locale: Locale;
+  setLocale: (locale: Locale) => void;
   t: (key: TranslationKey) => string;
 }
 
 const I18nContext = createContext<I18nContextValue>({
   locale: "es",
+  setLocale: () => {},
   t: (key) => getTranslation(key, "es"),
 });
+
+const LOCALE_STORAGE_KEY = "easybrais-locale";
 
 function detectBrowserLocale(): Locale {
   if (typeof navigator === "undefined") return "es";
@@ -27,7 +31,20 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocale] = useState<Locale>("es");
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+    if (saved && SUPPORTED_LOCALES.includes(saved as Locale)) {
+      setLocale(saved as Locale);
+      return;
+    }
     setLocale(detectBrowserLocale());
+  }, []);
+
+  const updateLocale = useCallback((nextLocale: Locale) => {
+    setLocale(nextLocale);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LOCALE_STORAGE_KEY, nextLocale);
+    }
   }, []);
 
   const t = useCallback(
@@ -36,7 +53,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <I18nContext.Provider value={{ locale, t }}>
+    <I18nContext.Provider value={{ locale, setLocale: updateLocale, t }}>
       {children}
     </I18nContext.Provider>
   );

@@ -6,6 +6,7 @@ import type { BookingFormData } from "@/lib/types";
 import { isStripeConfigured } from "@/lib/stripe";
 import { sendReservationEmails } from "@/lib/email/reservations";
 import { normalizePhoneValue } from "@/lib/phone";
+import { SUPPORTED_LOCALES, type Locale } from "@/lib/i18n/translations";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,6 +55,11 @@ function fail(msg: string): BookingFailure {
   return { ok: false, error: msg };
 }
 
+function normalizeCustomerLanguage(value: string | null | undefined): Locale {
+  const normalized = value?.trim().toLowerCase() as Locale | undefined;
+  return normalized && SUPPORTED_LOCALES.includes(normalized) ? normalized : "es";
+}
+
 // ---------------------------------------------------------------------------
 // Main action
 // ---------------------------------------------------------------------------
@@ -71,6 +77,7 @@ export async function createBooking(
   if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(data.customer.email))
     return fail("El email no es válido.");
   const normalizedPhone = normalizePhoneValue(data.customer.phone ?? "");
+  const normalizedLanguage = normalizeCustomerLanguage(data.customer.language);
   if (!normalizedPhone) return fail("El teléfono es obligatorio.");
   if (normalizedPhone && normalizedPhone.length > 30)
     return fail("El teléfono es demasiado largo.");
@@ -193,7 +200,7 @@ export async function createBooking(
           full_name: data.customer.fullName.trim(),
           email,
           phone: normalizedPhone || null,
-          language: data.customer.language || "es",
+          language: normalizedLanguage,
           notes: data.customer.notes.trim() || null,
         })
         .select("id")
@@ -210,7 +217,7 @@ export async function createBooking(
         .update({
           full_name: data.customer.fullName.trim(),
           phone: normalizedPhone || null,
-          language: data.customer.language || "es",
+          language: normalizedLanguage,
         })
         .eq("id", customer.id);
 
@@ -252,7 +259,7 @@ export async function createBooking(
         service_date: firstDate,
         status: "confirmed" as const,
         source_channel: (data.sourceChannel ?? "web") as never,
-        language: data.customer.language || "es",
+        language: normalizedLanguage,
         notes_customer: data.customer.notes.trim() || null,
         notes_internal: tag,
         subtotal_amount: pricing.subtotalAmount,

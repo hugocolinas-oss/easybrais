@@ -2,6 +2,7 @@
 
 import { useT } from "@/lib/i18n/context";
 import { PhoneInput } from "@/components/phone-input";
+import { SUPPORTED_LOCALES, type Locale } from "@/lib/i18n/translations";
 
 interface CustomerData {
   fullName: string;
@@ -17,15 +18,14 @@ interface Props {
   errors: Record<string, string>;
 }
 
-const LANGUAGES = [
-  { value: "es", label: "Español" },
-  { value: "gl", label: "Galego" },
-  { value: "en", label: "English" },
-  { value: "pt", label: "Português" },
-  { value: "fr", label: "Français" },
-  { value: "de", label: "Deutsch" },
-  { value: "it", label: "Italiano" },
-];
+const LANGUAGE_LABELS: Record<Locale, string> = {
+  es: "Español",
+  en: "English",
+  pt: "Português",
+  fr: "Français",
+  de: "Deutsch",
+  it: "Italiano",
+};
 
 export function CustomerFields({ value, onChange, errors }: Props) {
   const { t } = useT();
@@ -36,7 +36,7 @@ export function CustomerFields({ value, onChange, errors }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field
           id="customer-fullName"
           label={t("customer.name")}
@@ -82,9 +82,9 @@ export function CustomerFields({ value, onChange, errors }: Props) {
             onChange={(e) => update("language", e.target.value)}
             className={inputClass()}
           >
-            {LANGUAGES.map((l) => (
-              <option key={l.value} value={l.value}>
-                {l.label}
+            {SUPPORTED_LOCALES.map((locale) => (
+              <option key={locale} value={locale}>
+                {LANGUAGE_LABELS[locale]}
               </option>
             ))}
           </select>

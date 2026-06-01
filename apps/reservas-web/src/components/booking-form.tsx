@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import type { Accommodation, BookingType, StageLeg, BookingFormData } from "@/lib/types";
 import { calculatePricing, formatEUR, fmtDateShort, PRICING_RULES, getRealEtapas } from "@easybrais/utils";
 import { createBooking, type BookingSuccess } from "@/app/actions";
@@ -72,10 +72,17 @@ export function BookingForm({ allAccommodations }: Props) {
 
   // Sync customer language with detected browser locale on first render
   const langSynced = useRef(false);
-  if (!langSynced.current && locale !== "es") {
-    langSynced.current = true;
-    setCustomer((prev) => ({ ...prev, language: locale }));
-  }
+  const autoLanguageRef = useRef(customer.language);
+  useEffect(() => {
+    setCustomer((prev) => {
+      if (langSynced.current && prev.language && prev.language !== autoLanguageRef.current) {
+        return prev;
+      }
+      langSynced.current = true;
+      autoLanguageRef.current = locale;
+      return { ...prev, language: locale };
+    });
+  }, [locale]);
 
   const accMap = useMemo(
     () => new Map(allAccommodations.map((a) => [a.id, a])),
@@ -346,7 +353,8 @@ export function BookingForm({ allAccommodations }: Props) {
   function handleNewBooking() {
     setResult(null);
     setLegs([createLeg()]);
-    setCustomer(EMPTY_CUSTOMER);
+    autoLanguageRef.current = locale;
+    setCustomer({ ...EMPTY_CUSTOMER, language: locale });
     setBookingType("single_stage");
     setPaymentMethod("cash");
     setErrors({});
@@ -570,11 +578,12 @@ export function BookingForm({ allAccommodations }: Props) {
 
 function PaymentMethodSelector({ value, onChange }: { value: PaymentMethod; onChange: (v: PaymentMethod) => void }) {
   const { t } = useT();
-  const options: { id: PaymentMethod; label: string; desc: string; icon: React.ReactNode }[] = [
+  const options: { id: PaymentMethod; label: string; desc: string; disabled?: boolean; icon: React.ReactNode }[] = [
     {
       id: "online",
-      label: t("pay.online"),
-      desc: t("pay.online.desc"),
+      label: t("pay.online.disabled"),
+      desc: t("pay.online.disabled.desc"),
+      disabled: true,
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
@@ -596,7 +605,7 @@ function PaymentMethodSelector({ value, onChange }: { value: PaymentMethod; onCh
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {options.map((opt) => {
-        const disabled = false;
+        const disabled = opt.disabled ?? false;
         const selected = value === opt.id;
         return (
           <button
