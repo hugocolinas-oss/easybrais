@@ -214,7 +214,7 @@ function buildCustomerEmail(context: ReservationEmailContext) {
 <body style="margin:0;padding:24px;background:#f6f4ee;font-family:Arial,Helvetica,sans-serif;color:#163228;">
   <div style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e3ddd0;border-radius:12px;padding:28px;">
     <h1 style="margin:0 0 18px;font-size:22px;color:#163228;">Ola, ${escapeHtml(context.customerFirstName)} 👋</h1>
-    <p style="margin:0 0 18px;line-height:1.7;">A tua reserva con Easy Brais xa esta rexistrada correctamente.</p>
+    <p style="margin:0 0 18px;line-height:1.7;">A tua reserva con Easy Brais xa esta confirmada correctamente.</p>
     <p style="margin:0 0 16px;line-height:1.7;">🔐 <strong>Nº reserva:</strong> ${escapeHtml(context.bookingCode)}</p>
     <p style="margin:0 0 16px;line-height:1.7;">📅 <strong>Data de servizo:</strong> ${formatDate(context.serviceDate)}</p>
     <p style="margin:0 0 16px;line-height:1.7;">🎒 <strong>Nº mochilas:</strong> ${bagsCount}</p>

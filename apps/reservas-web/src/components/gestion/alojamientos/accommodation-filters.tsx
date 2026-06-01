@@ -10,7 +10,7 @@ interface Props {
 export function AccommodationFilters({ stages }: Props) {
   const router = useRouter();
   const sp = useSearchParams();
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const push = useCallback(
     (key: string, value: string) => {

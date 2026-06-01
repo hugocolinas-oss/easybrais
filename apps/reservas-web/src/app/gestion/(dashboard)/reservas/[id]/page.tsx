@@ -14,6 +14,8 @@ import { ItemAccommodationEditor } from "@/components/gestion/reservas/item-acco
 import { DeleteBookingButton } from "@/components/gestion/reservas/delete-booking-button";
 import { BookingPdfButton } from "@/components/gestion/reservas/booking-pdf-button";
 import { ResendEmailsButton } from "@/components/gestion/reservas/resend-emails-button";
+import { getPaymentStatusConfig } from "@/lib/gestion/payment-status";
+import { formatPhoneForDisplay, formatPhoneHref } from "@/lib/phone";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +27,6 @@ const CHANNEL_LABELS: Record<string, string> = {
   walk_in: "Presencial",
   partner: "Colaborador",
   other: "Otro",
-};
-
-const PAYMENT_LABELS: Record<string, { label: string; cls: string }> = {
-  paid: { label: "Pagado", cls: "text-green-700 bg-green-50" },
-  pending: { label: "Pendiente", cls: "text-amber-600 bg-amber-50" },
-  partial: { label: "Parcial", cls: "text-orange-600 bg-orange-50" },
-  refunded: { label: "Reembolsado", cls: "text-gray-600 bg-gray-50" },
 };
 
 function fmtDateTime(iso: string): string {
@@ -66,7 +61,9 @@ export default async function BookingDetailPage({
 
   const totalBags = booking.items.reduce((s, i) => s + i.bags_count, 0);
   const totalOverweight = booking.items.reduce((s, i) => s + i.overweight_bags_count, 0);
-  const pay = PAYMENT_LABELS[booking.payment_status] ?? { label: "Pendiente", cls: "text-amber-600" };
+  const pay = getPaymentStatusConfig(booking.payment_status, booking.payment_expires_at);
+  const customerPhoneDisplay = formatPhoneForDisplay(booking.customer.phone);
+  const customerPhoneHref = formatPhoneHref(booking.customer.phone);
 
   return (
     <div className="space-y-6">
@@ -104,10 +101,10 @@ export default async function BookingDetailPage({
               </div>
               <div>
                 <span className="text-xs text-gray-400">Teléfono</span>
-                {booking.customer.phone ? (
+                {customerPhoneDisplay && customerPhoneHref ? (
                   <p className="text-sm">
-                    <a href={`tel:${booking.customer.phone}`} className="text-brand-700 hover:underline">
-                      {booking.customer.phone}
+                    <a href={`tel:${customerPhoneHref}`} className="text-brand-700 hover:underline">
+                      {customerPhoneDisplay}
                     </a>
                   </p>
                 ) : (

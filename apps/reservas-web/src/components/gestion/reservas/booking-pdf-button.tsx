@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { BookingDetail } from "@/lib/gestion/booking-queries";
 import { BRAND_LOGO_SRC } from "@/lib/brand";
+import { getPaymentStatusConfig } from "@/lib/gestion/payment-status";
+import { formatPhoneForDisplay } from "@/lib/phone";
 
 interface Props {
   booking: BookingDetail;
@@ -24,15 +26,8 @@ const STATUS_LABELS: Record<string, string> = {
   delivered: "Entregado",
   cancelled: "Cancelada",
   incident: "Incidencia",
-  pending: "Pendiente",
+  pending: "Confirmada",
   picked_up: "Recogido",
-};
-
-const PAY_LABELS: Record<string, string> = {
-  paid: "Pagado",
-  pending: "Pendiente",
-  partial: "Parcial",
-  refunded: "Reembolsado",
 };
 
 export function BookingPdfButton({ booking }: Props) {
@@ -92,6 +87,7 @@ export function BookingPdfButton({ booking }: Props) {
       doc.setDrawColor(200, 200, 200);
       doc.line(15, y, pageW - 15, y);
       y += 8;
+      const paymentLabel = getPaymentStatusConfig(booking.payment_status, booking.payment_expires_at).label;
 
       autoTable(doc, {
         startY: y,
@@ -105,10 +101,10 @@ export function BookingPdfButton({ booking }: Props) {
         body: [
           ["Nombre", booking.customer.full_name],
           ["Email", booking.customer.email ?? "—"],
-          ["Teléfono", booking.customer.phone ?? "—"],
+          ["Teléfono", formatPhoneForDisplay(booking.customer.phone) ?? "—"],
           ["Fecha servicio", fmtDate(booking.service_date)],
           ["Estado", STATUS_LABELS[booking.status] ?? booking.status],
-          ["Pago", PAY_LABELS[booking.payment_status] ?? booking.payment_status],
+          ["Pago", paymentLabel],
         ],
       });
 

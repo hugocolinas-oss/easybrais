@@ -11,6 +11,7 @@ export interface BookingListRow {
   status: string;
   total_amount: number;
   payment_status: string;
+  payment_expires_at: string | null;
   source_channel: string;
   customer_name: string;
   customer_email: string;
@@ -102,6 +103,7 @@ interface RawBookingList {
   status: string;
   total_amount: number;
   payment_status: string;
+  payment_expires_at: string | null;
   source_channel: string;
   created_at: string;
   customers: { full_name: string; email: string | null; phone: string | null } | null;
@@ -178,7 +180,7 @@ export async function getBookings(filters: BookingFilters): Promise<BookingListR
   let query = supabase
     .from("bookings")
     .select(
-      "id, booking_code, service_date, status, total_amount, payment_status, source_channel, created_at, customers(full_name, email, phone), booking_items(bags_count, pickup:pickup_accommodation_id(name), dropoff:dropoff_accommodation_id(name))",
+      "id, booking_code, service_date, status, total_amount, payment_status, payment_expires_at, source_channel, created_at, customers(full_name, email, phone), booking_items(bags_count, pickup:pickup_accommodation_id(name), dropoff:dropoff_accommodation_id(name))",
       { count: "exact" },
     )
     .order("service_date", { ascending: false })
@@ -235,6 +237,7 @@ export async function getBookings(filters: BookingFilters): Promise<BookingListR
         status: r.status,
         total_amount: Number(r.total_amount) || 0,
         payment_status: r.payment_status ?? "pending",
+        payment_expires_at: r.payment_expires_at ?? null,
         source_channel: r.source_channel ?? "web",
         customer_name: r.customers?.full_name ?? "—",
         customer_email: r.customers?.email ?? "",

@@ -24,11 +24,11 @@ export default async function DashboardPage() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <KpiCard
-          label="Pendientes"
+          label="Cobro pendiente"
           value={stats.pendingBookings}
-          detail="Reservas por confirmar"
+          detail="Reservas con pago pendiente"
           color="amber"
-          href="/gestion/reservas?status=pending"
+          href="/gestion/reservas?paymentStatus=pending"
           icon={
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />

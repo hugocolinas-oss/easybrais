@@ -2,6 +2,7 @@ import { createAdminClient, formatEUR, fmtDateShort } from "@easybrais/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { BRAND_LOGO_SRC } from "@/lib/brand";
+import { getPaymentStatusConfig } from "@/lib/gestion/payment-status";
 
 interface Props {
   searchParams: Promise<{ session_id?: string; booking_id?: string }>;
@@ -28,7 +29,7 @@ export default async function PaymentSuccessPage({ searchParams }: Props) {
     .from("bookings")
     .select(
       `id, booking_code, service_date, total_amount, subtotal_amount,
-       discount_amount, extra_weight_amount, payment_status, status,
+       discount_amount, extra_weight_amount, payment_status, payment_expires_at, status,
        notes_customer,
        customers(full_name, email),
        booking_items(
@@ -61,6 +62,10 @@ export default async function PaymentSuccessPage({ searchParams }: Props) {
   }>;
 
   const isPaid = booking.payment_status === "paid";
+  const paymentConfig = getPaymentStatusConfig(
+    booking.payment_status,
+    (booking as { payment_expires_at?: string | null }).payment_expires_at,
+  );
 
   return (
     <div className="mx-auto max-w-lg">
@@ -84,12 +89,12 @@ export default async function PaymentSuccessPage({ searchParams }: Props) {
               )}
             </div>
             <h3 className="text-xl font-bold text-white sm:text-2xl">
-              {isPaid ? "Pago confirmado" : "Procesando pago..."}
+              {isPaid ? "Pago confirmado" : "Reserva confirmada"}
             </h3>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-white/60">
               {isPaid
                 ? "Tu reserva está confirmada y el pago se ha procesado correctamente."
-                : "Tu pago está siendo verificado. Recibirás confirmación por email en breve."}
+                : "Tu reserva ya está confirmada. El pago se actualizará en cuanto Stripe lo valide."}
             </p>
           </div>
         </div>
@@ -119,7 +124,7 @@ export default async function PaymentSuccessPage({ searchParams }: Props) {
             <Row label="Transportes" value={String(items.length)} />
             <Row
               label="Estado"
-              value={isPaid ? "Confirmada y pagada" : "Pendiente de confirmación de pago"}
+              value={isPaid ? "Confirmada y pagada" : `Confirmada · ${paymentConfig.label.toLowerCase()}`}
               accent
             />
           </dl>
@@ -185,7 +190,7 @@ export default async function PaymentSuccessPage({ searchParams }: Props) {
           <p className="text-[11px] leading-relaxed text-brand-800/50">
             {isPaid
               ? <>Recibirás un email de confirmación con la factura en <strong className="font-semibold text-brand-900">{customer?.email}</strong>.</>
-              : <>Guarda tu código <strong className="font-semibold text-brand-900">{booking.booking_code}</strong>. Recibirás confirmación en <strong className="font-semibold text-brand-900">{customer?.email}</strong> cuando se verifique el pago.</>}
+              : <>Guarda tu código <strong className="font-semibold text-brand-900">{booking.booking_code}</strong>. Tu reserva ya está confirmada y el estado del pago se actualizará en <strong className="font-semibold text-brand-900">{customer?.email}</strong>.</>}
           </p>
         </div>
 

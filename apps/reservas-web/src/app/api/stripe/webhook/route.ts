@@ -99,7 +99,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       stripe_payment_intent: paymentIntent,
       paid_at: now,
       payment_method: "online_stripe",
-    } as any)
+    })
     .eq("id", bookingId);
 
   if (updateErr) {
@@ -163,7 +163,7 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 
   const supabase = createAdminClient();
 
-  /* ── Idempotency: only expire if still pending_payment ───────── */
+  /* ── Idempotency: only expire if still unpaid ─────────────────── */
 
   const { data: current } = await supabase
     .from("bookings")
@@ -179,18 +179,18 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
   }
 
   const status = current.status as string;
-  if (status !== "pending_payment" && status !== "pending") {
-    console.log("[stripe/webhook] expired: status is", status, "— skipping");
+  if (status === "cancelled") {
+    console.log("[stripe/webhook] expired: booking is cancelled — skipping");
     return;
   }
 
-  /* ── Update booking to payment_expired ───────────────────────── */
+  /* ── Keep booking confirmed and record expiry in metadata/events ─ */
 
   const { error: updateErr } = await supabase
     .from("bookings")
     .update({
-      status: "payment_expired",
-    } as any)
+      status: "confirmed",
+    })
     .eq("id", bookingId);
 
   if (updateErr) {
@@ -198,18 +198,19 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
     return;
   }
 
-  console.log("[stripe/webhook] expired: booking", bookingId, "marked as payment_expired");
+  console.log("[stripe/webhook] expired: booking", bookingId, "kept confirmed with expired payment session");
 
   /* ── Event ───────────────────────────────────────────────────── */
 
   await supabase.from("booking_events").insert({
     booking_id: bookingId,
-    event_type: "payment_expired" as never,
+    event_type: "payment_expired" as const,
     actor_type: "system" as const,
     payload_json: {
       provider: "stripe",
       session_id: session.id,
       previous_status: current.status,
+      payment_status: current.payment_status,
     },
   });
 }

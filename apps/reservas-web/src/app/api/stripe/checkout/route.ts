@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     /* ── 3. Guard: invalid booking status ──────────────────────────── */
 
-    const allowedStatuses = ["pending", "pending_payment", "payment_expired"];
+    const allowedStatuses = ["confirmed", "pending", "pending_payment", "payment_expired"];
     if (!allowedStatuses.includes(booking.status)) {
       return NextResponse.json(
         { error: `No se puede pagar una reserva en estado "${booking.status}".` },
@@ -132,18 +132,23 @@ export async function POST(req: NextRequest) {
       expires_at: expiresAt,
     });
 
-    /* ── 7. Update booking: mark as pending_payment ────────────────── */
+    /* ── 7. Update booking payment metadata ───────────────────────── */
 
     const paymentExpiresAt = new Date(expiresAt * 1000).toISOString();
 
+    const updates: Record<string, string> = {
+      stripe_session_id: session.id,
+      payment_method: "online_stripe",
+      payment_expires_at: paymentExpiresAt,
+    };
+
+    if (booking.status !== "confirmed") {
+      updates.status = "confirmed";
+    }
+
     const { error: updateErr } = await supabase
       .from("bookings")
-      .update({
-        status: "pending_payment",
-        stripe_session_id: session.id,
-        payment_method: "online_stripe",
-        payment_expires_at: paymentExpiresAt,
-      } as any)
+      .update(updates)
       .eq("id", booking.id);
 
     if (updateErr) {
@@ -152,13 +157,16 @@ export async function POST(req: NextRequest) {
 
     /* ── 8. Log event ──────────────────────────────────────────────── */
 
+    const eventType: "updated" | "status_changed" =
+      booking.status === "confirmed" ? "updated" : "status_changed";
+
     await supabase.from("booking_events").insert({
       booking_id: booking.id,
-      event_type: "status_changed" as const,
+      event_type: eventType,
       actor_type: "system" as const,
       payload_json: {
         from: booking.status,
-        to: "pending_payment",
+        to: "confirmed",
         reason: "stripe_checkout_created",
         stripe_session_id: session.id,
         amount_cents: amountCents,

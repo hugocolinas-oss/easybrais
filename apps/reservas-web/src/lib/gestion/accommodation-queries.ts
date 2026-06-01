@@ -48,7 +48,7 @@ const SELECT_FIELDS =
 function parseCode(code: string | null): [number, number] {
   if (!code) return [9999, 9999];
   const parts = code.split(".");
-  const a = parseInt(parts[0], 10);
+  const a = parseInt(parts[0] ?? "", 10);
   const b = parseInt(parts[1] ?? "0", 10);
   return [Number.isNaN(a) ? 9999 : a, Number.isNaN(b) ? 9999 : b];
 }

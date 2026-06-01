@@ -33,7 +33,7 @@ export function ItemBagsEditor({ itemId, bagsCount, overweightBagsCount }: Props
         overweight_bags_count: ow,
       });
       if (res && "error" in res) {
-        setError(res.error);
+        setError(res.error ?? "Error al guardar.");
       } else {
         setEditing(false);
       }

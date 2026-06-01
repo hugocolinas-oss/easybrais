@@ -69,7 +69,7 @@ export function ItemAccommodationEditor({
     startTransition(async () => {
       const res = await updateBookingItemAccommodation(itemId, field, accId);
       if (res && "error" in res) {
-        setError(res.error);
+        setError(res.error ?? "Error al actualizar.");
       } else {
         setEditing(false);
         setQuery("");

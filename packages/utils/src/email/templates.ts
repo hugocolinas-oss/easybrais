@@ -105,7 +105,7 @@ export function bookingConfirmationHtml(data: BookingConfirmationData): string {
           <td style="padding:32px;">
             <p style="margin:0 0 8px;font-size:15px;color:#374151;">Hola <strong>${escapeHtml(data.customerName)}</strong>,</p>
             <p style="margin:0 0 24px;font-size:15px;color:#374151;">
-              Hemos recibido tu solicitud de reserva. La revisaremos y te confirmaremos lo antes posible.
+              Tu reserva ha quedado confirmada correctamente.
             </p>
 
             <!-- Booking code -->
@@ -149,7 +149,7 @@ export function bookingConfirmationHtml(data: BookingConfirmationData): string {
             <!-- Status note -->
             <div style="margin-top:24px;padding:12px 16px;background:#f0fdf4;border-left:4px solid #22c55e;border-radius:4px;">
               <p style="margin:0;font-size:13px;color:#166534;">
-                <strong>Estado:</strong> Pendiente de confirmación. Te enviaremos otro email cuando tu reserva esté confirmada.
+                <strong>Estado:</strong> Reserva confirmada.
               </p>
             </div>
           </td>

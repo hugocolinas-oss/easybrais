@@ -20,7 +20,7 @@ export function DeleteBookingButton({ bookingId, bookingCode }: Props) {
     startTransition(async () => {
       const res = await deleteBooking(bookingId);
       if (res && "error" in res) {
-        setError(res.error);
+        setError(res.error ?? "Error al eliminar la reserva.");
         setShowConfirm(false);
       } else {
         router.push("/gestion/reservas");

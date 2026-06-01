@@ -5,6 +5,7 @@ import { createAdminClient, calculatePricing, getRealEtapas, resolvePerBagPrice,
 import type { BookingFormData } from "@/lib/types";
 import { isStripeConfigured } from "@/lib/stripe";
 import { sendReservationEmails } from "@/lib/email/reservations";
+import { normalizePhoneValue } from "@/lib/phone";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,7 +70,9 @@ export async function createBooking(
   if (data.customer.email.length > 254) return fail("El email es demasiado largo.");
   if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(data.customer.email))
     return fail("El email no es válido.");
-  if (data.customer.phone && data.customer.phone.length > 30)
+  const normalizedPhone = normalizePhoneValue(data.customer.phone ?? "");
+  if (!normalizedPhone) return fail("El teléfono es obligatorio.");
+  if (normalizedPhone && normalizedPhone.length > 30)
     return fail("El teléfono es demasiado largo.");
   if (data.customer.notes && data.customer.notes.length > 500)
     return fail("Las observaciones son demasiado largas.");
@@ -108,7 +111,7 @@ export async function createBooking(
 
     function stageNumber(code: string | null): number | null {
       if (!code) return null;
-      const n = parseInt(code.split(".")[0], 10);
+      const n = parseInt(code.split(".")[0] ?? "", 10);
       return Number.isNaN(n) ? null : n;
     }
 
@@ -189,7 +192,7 @@ export async function createBooking(
         .insert({
           full_name: data.customer.fullName.trim(),
           email,
-          phone: data.customer.phone.trim() || null,
+          phone: normalizedPhone || null,
           language: data.customer.language || "es",
           notes: data.customer.notes.trim() || null,
         })
@@ -206,7 +209,7 @@ export async function createBooking(
         .from("customers")
         .update({
           full_name: data.customer.fullName.trim(),
-          phone: data.customer.phone.trim() || null,
+          phone: normalizedPhone || null,
           language: data.customer.language || "es",
         })
         .eq("id", customer.id);
@@ -247,7 +250,7 @@ export async function createBooking(
         customer_id: customer.id,
         booking_type: "luggage_transfer" as const,
         service_date: firstDate,
-        status: "pending" as const,
+        status: "confirmed" as const,
         source_channel: (data.sourceChannel ?? "web") as never,
         language: data.customer.language || "es",
         notes_customer: data.customer.notes.trim() || null,
@@ -321,7 +324,7 @@ export async function createBooking(
     if (data.paymentMethod === "cash") {
       await supabase
         .from("bookings")
-        .update({ payment_method: "cash" } as any)
+        .update({ payment_method: "cash" })
         .eq("id", booking.id);
     }
 

@@ -216,7 +216,7 @@ async function syncBookingStatus(
     if (updates.payment_status) {
       await supabase.from("booking_events").insert({
         booking_id: bookingId,
-        event_type: "payment_confirmed" as const,
+        event_type: "payment_received" as const,
         actor_type: "system" as const,
         actor_id: userId,
         payload_json: { from: payStatus, to: "paid", reason: "auto_on_pickup" },

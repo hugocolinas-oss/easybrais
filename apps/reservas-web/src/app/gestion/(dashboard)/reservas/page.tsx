@@ -3,14 +3,10 @@ import { getBookings, type BookingFilters } from "@/lib/gestion/booking-queries"
 import { BookingFilters as Filters } from "@/components/gestion/reservas/booking-filters";
 import { StatusBadge } from "@/components/gestion/reservas/status-badge";
 import { formatEUR, fmtDateShort } from "@easybrais/utils";
+import { getPaymentStatusConfig } from "@/lib/gestion/payment-status";
+import { formatPhoneForDisplay } from "@/lib/phone";
 
 export const dynamic = "force-dynamic";
-
-const PAYMENT_LABELS: Record<string, { label: string; cls: string }> = {
-  paid: { label: "Pagado", cls: "text-green-700 bg-green-50" },
-  pending: { label: "Pendiente", cls: "text-amber-700 bg-amber-50" },
-  refunded: { label: "Reembolsado", cls: "text-gray-600 bg-gray-100" },
-};
 
 export default async function ReservasPage({
   searchParams,
@@ -73,7 +69,8 @@ export default async function ReservasPage({
           {/* Mobile: card list */}
           <div className="space-y-2 sm:hidden">
             {bookings.map((b) => {
-              const pay = PAYMENT_LABELS[b.payment_status] ?? { label: "Pendiente", cls: "text-amber-700 bg-amber-50" };
+              const pay = getPaymentStatusConfig(b.payment_status, b.payment_expires_at);
+              const customerPhone = formatPhoneForDisplay(b.customer_phone);
               return (
                 <Link
                   key={b.id}
@@ -85,8 +82,8 @@ export default async function ReservasPage({
                     <StatusBadge status={b.status} />
                   </div>
                   <p className="mt-1.5 text-sm font-medium text-gray-900">{b.customer_name}</p>
-                  {b.customer_phone && (
-                    <p className="text-xs text-gray-400">{b.customer_phone}</p>
+                  {customerPhone && (
+                    <p className="text-xs text-gray-400">{customerPhone}</p>
                   )}
                   <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
                     <span>{fmtDateShort(b.service_date)}</span>
@@ -117,7 +114,8 @@ export default async function ReservasPage({
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {bookings.map((b) => {
-                    const pay = PAYMENT_LABELS[b.payment_status] ?? { label: "Pendiente", cls: "text-amber-700 bg-amber-50" };
+                    const pay = getPaymentStatusConfig(b.payment_status, b.payment_expires_at);
+                    const customerPhone = formatPhoneForDisplay(b.customer_phone);
                     return (
                       <tr key={b.id} className="group hover:bg-gray-50/60">
                         <td className="whitespace-nowrap px-4 py-3">
@@ -128,7 +126,7 @@ export default async function ReservasPage({
                         <td className="px-4 py-3">
                           <Link href={`/gestion/reservas/${b.id}`} className="block">
                             <p className="font-medium text-gray-900">{b.customer_name}</p>
-                            {b.customer_phone && <p className="text-xs text-gray-400">{b.customer_phone}</p>}
+                            {customerPhone && <p className="text-xs text-gray-400">{customerPhone}</p>}
                           </Link>
                         </td>
                         <td className="hidden px-4 py-3 lg:table-cell">

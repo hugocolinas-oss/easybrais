@@ -17,7 +17,7 @@ function suggestNextCode(stageName: string, existingCodes: string[], stageNumber
 
   const codesInStage = existingCodes
     .filter((c) => {
-      const n = parseInt(c.split(".")[0], 10);
+      const n = parseInt(c.split(".")[0] ?? "", 10);
       return n === stageNum;
     })
     .map((c) => {

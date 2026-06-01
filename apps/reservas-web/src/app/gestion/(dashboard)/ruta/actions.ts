@@ -20,7 +20,7 @@ interface RawBookingItem {
 function parseStageCode(code: string | null): [number, number] {
   if (!code) return [9999, 9999];
   const parts = code.split(".");
-  const a = parseInt(parts[0], 10);
+  const a = parseInt(parts[0] ?? "", 10);
   const b = parseInt(parts[1] ?? "0", 10);
   return [Number.isNaN(a) ? 9999 : a, Number.isNaN(b) ? 9999 : b];
 }
@@ -575,7 +575,7 @@ async function syncBookingStatusFromItems(
     if (updates.payment_status) {
       await supabase.from("booking_events").insert({
         booking_id: bookingId,
-        event_type: "payment_confirmed" as const,
+        event_type: "payment_received" as const,
         actor_type: "system" as const,
         actor_id: userId,
         payload_json: { from: payStatus, to: "paid", reason: "auto_on_pickup" },

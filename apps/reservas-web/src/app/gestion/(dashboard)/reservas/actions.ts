@@ -99,10 +99,10 @@ export async function updateBookingPrice(bookingId: string, newTotal: number) {
 
     await supabase.from("booking_events").insert({
       booking_id: bookingId,
-      event_type: "price_updated" as const,
+      event_type: "updated" as const,
       actor_type: "staff" as const,
       actor_id: userId,
-      payload_json: { from: oldTotal, to: newTotal },
+      payload_json: { kind: "price", from: oldTotal, to: newTotal },
     });
 
     revalidatePath(`/gestion/reservas/${bookingId}`);
@@ -182,10 +182,11 @@ export async function updateBookingItem(
 
     await supabase.from("booking_events").insert({
       booking_id: bookingId,
-      event_type: "item_updated" as const,
+      event_type: "updated" as const,
       actor_type: "staff" as const,
       actor_id: userId,
       payload_json: {
+        kind: "booking_item",
         item_id: itemId,
         bags: { from: item.bags_count, to: newBags },
         overweight: { from: item.overweight_bags_count, to: newOw },
@@ -245,10 +246,11 @@ export async function updateBookingItemAccommodation(
     const bookingId = item.booking_id as string;
     await supabase.from("booking_events").insert({
       booking_id: bookingId,
-      event_type: "item_updated" as const,
+      event_type: "updated" as const,
       actor_type: "staff" as const,
       actor_id: userId,
       payload_json: {
+        kind: "booking_item",
         item_id: itemId,
         field: `${field}_accommodation`,
         from: oldId,
@@ -420,6 +422,7 @@ export async function resendReservationEmails(bookingId: string) {
 }
 
 const OVERWEIGHT_FEE = 5;
+const PENDING_PAYMENT_STATUSES = new Set(["pending", "partial"]);
 
 async function regenerateClosureForDate(
   supabase: ReturnType<typeof createAdminClient>,
@@ -451,10 +454,7 @@ async function regenerateClosureForDate(
   const extrasAmount = totalOverweight * OVERWEIGHT_FEE;
   const grossAmount = active.reduce((s, i) => s + (Number(i.line_total) || 0), 0);
 
-  const pendingIds = new Set(
-    active.filter((i) => i.bookings.payment_status === "pending").map((i) => i.bookings.id),
-  );
-  const pendingItems = active.filter((i) => pendingIds.has(i.bookings.id));
+  const pendingItems = active.filter((i) => PENDING_PAYMENT_STATUSES.has(i.bookings.payment_status));
   const pendingCollectionAmount =
     pendingItems.reduce((s, i) => s + (Number(i.line_total) || 0), 0) +
     pendingItems.reduce((s, i) => s + (i.overweight_bags_count || 0), 0) * OVERWEIGHT_FEE;

@@ -41,7 +41,7 @@ const EMPTY_CUSTOMER = {
 
 function stageNumberFromCode(acc: Accommodation): number | null {
   if (!acc.external_code) return null;
-  const n = parseInt(acc.external_code.split(".")[0], 10);
+  const n = parseInt(acc.external_code.split(".")[0] ?? "", 10);
   return Number.isNaN(n) ? null : n;
 }
 
@@ -168,9 +168,10 @@ export function BookingForm({ allAccommodations }: Props) {
       const overweightChanged = prev[index]?.overweightBagsCount !== updated.overweightBagsCount;
       if (bagsChanged || overweightChanged) {
         for (let i = 0; i < next.length; i++) {
-          if (i !== index && next[i]) {
+          const leg = next[i];
+          if (i !== index && leg) {
             next[i] = {
-              ...next[i],
+              ...leg,
               bagsCount: updated.bagsCount,
               overweightBagsCount: Math.min(updated.overweightBagsCount, updated.bagsCount),
             };
@@ -186,7 +187,8 @@ export function BookingForm({ allAccommodations }: Props) {
           const dropoffAcc = accMap.get(updated.dropoffAccommodationId);
           const dropoffCode = dropoffAcc ? stageNumberFromCode(dropoffAcc) : null;
           if (dropoffCode !== null && dropoffCode < newPickupCode) {
-            next[index] = { ...next[index], dropoffAccommodationId: "", arrivalTown: "" };
+            const at = next[index];
+            if (at) next[index] = { ...at, dropoffAccommodationId: "", arrivalTown: "" };
           }
         }
       }
@@ -594,7 +596,7 @@ function PaymentMethodSelector({ value, onChange }: { value: PaymentMethod; onCh
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {options.map((opt) => {
-        const disabled = opt.id === "online";
+        const disabled = false;
         const selected = value === opt.id;
         return (
           <button
@@ -611,16 +613,11 @@ function PaymentMethodSelector({ value, onChange }: { value: PaymentMethod; onCh
                   : "border-cream-300/80 bg-white/60 hover:border-cream-400 hover:bg-white hover:shadow-card",
             ].join(" ")}
           >
-            {selected && !disabled && (
+            {selected && (
               <span className="absolute -top-2 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-brand-900 shadow-sm">
                 <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
-              </span>
-            )}
-            {disabled && (
-              <span className="absolute -top-2 right-3 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-                {t("pay.online.disabled")}
               </span>
             )}
             <span
@@ -636,11 +633,11 @@ function PaymentMethodSelector({ value, onChange }: { value: PaymentMethod; onCh
               {opt.icon}
             </span>
             <div className="min-w-0">
-              <span className={["block text-sm font-bold", disabled ? "text-brand-800/40" : selected ? "text-brand-900" : "text-brand-900/70"].join(" ")}>
+              <span className={["block text-sm font-bold", selected ? "text-brand-900" : "text-brand-900/70"].join(" ")}>
                 {opt.label}
               </span>
               <span className="mt-0.5 block text-[11px] leading-relaxed text-brand-800/40">
-                {disabled ? t("pay.online.disabled.desc") : opt.desc}
+                {opt.desc}
               </span>
             </div>
           </button>

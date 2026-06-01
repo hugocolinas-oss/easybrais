@@ -11,7 +11,7 @@ function stripAccents(s: string): string {
 
 function codePrefix(acc: Accommodation): number | null {
   if (!acc.external_code) return null;
-  const n = parseInt(acc.external_code.split(".")[0], 10);
+  const n = parseInt(acc.external_code.split(".")[0] ?? "", 10);
   return Number.isNaN(n) ? null : n;
 }
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CashClosureRow } from "@/lib/gestion/closure-queries";
 import { getClosureBookings } from "@/app/gestion/(dashboard)/cierres/actions";
+import { getPaymentStatusConfig } from "@/lib/gestion/payment-status";
 
 interface Props {
   closure: CashClosureRow;
@@ -126,8 +127,6 @@ export function ClosurePdfButton({ closure }: Props) {
       doc.line(15, y, pageW - 15, y);
       y += 8;
 
-      const payLabel: Record<string, string> = { paid: "Pagado", pending: "Pendiente", partial: "Parcial", refunded: "Reembolsado" };
-
       autoTable(doc, {
         startY: y,
         margin: { left: 15, right: 15 },
@@ -147,7 +146,7 @@ export function ClosurePdfButton({ closure }: Props) {
           b.route,
           String(b.bags_count),
           eur(b.total_amount),
-          payLabel[b.payment_status] ?? b.payment_status,
+          getPaymentStatusConfig(b.payment_status).label,
         ]),
       });
     }

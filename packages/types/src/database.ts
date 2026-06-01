@@ -12,7 +12,17 @@ export type PaymentStatus = "pending" | "paid" | "partial" | "refunded";
 export type EmailStatus = "not_sent" | "sent" | "failed";
 export type SourceChannel = "web" | "phone" | "email" | "walk_in" | "partner" | "other";
 export type OperationalStatus = "pending" | "picked_up" | "in_transit" | "delivered" | "failed";
-export type EventType = "created" | "updated" | "status_changed" | "item_status_changed" | "incident_reported" | "payment_received" | "email_sent" | "note_added" | "cancelled";
+export type EventType =
+  | "created"
+  | "updated"
+  | "status_changed"
+  | "item_status_changed"
+  | "incident_reported"
+  | "payment_received"
+  | "payment_expired"
+  | "email_sent"
+  | "note_added"
+  | "cancelled";
 export type ActorType = "system" | "staff" | "customer";
 export type StaffRole = "operator" | "manager" | "admin";
 

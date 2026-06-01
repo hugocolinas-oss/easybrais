@@ -5,8 +5,9 @@ import { useCallback, useMemo, useRef } from "react";
 import { OPERATIONAL_STATUSES, getStatusConfig } from "@/lib/gestion/booking-status";
 
 const PAYMENT_STATUSES: { value: string; label: string }[] = [
-  { value: "pending", label: "Pendiente" },
+  { value: "pending", label: "Pago pendiente" },
   { value: "paid", label: "Pagado" },
+  { value: "partial", label: "Parcial" },
   { value: "refunded", label: "Reembolsado" },
 ];
 
@@ -17,7 +18,7 @@ function toISODate(d: Date) {
 export function BookingFilters() {
   const router = useRouter();
   const params = useSearchParams();
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const push = useCallback(
     (key: string, value: string) => {

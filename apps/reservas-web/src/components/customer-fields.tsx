@@ -1,6 +1,7 @@
 "use client";
 
 import { useT } from "@/lib/i18n/context";
+import { PhoneInput } from "@/components/phone-input";
 
 interface CustomerData {
   fullName: string;
@@ -66,14 +67,11 @@ export function CustomerFields({ value, onChange, errors }: Props) {
         </Field>
 
         <Field id="customer-phone" label={t("customer.phone")} required error={errors.phone}>
-          <input
+          <PhoneInput
             id="customer-phone"
-            type="tel"
             value={value.phone}
-            onChange={(e) => update("phone", e.target.value)}
-            placeholder="+34 600 000 000"
-            maxLength={30}
-            className={inputClass(errors.phone)}
+            onChange={(nextValue) => update("phone", nextValue)}
+            error={errors.phone}
           />
         </Field>
 

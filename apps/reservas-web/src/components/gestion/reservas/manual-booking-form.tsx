@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import type { Accommodation, BookingType } from "@/lib/types";
 import { createBooking } from "@/app/actions";
 import { formatEUR, calculatePricing, getRealEtapas } from "@easybrais/utils";
+import { PhoneInput } from "@/components/phone-input";
+import { normalizePhoneValue } from "@/lib/phone";
 
 interface Props {
   accommodations: Accommodation[];
@@ -19,7 +21,7 @@ interface LegState {
 
 function stageNumberFromCode(acc: Accommodation): number | null {
   if (!acc.external_code) return null;
-  const n = parseInt(acc.external_code.split(".")[0], 10);
+  const n = parseInt(acc.external_code.split(".")[0] ?? "", 10);
   return Number.isNaN(n) ? null : n;
 }
 
@@ -153,31 +155,37 @@ export function ManualBookingForm({ accommodations }: Props) {
   function updateLeg(index: number, field: keyof LegState, value: string) {
     setLegs((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
+      const prevLeg = next[index];
+      if (!prevLeg) return next;
+      next[index] = { ...prevLeg, [field]: value };
 
       if (field === "pickupId" && value) {
         const newPickupAcc = accMap.get(value);
         const newPickupCode = newPickupAcc ? stageNumberFromCode(newPickupAcc) : null;
-        const currentDropoff = next[index].dropoffId;
+        const currentDropoff = next[index]!.dropoffId;
         if (newPickupCode !== null && currentDropoff) {
           const dropoffAcc = accMap.get(currentDropoff);
           const dropoffCode = dropoffAcc ? stageNumberFromCode(dropoffAcc) : null;
           if (dropoffCode !== null && dropoffCode < newPickupCode) {
-            next[index] = { ...next[index], dropoffId: "" };
+            next[index] = { ...next[index]!, dropoffId: "" };
           }
         }
       }
 
-      if (field === "dropoffId" && next[index].dropoffId && index < next.length - 1) {
-        next[index + 1] = { ...next[index + 1], pickupId: next[index].dropoffId };
+      if (field === "dropoffId" && next[index]!.dropoffId && index < next.length - 1) {
+        const downstream = next[index + 1];
+        if (downstream) {
+          next[index + 1] = { ...downstream, pickupId: next[index]!.dropoffId };
+        }
       }
 
       if (field === "serviceDate" && value && index < next.length - 1) {
         const d = new Date(value);
         d.setDate(d.getDate() + 1);
         const nextDate = d.toISOString().slice(0, 10);
-        if (!next[index + 1]?.serviceDate) {
-          next[index + 1] = { ...next[index + 1], serviceDate: nextDate };
+        const downstream = next[index + 1];
+        if (downstream && !downstream.serviceDate) {
+          next[index + 1] = { ...downstream, serviceDate: nextDate };
         }
       }
 
@@ -227,6 +235,7 @@ export function ManualBookingForm({ accommodations }: Props) {
     setSuccess(null);
 
     if (!fullName.trim()) { setError("Nombre obligatorio"); return; }
+    if (!normalizePhoneValue(phone.trim())) { setError("Teléfono obligatorio"); return; }
 
     for (const [i, leg] of legs.entries()) {
       if (!leg.serviceDate) { setError(`Etapa ${i + 1}: fecha obligatoria`); return; }
@@ -263,7 +272,7 @@ export function ManualBookingForm({ accommodations }: Props) {
           customer: {
             fullName: fullName.trim(),
             email: email.trim() || `manual+${crypto.randomUUID().slice(0, 8)}@easybrais.com`,
-            phone: phone.trim(),
+            phone: normalizePhoneValue(phone.trim()),
             language: "es",
             notes: notes.trim(),
           },
@@ -307,7 +316,12 @@ export function ManualBookingForm({ accommodations }: Props) {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Teléfono</label>
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600" />
+            <PhoneInput
+              id="manual-booking-phone"
+              value={phone}
+              onChange={setPhone}
+              className="rounded-lg"
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Notas</label>

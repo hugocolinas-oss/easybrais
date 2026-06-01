@@ -24,7 +24,7 @@ export function PriceEditor({ bookingId, currentTotal }: Props) {
     startTransition(async () => {
       const res = await updateBookingPrice(bookingId, num);
       if (res && "error" in res) {
-        setError(res.error);
+        setError(res.error ?? "Error al actualizar el precio.");
       } else {
         setEditing(false);
       }

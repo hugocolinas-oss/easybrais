@@ -41,7 +41,7 @@ export default async function AlojamientosPage({
 
   function stageNumber(code: string | null): number | null {
     if (!code) return null;
-    const n = parseInt(code.split(".")[0], 10);
+    const n = parseInt(code.split(".")[0] ?? "", 10);
     return Number.isNaN(n) ? null : n;
   }
 

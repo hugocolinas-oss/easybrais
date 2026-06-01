@@ -19,6 +19,7 @@ interface RawItem {
 }
 
 const OVERWEIGHT_FEE = 5;
+const PENDING_PAYMENT_STATUSES = new Set(["pending", "partial"]);
 
 export async function generateClosure(date: string) {
   if (!DATE_RE.test(date)) return { error: "Fecha inválida." };
@@ -67,10 +68,7 @@ export async function generateClosure(date: string) {
     const netAmount = grossAmount + extrasAmount;
     const discountsAmount = 0;
 
-    const pendingBookingIds = new Set(
-      activeItems.filter((i) => i.bookings.payment_status === "pending").map((i) => i.bookings.id),
-    );
-    const pendingItems = activeItems.filter((i) => pendingBookingIds.has(i.bookings.id));
+    const pendingItems = activeItems.filter((i) => PENDING_PAYMENT_STATUSES.has(i.bookings.payment_status));
     const pendingCollectionAmount = pendingItems.reduce((s, i) => s + (Number(i.line_total) || 0), 0) +
       pendingItems.reduce((s, i) => s + (i.overweight_bags_count || 0), 0) * OVERWEIGHT_FEE;
 

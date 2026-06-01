@@ -33,7 +33,7 @@ interface TodayItemRow {
   bags_count: number;
   overweight_bags_count: number;
   line_total: number;
-  bookings: { status: string };
+  bookings: { status: string; payment_status: string };
 }
 
 interface BookingRow {
@@ -65,7 +65,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
-      .in("status", ["pending", "pending_payment"]),
+      .not("status", "in", "(cancelled)")
+      .in("payment_status", ["pending", "partial"]),
 
     supabase
       .from("bookings")
@@ -89,7 +90,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
     supabase
       .from("booking_items")
-      .select("booking_id, bags_count, overweight_bags_count, line_total, bookings!inner(status)")
+      .select("booking_id, bags_count, overweight_bags_count, line_total, bookings!inner(status, payment_status)")
       .eq("service_date", today),
   ]);
 

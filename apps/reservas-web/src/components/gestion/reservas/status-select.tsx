@@ -13,6 +13,9 @@ export function StatusSelect({ bookingId, currentStatus }: Props) {
   const [selected, setSelected] = useState(currentStatus);
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ text: string; isError: boolean } | null>(null);
+  const options = OPERATIONAL_STATUSES.includes(currentStatus as (typeof OPERATIONAL_STATUSES)[number])
+    ? OPERATIONAL_STATUSES
+    : ([currentStatus, ...OPERATIONAL_STATUSES] as const);
 
   function handleChange(newStatus: string) {
     if (newStatus === currentStatus) return;
@@ -40,7 +43,7 @@ export function StatusSelect({ bookingId, currentStatus }: Props) {
         disabled={isPending}
         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-medium focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
       >
-        {OPERATIONAL_STATUSES.map((s) => (
+        {options.map((s) => (
           <option key={s} value={s}>
             {getStatusConfig(s).label}
           </option>

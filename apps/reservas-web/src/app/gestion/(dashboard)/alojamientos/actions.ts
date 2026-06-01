@@ -61,7 +61,6 @@ export async function createAccommodation(fields: {
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- migration 010 columns
     const { data: created, error: insertErr } = await supabase
       .from("accommodations")
       .insert({
@@ -79,7 +78,7 @@ export async function createAccommodation(fields: {
         sort_order: fields.sort_order,
         internal_notes: fields.internal_notes?.trim() || null,
         reservation_notes: fields.reservation_notes?.trim() || null,
-      } as any)
+      })
       .select("id")
       .single();
 
@@ -119,10 +118,9 @@ export async function updateAccommodation(
   try {
     await requireAuth();
     const supabase = await getServerSupabase();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- new columns from migration 010 not in generated types
     const { error } = await supabase
       .from("accommodations")
-      .update(fields as any)
+      .update(fields)
       .eq("id", id);
 
     if (error) {
@@ -173,8 +171,7 @@ export async function toggleVisibility(
     const supabase = await getServerSupabase();
     const { error } = await supabase
       .from("accommodations")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- migration 010
-      .update({ visible_in_reservations: visible } as any)
+      .update({ visible_in_reservations: visible })
       .eq("id", id);
 
     if (error) {
@@ -198,8 +195,7 @@ export async function markVerified(
     const supabase = await getServerSupabase();
     const { error } = await supabase
       .from("accommodations")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- migration 010
-      .update({ last_verified_at: new Date().toISOString() } as any)
+      .update({ last_verified_at: new Date().toISOString() })
       .eq("id", id);
 
     if (error) {
@@ -292,10 +288,9 @@ export async function toggleStageVisibility(
   try {
     await requireAuth();
     const supabase = await getServerSupabase();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await supabase
       .from("accommodations")
-      .update({ visible_in_reservations: visible } as any)
+      .update({ visible_in_reservations: visible })
       .eq("stage_name", stageName)
       .select("id");
 
