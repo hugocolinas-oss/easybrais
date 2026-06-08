@@ -6,9 +6,14 @@ const GESTION_PUBLIC_PATHS = ["/gestion/login", "/gestion/auth/callback"];
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const response = NextResponse.next({ request });
-  const { supabase } = createMiddlewareClient(request, response);
 
-  if (pathname.startsWith("/gestion")) {
+  if (!pathname.startsWith("/gestion")) {
+    return response;
+  }
+
+  try {
+    const { supabase } = createMiddlewareClient(request, response);
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -30,10 +35,10 @@ export async function middleware(request: NextRequest) {
     }
 
     return response;
+  } catch (error) {
+    console.error("Middleware auth check failed", error);
+    return response;
   }
-
-  await supabase.auth.getUser();
-  return response;
 }
 
 export const config = {
