@@ -27,10 +27,10 @@ export function PhoneInput({
   const [nationalNumber, setNationalNumber] = useState(initial.nationalNumber);
 
   useEffect(() => {
-    const next = splitPhoneNumber(value);
+    const next = splitPhoneNumber(value, countryCode);
     setCountryCode(next.country.code);
     setNationalNumber(next.nationalNumber);
-  }, [value]);
+  }, [value, countryCode]);
 
   function handleCountryChange(nextCountryCode: string) {
     setCountryCode(nextCountryCode);

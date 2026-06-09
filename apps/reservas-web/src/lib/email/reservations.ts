@@ -710,6 +710,8 @@ function buildIncidentReportedEmail(
 ) {
   const locale = resolveLocale(context.language);
   const copy = getIncidentEmailCopy(locale);
+  const smtpConfig = getSmtpConfig();
+  const incidentContactEmail = smtpConfig?.replyTo ?? smtpConfig?.fromEmail ?? null;
   const firstItem = context.items[0];
   const lastItem = context.items[context.items.length - 1];
   const subject = `${copy.subject} · ${context.bookingCode} · Easy Brais`;
@@ -731,6 +733,9 @@ function buildIncidentReportedEmail(
     </div>
     <p style="margin:0 0 16px;line-height:1.7;">${copy.supportText}</p>
     <p style="margin:0 0 16px;line-height:1.7;">${copy.contactText}</p>
+    ${incidentContactEmail
+      ? `<p style="margin:0 0 16px;line-height:1.7;"><strong>Email:</strong> <a href="mailto:${escapeHtml(incidentContactEmail)}" style="color:#166534;text-decoration:none;">${escapeHtml(incidentContactEmail)}</a></p>`
+      : ""}
     <p style="margin:0;line-height:1.7;">${copy.close}<br /><br />Easy Brais<br />${getCustomerEmailCopy(locale).footer}</p>
   </div>
 </body>

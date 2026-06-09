@@ -52,7 +52,10 @@ function digitsOnly(value: string): string {
   return value.replace(/\D/g, "");
 }
 
-export function splitPhoneNumber(value: string): { country: PhoneCountry; nationalNumber: string; hasExplicitPrefix: boolean } {
+export function splitPhoneNumber(
+  value: string,
+  preferredCountryCode?: string,
+): { country: PhoneCountry; nationalNumber: string; hasExplicitPrefix: boolean } {
   const raw = compactWhitespace(sanitizeRawPhone(value));
   if (!raw.startsWith("+")) {
     return {
@@ -74,9 +77,15 @@ export function splitPhoneNumber(value: string): { country: PhoneCountry; nation
     };
   }
 
+  const exactDialMatches = PHONE_COUNTRIES.filter((country) => country.dialCode === match.dialCode);
+  const preferredCountry = preferredCountryCode
+    ? exactDialMatches.find((country) => country.code === preferredCountryCode)
+    : null;
+  const resolvedCountry = preferredCountry ?? match;
+
   return {
-    country: match,
-    nationalNumber: raw.slice(match.dialCode.length).trim(),
+    country: resolvedCountry,
+    nationalNumber: raw.slice(resolvedCountry.dialCode.length).trim(),
     hasExplicitPrefix: true,
   };
 }
