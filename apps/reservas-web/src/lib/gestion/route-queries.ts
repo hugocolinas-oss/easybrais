@@ -13,6 +13,11 @@ export interface RouteStop {
   booking_item_id: string | null;
   booking_code: string;
   booking_id: string | null;
+  booking_status: string | null;
+  source_channel: string | null;
+  payment_status: string | null;
+  payment_method: string | null;
+  incident_reason: string | null;
   customer_name: string;
   customer_phone: string | null;
   bags_count: number;
@@ -97,19 +102,37 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
       ? supabase.from("accommodations").select("id, address, internal_notes, contact_phone").in("id", accIds)
       : Promise.resolve({ data: [] }),
     itemIds.length > 0
-      ? supabase.from("booking_items").select("id, booking_id, bookings(id, total_amount, customers(phone))").in("id", itemIds)
+      ? supabase.from("booking_items").select("id, booking_id, bookings(id, status, source_channel, total_amount, payment_status, payment_method, incident_reason, customers(phone))").in("id", itemIds)
       : Promise.resolve({ data: [] }),
   ]);
 
   type AccInfo = { id: string; address: string | null; internal_notes: string | null; contact_phone: string | null };
   const accInfoMap = new Map((accs ?? []).map((a: AccInfo) => [a.id, a]));
 
-  interface ItemWithBooking { id: string; booking_id: string | null; bookings: { id: string; total_amount: number | null; customers: { phone: string | null } | null } | null }
+  interface ItemWithBooking {
+    id: string;
+    booking_id: string | null;
+    bookings: {
+      id: string;
+      status: string | null;
+      source_channel: string | null;
+      total_amount: number | null;
+      payment_status: string | null;
+      payment_method: string | null;
+      incident_reason: string | null;
+      customers: { phone: string | null } | null;
+    } | null;
+  }
   const itemMap = new Map(
     ((items ?? []) as unknown as ItemWithBooking[]).map((i) => [
       i.id,
       {
         booking_id: i.booking_id ?? i.bookings?.id ?? null,
+        booking_status: i.bookings?.status ?? null,
+        source_channel: i.bookings?.source_channel ?? null,
+        payment_status: i.bookings?.payment_status ?? null,
+        payment_method: i.bookings?.payment_method ?? null,
+        incident_reason: i.bookings?.incident_reason ?? null,
         phone: i.bookings?.customers?.phone ?? null,
         total: i.bookings?.total_amount != null ? Number(i.bookings.total_amount) : null,
       },
@@ -131,6 +154,11 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
       booking_item_id: s.booking_item_id,
       booking_code: s.booking_code,
       booking_id: itemInfo?.booking_id ?? null,
+      booking_status: itemInfo?.booking_status ?? null,
+      source_channel: itemInfo?.source_channel ?? null,
+      payment_status: itemInfo?.payment_status ?? null,
+      payment_method: itemInfo?.payment_method ?? null,
+      incident_reason: itemInfo?.incident_reason ?? null,
       customer_name: s.customer_name,
       customer_phone: itemInfo?.phone ?? null,
       bags_count: s.bags_count,

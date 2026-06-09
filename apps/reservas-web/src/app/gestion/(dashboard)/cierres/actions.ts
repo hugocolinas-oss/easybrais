@@ -15,11 +15,26 @@ interface RawItem {
     id: string;
     status: string;
     payment_status: string;
+    subtotal_amount: number;
+    discount_amount: number;
   };
 }
 
 const OVERWEIGHT_FEE = 5;
 const PENDING_PAYMENT_STATUSES = new Set(["pending", "partial"]);
+
+function getAllocatedDiscount(
+  lineTotal: number,
+  bookingSubtotal: number,
+  bookingDiscount: number,
+): number {
+  const subtotal = Number(bookingSubtotal) || 0;
+  const discount = Number(bookingDiscount) || 0;
+  const line = Number(lineTotal) || 0;
+
+  if (subtotal <= 0 || discount <= 0 || line <= 0) return 0;
+  return (line / subtotal) * discount;
+}
 
 export async function generateClosure(date: string) {
   if (!DATE_RE.test(date)) return { error: "Fecha inválida." };
@@ -41,7 +56,7 @@ export async function generateClosure(date: string) {
 
     const { data: items, error: itemsErr } = await supabase
       .from("booking_items")
-      .select("bags_count, overweight_bags_count, line_total, bookings!inner(id, status, payment_status)")
+      .select("bags_count, overweight_bags_count, line_total, bookings!inner(id, status, payment_status, subtotal_amount, discount_amount)")
       .eq("service_date", date);
 
     if (itemsErr) {
@@ -65,11 +80,31 @@ export async function generateClosure(date: string) {
     const extrasAmount = totalOverweight * OVERWEIGHT_FEE;
 
     const grossAmount = activeItems.reduce((s, i) => s + (Number(i.line_total) || 0), 0);
-    const netAmount = grossAmount + extrasAmount;
-    const discountsAmount = 0;
+    const discountsAmount = activeItems.reduce(
+      (s, i) =>
+        s +
+        getAllocatedDiscount(
+          i.line_total,
+          i.bookings.subtotal_amount,
+          i.bookings.discount_amount,
+        ),
+      0,
+    );
+    const netAmount = grossAmount - discountsAmount + extrasAmount;
 
     const pendingItems = activeItems.filter((i) => PENDING_PAYMENT_STATUSES.has(i.bookings.payment_status));
-    const pendingCollectionAmount = pendingItems.reduce((s, i) => s + (Number(i.line_total) || 0), 0) +
+    const pendingCollectionAmount =
+      pendingItems.reduce(
+        (s, i) =>
+          s +
+          (Number(i.line_total) || 0) -
+          getAllocatedDiscount(
+            i.line_total,
+            i.bookings.subtotal_amount,
+            i.bookings.discount_amount,
+          ),
+        0,
+      ) +
       pendingItems.reduce((s, i) => s + (i.overweight_bags_count || 0), 0) * OVERWEIGHT_FEE;
 
     const cancellationsCount = cancelledBookingIds.size;
@@ -122,7 +157,7 @@ export async function getClosureBookings(date: string): Promise<{ rows: ClosureB
         `bags_count, overweight_bags_count, line_total,
          pickup:accommodations!booking_items_pickup_accommodation_id_fkey(name),
          dropoff:accommodations!booking_items_dropoff_accommodation_id_fkey(name),
-         bookings!inner(id, booking_code, status, payment_status, customers(full_name))`,
+         bookings!inner(id, booking_code, status, payment_status, subtotal_amount, discount_amount, customers(full_name))`,
       )
       .eq("service_date", date);
 
@@ -142,6 +177,8 @@ export async function getClosureBookings(date: string): Promise<{ rows: ClosureB
         booking_code: string;
         status: string;
         payment_status: string;
+        subtotal_amount: number;
+        discount_amount: number;
         customers: { full_name: string } | null;
       };
     }
@@ -160,7 +197,12 @@ export async function getClosureBookings(date: string): Promise<{ rows: ClosureB
       const bId = item.bookings.id;
       const lineAmount =
         (Number(item.line_total) || 0) +
-        (item.overweight_bags_count || 0) * OVERWEIGHT_FEE;
+        (item.overweight_bags_count || 0) * OVERWEIGHT_FEE -
+        getAllocatedDiscount(
+          item.line_total,
+          item.bookings.subtotal_amount,
+          item.bookings.discount_amount,
+        );
 
       const existing = bookingMap.get(bId);
       if (existing) {

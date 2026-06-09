@@ -11,6 +11,10 @@ export interface OperativeItem {
   booking_id: string;
   booking_code: string;
   booking_status: string;
+  source_channel: string;
+  payment_status: string;
+  payment_method: string | null;
+  incident_reason: string | null;
   customer_name: string;
   customer_phone: string | null;
   notes_customer: string | null;
@@ -29,6 +33,10 @@ interface RawOperativeItem {
     id: string;
     booking_code: string;
     status: string;
+    source_channel: string;
+    payment_status: string;
+    payment_method: string | null;
+    incident_reason: string | null;
     notes_customer: string | null;
     notes_internal: string | null;
     customers: { full_name: string; phone: string | null } | null;
@@ -56,7 +64,7 @@ export async function getOperativeData(date: string): Promise<{
       `id, service_date, bags_count, overweight_bags_count, operational_status,
        pickup:pickup_accommodation_id(name),
        dropoff:dropoff_accommodation_id(name),
-       bookings!inner(id, booking_code, status, notes_customer, notes_internal,
+       bookings!inner(id, booking_code, status, source_channel, payment_status, payment_method, incident_reason, notes_customer, notes_internal,
          customers(full_name, phone)
        )`,
     )
@@ -76,6 +84,10 @@ export async function getOperativeData(date: string): Promise<{
     booking_id: r.bookings?.id ?? "",
     booking_code: r.bookings?.booking_code ?? "—",
     booking_status: r.bookings?.status ?? "—",
+    source_channel: r.bookings?.source_channel ?? "web",
+    payment_status: r.bookings?.payment_status ?? "pending",
+    payment_method: r.bookings?.payment_method ?? null,
+    incident_reason: r.bookings?.incident_reason ?? null,
     customer_name: r.bookings?.customers?.full_name ?? "—",
     customer_phone: r.bookings?.customers?.phone ?? null,
     notes_customer: r.bookings?.notes_customer ?? null,

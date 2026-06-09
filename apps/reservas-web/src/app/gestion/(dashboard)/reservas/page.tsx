@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/gestion/reservas/status-badge";
 import { formatEUR, fmtDateShort } from "@easybrais/utils";
 import { getPaymentStatusConfig } from "@/lib/gestion/payment-status";
 import { formatPhoneForDisplay } from "@/lib/phone";
+import { IncidentFlag } from "@/components/gestion/reservas/incident-flag";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +86,11 @@ export default async function ReservasPage({
                   {customerPhone && (
                     <p className="text-xs text-gray-400">{customerPhone}</p>
                   )}
+                  {b.incident_reason && (
+                    <div className="mt-2">
+                      <IncidentFlag reason={b.incident_reason} compact />
+                    </div>
+                  )}
                   <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
                     <span>{fmtDateShort(b.service_date)}</span>
                     <span>{b.bags_count} 🎒</span>
@@ -127,6 +133,11 @@ export default async function ReservasPage({
                           <Link href={`/gestion/reservas/${b.id}`} className="block">
                             <p className="font-medium text-gray-900">{b.customer_name}</p>
                             {customerPhone && <p className="text-xs text-gray-400">{customerPhone}</p>}
+                            {b.incident_reason && (
+                              <div className="mt-1">
+                                <IncidentFlag reason={b.incident_reason} compact />
+                              </div>
+                            )}
                           </Link>
                         </td>
                         <td className="hidden px-4 py-3 lg:table-cell">

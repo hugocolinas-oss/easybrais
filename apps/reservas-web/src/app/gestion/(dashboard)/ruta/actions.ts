@@ -533,14 +533,15 @@ async function syncBookingStatusFromItems(
 
     const { data: booking } = await supabase
       .from("bookings")
-      .select("status, payment_status")
+      .select("status, payment_status, payment_method")
       .eq("id", bookingId)
       .single();
 
     if (!booking) return;
-    const { status: current, payment_status: payStatus } = booking as {
+    const { status: current, payment_status: payStatus, payment_method: paymentMethod } = booking as {
       status: string;
       payment_status: string;
+      payment_method: string | null;
     };
 
     const updates: Record<string, unknown> = {};
@@ -549,8 +550,14 @@ async function syncBookingStatusFromItems(
       updates.status = derived;
     }
 
+    if (derived !== "incident" && current === "incident") {
+      updates.incident_reason = null;
+      updates.incident_reported_at = null;
+    }
+
     const hasPickup = statuses.some((s) => s === "picked_up" || s === "delivered");
-    if (hasPickup && payStatus !== "paid") {
+    const shouldAutoMarkPaid = hasPickup && payStatus !== "paid" && paymentMethod === "cash";
+    if (shouldAutoMarkPaid) {
       updates.payment_status = "paid";
       updates.paid_at = new Date().toISOString();
     }
@@ -578,7 +585,7 @@ async function syncBookingStatusFromItems(
         event_type: "payment_received" as const,
         actor_type: "system" as const,
         actor_id: userId,
-        payload_json: { from: payStatus, to: "paid", reason: "auto_on_pickup" },
+        payload_json: { from: payStatus, to: "paid", reason: "auto_on_pickup_cash" },
       });
     }
   } catch (err) {

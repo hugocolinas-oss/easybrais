@@ -6,6 +6,8 @@ import type { RouteStop } from "@/lib/gestion/route-queries";
 import { formatEUR } from "@easybrais/utils";
 import { toggleStopCompleted, swapStopPositions } from "@/app/gestion/(dashboard)/ruta/actions";
 import { buildWhatsAppHref, formatPhoneForDisplay, formatPhoneHref } from "@/lib/phone";
+import { getPaymentCollectionBucket } from "@/lib/gestion/payment-status";
+import { IncidentFlag } from "@/components/gestion/reservas/incident-flag";
 
 interface Props {
   stop: RouteStop;
@@ -30,6 +32,13 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
   const customerPhoneDisplay = formatPhoneForDisplay(stop.customer_phone);
   const customerPhoneHref = formatPhoneHref(stop.customer_phone);
   const customerWhatsAppHref = buildWhatsAppHref(stop.customer_phone);
+  const paymentBucket = getPaymentCollectionBucket(stop.payment_status, stop.payment_method, stop.source_channel);
+  const paymentLabel =
+    paymentBucket === "cash_pending"
+      ? "Efectivo pendiente"
+      : paymentBucket === "online_pending"
+        ? "Online pendiente"
+        : null;
 
   function handleToggle() {
     const next = !optimisticCompleted;
@@ -154,6 +163,9 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
               <p className="font-mono text-xs font-semibold text-brand-600">{stop.booking_code}</p>
             )}
             <p className="text-xs font-semibold text-gray-700">{stop.customer_name}</p>
+            {paymentLabel && (
+              <p className="mt-1 text-[10px] font-semibold text-amber-700">{paymentLabel}</p>
+            )}
             {stop.booking_total != null && (
               <p className="text-xs font-bold text-green-700">{formatEUR(stop.booking_total)}</p>
             )}
@@ -167,10 +179,10 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
                     href={customerWhatsAppHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white transition-colors hover:bg-green-600"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white shadow-sm transition-colors hover:bg-green-600"
                     title="Contactar por WhatsApp"
                   >
-                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
                       <path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 00.61.61l4.458-1.495A11.952 11.952 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.387 0-4.607-.798-6.378-2.143l-.446-.344-2.914.977.977-2.914-.344-.446A9.935 9.935 0 012 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/>
                     </svg>
@@ -221,14 +233,17 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
                   {stop.booking_code}
                 </Link>
               ) : (
-                <p className="font-mono text-xs font-semibold text-brand-600">{stop.booking_code}</p>
-              )}
-              <p className="text-xs font-semibold text-gray-700">{stop.customer_name}</p>
-            </div>
-            {stop.booking_total != null && (
-              <span className="text-sm font-bold text-green-700">{formatEUR(stop.booking_total)}</span>
+              <p className="font-mono text-xs font-semibold text-brand-600">{stop.booking_code}</p>
+            )}
+            <p className="text-xs font-semibold text-gray-700">{stop.customer_name}</p>
+            {paymentLabel && (
+              <p className="mt-1 text-[10px] font-semibold text-amber-700">{paymentLabel}</p>
             )}
           </div>
+          {stop.booking_total != null && (
+            <span className="text-sm font-bold text-green-700">{formatEUR(stop.booking_total)}</span>
+          )}
+        </div>
           {/* Accommodation phone */}
           {accommodationPhoneDisplay && accommodationPhoneHref && (
             <div className="mt-1 flex items-center gap-2">
@@ -252,10 +267,10 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
                   href={customerWhatsAppHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-500 text-white transition-colors hover:bg-green-600"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white shadow-sm transition-colors hover:bg-green-600"
                   title="WhatsApp"
                 >
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
                     <path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 00.61.61l4.458-1.495A11.952 11.952 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.387 0-4.607-.798-6.378-2.143l-.446-.344-2.914.977.977-2.914-.344-.446A9.935 9.935 0 012 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/>
                   </svg>
@@ -271,6 +286,13 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
           <div className="border-t border-amber-100 bg-amber-50 px-4 py-2">
             <p className="text-[10px] font-bold uppercase text-amber-700">Nota interna</p>
             <p className="whitespace-pre-line text-xs text-amber-900">{stop.accommodation_internal_notes}</p>
+          </div>
+        )}
+
+        {stop.incident_reason && (
+          <div className="border-t border-red-100 px-4 py-2">
+            <p className="mb-1 text-[10px] font-bold uppercase text-red-700">Incidencia reserva</p>
+            <IncidentFlag reason={stop.incident_reason} compact />
           </div>
         )}
 

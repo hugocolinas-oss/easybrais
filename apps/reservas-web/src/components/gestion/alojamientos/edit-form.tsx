@@ -21,10 +21,16 @@ export function EditAccommodationForm({ accommodation: a }: Props) {
     setSuccess(false);
 
     const fd = new FormData(e.currentTarget);
+    const rawLat = (fd.get("lat") as string)?.trim();
+    const rawLng = (fd.get("lng") as string)?.trim();
 
     const fields = {
-      display_name: (fd.get("display_name") as string) || a.name,
+      name: (fd.get("name") as string)?.trim() || a.name,
+      display_name: (fd.get("display_name") as string)?.trim() || a.name,
       external_code: (fd.get("external_code") as string)?.trim() || null,
+      stage_name: (fd.get("stage_name") as string)?.trim() || null,
+      town: (fd.get("town") as string)?.trim() || null,
+      route_name: (fd.get("route_name") as string)?.trim() || null,
       active: fd.get("active") === "on",
       visible_in_reservations: fd.get("visible_in_reservations") === "on",
       internal_notes: (fd.get("internal_notes") as string) || null,
@@ -33,6 +39,8 @@ export function EditAccommodationForm({ accommodation: a }: Props) {
       contact_phone: (fd.get("contact_phone") as string) || null,
       contact_email: (fd.get("contact_email") as string) || null,
       address: (fd.get("address") as string) || null,
+      lat: rawLat ? Number(rawLat) : null,
+      lng: rawLng ? Number(rawLng) : null,
     };
 
     startTransition(async () => {
@@ -60,9 +68,14 @@ export function EditAccommodationForm({ accommodation: a }: Props) {
       )}
 
       <div className="grid gap-6 sm:grid-cols-2">
-        {/* Read-only info */}
-        <Field label="Nombre original (no editable)">
-          <input type="text" value={a.name} disabled className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500" />
+        <Field label="Nombre interno">
+          <input
+            type="text"
+            name="name"
+            defaultValue={a.name}
+            maxLength={200}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
+          />
         </Field>
 
         <Field label="Código externo">
@@ -76,7 +89,6 @@ export function EditAccommodationForm({ accommodation: a }: Props) {
           />
         </Field>
 
-        {/* Editable fields */}
         <Field label="Nombre público (display_name)">
           <input
             type="text"
@@ -86,11 +98,58 @@ export function EditAccommodationForm({ accommodation: a }: Props) {
           />
         </Field>
 
+        <Field label="Etapa">
+          <input
+            type="text"
+            name="stage_name"
+            defaultValue={a.stage_name ?? ""}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
+          />
+        </Field>
+
+        <Field label="Localidad">
+          <input
+            type="text"
+            name="town"
+            defaultValue={a.town ?? ""}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
+          />
+        </Field>
+
+        <Field label="Ruta">
+          <input
+            type="text"
+            name="route_name"
+            defaultValue={a.route_name ?? ""}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
+          />
+        </Field>
+
         <Field label="Dirección">
           <input
             type="text"
             name="address"
             defaultValue={a.address ?? ""}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
+          />
+        </Field>
+
+        <Field label="Latitud">
+          <input
+            type="number"
+            step="any"
+            name="lat"
+            defaultValue={a.lat ?? ""}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
+          />
+        </Field>
+
+        <Field label="Longitud">
+          <input
+            type="number"
+            step="any"
+            name="lng"
+            defaultValue={a.lng ?? ""}
             className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
           />
         </Field>
@@ -121,10 +180,6 @@ export function EditAccommodationForm({ accommodation: a }: Props) {
             className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
           />
         </Field>
-
-        <Field label="Etapa">
-          <input type="text" value={a.stage_name ?? "—"} disabled className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500" />
-        </Field>
       </div>
 
       {/* Toggles */}
@@ -140,7 +195,7 @@ export function EditAccommodationForm({ accommodation: a }: Props) {
       </div>
 
       {/* Text areas */}
-      <Field label="Notas para el cliente (reservation_notes)">
+      <Field label="Notas para el cliente">
         <textarea
           name="reservation_notes"
           rows={2}

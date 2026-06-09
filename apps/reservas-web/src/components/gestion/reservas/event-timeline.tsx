@@ -59,6 +59,8 @@ export function EventTimeline({ events }: { events: BookingEventRow[] }) {
             : `Fallo: ${payload.error ?? "desconocido"}`;
         } else if (ev.event_type === "note_added") {
           detail = "Notas internas editadas";
+        } else if (ev.event_type === "updated" && payload?.kind === "service_date") {
+          detail = `Fecha ${String(payload.from ?? "—")} → ${String(payload.to ?? "—")}`;
         } else if (ev.event_type === "created" && payload) {
           const parts: string[] = [];
           if (payload.source) parts.push(`Fuente: ${payload.source}`);

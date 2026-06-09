@@ -4,6 +4,8 @@ import { useState, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
 import type { OperativeItem } from "@/lib/gestion/operative-queries";
 import { advanceItemStatus, reportIncident } from "@/app/gestion/(dashboard)/operativa/actions";
+import { getPaymentCollectionBucket } from "@/lib/gestion/payment-status";
+import { IncidentFlag } from "@/components/gestion/reservas/incident-flag";
 
 interface Props {
   item: OperativeItem;
@@ -105,6 +107,13 @@ export function OperativeRow({ item }: Props) {
 
   const cfg = STATUS_MAP[optimisticStatus] ?? STATUS_OPTIONS[0];
   const next = FLOW_NEXT[optimisticStatus] as { status: string; label: string; icon: string } | undefined;
+  const paymentBucket = getPaymentCollectionBucket(item.payment_status, item.payment_method, item.source_channel);
+  const paymentLabel =
+    paymentBucket === "cash_pending"
+      ? "Efectivo pendiente"
+      : paymentBucket === "online_pending"
+        ? "Online pendiente"
+        : null;
 
   function changeStatus(newStatus: string) {
     if (newStatus === optimisticStatus) return;
@@ -145,7 +154,8 @@ export function OperativeRow({ item }: Props) {
         setFeedback({ text: res.error, isError: true });
       } else {
         setOptimisticStatus("incident");
-        setFeedback({ text: "Incidencia registrada", isError: false });
+        const feedbackText = "warning" in res && res.warning ? res.warning : "Incidencia registrada";
+        setFeedback({ text: feedbackText, isError: false });
         setShowIncident(false);
         setIncidentMsg("");
         setTimeout(() => setFeedback(null), 2500);
@@ -177,6 +187,18 @@ export function OperativeRow({ item }: Props) {
           <span className="ml-auto shrink-0 rounded-md bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700 sm:ml-0">
             {item.bags_count} 🎒
           </span>
+
+          {paymentLabel && (
+            <span className="hidden shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 lg:inline-flex">
+              {paymentLabel}
+            </span>
+          )}
+
+          {item.incident_reason && (
+            <div className="hidden lg:block">
+              <IncidentFlag reason={item.incident_reason} compact />
+            </div>
+          )}
 
           {/* Status dropdown — desktop */}
           <div className="hidden sm:block">
@@ -219,6 +241,18 @@ export function OperativeRow({ item }: Props) {
             <span className="text-xs text-gray-400">{item.customer_name}</span>
             <StatusDropdown currentStatus={optimisticStatus} onSelect={changeStatus} disabled={pending} />
           </div>
+          {paymentLabel && (
+            <div className="mt-1">
+              <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                {paymentLabel}
+              </span>
+            </div>
+          )}
+          {item.incident_reason && (
+            <div className="mt-1">
+              <IncidentFlag reason={item.incident_reason} compact />
+            </div>
+          )}
           <div className="mt-2.5 flex gap-2">
             {next && optimisticStatus !== "incident" && (
               <button type="button" onClick={handleAdvance} disabled={pending}
@@ -270,6 +304,12 @@ export function OperativeRow({ item }: Props) {
               <div className="sm:col-span-2">
                 <p className="text-xs font-semibold uppercase text-gray-400">Notas internas</p>
                 <p className="text-gray-600">{item.notes_internal}</p>
+              </div>
+            )}
+            {item.incident_reason && (
+              <div className="sm:col-span-2">
+                <p className="mb-1 text-xs font-semibold uppercase text-gray-400">Incidencia reserva</p>
+                <IncidentFlag reason={item.incident_reason} />
               </div>
             )}
           </div>

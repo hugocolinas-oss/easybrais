@@ -11,6 +11,7 @@ const EMAIL_PROVIDER = "brevo_smtp";
 const ADMIN_TEMPLATE = "admin_new_reservation";
 const CUSTOMER_TEMPLATE = "customer_reservation_confirmation";
 const CUSTOMER_PAYMENT_TEMPLATE = "customer_payment_confirmed";
+const CUSTOMER_INCIDENT_TEMPLATE = "customer_incident_reported";
 
 interface ReservationEmailContext {
   bookingId: string;
@@ -211,6 +212,67 @@ function getCustomerEmailCopy(locale: Locale) {
       attachedPdf: "Ti alleghiamo il PDF della prenotazione come ricevuta.",
       farewell: "Buen Camino",
       footer: "Trasporto bagagli sul Cammino Portoghese",
+    },
+  } as const;
+
+  return copy[locale];
+}
+
+function getIncidentEmailCopy(locale: Locale) {
+  const copy = {
+    es: {
+      subject: "Incidencia en tu reserva",
+      title: "Hemos detectado una incidencia en tu reserva",
+      intro: "Queremos avisarte cuanto antes para que tengas toda la información actualizada sobre tu servicio.",
+      incidentLabel: "Detalle de la incidencia",
+      supportText: "Nuestro equipo ya la está revisando y, si es necesario, te contactará con una actualización o una propuesta de solución lo antes posible.",
+      contactText: "Si necesitas añadir información importante, responde directamente a este correo indicando tu número de reserva.",
+      close: "Gracias por tu comprensión.",
+    },
+    en: {
+      subject: "Issue reported on your booking",
+      title: "We have detected an issue with your booking",
+      intro: "We want to let you know as soon as possible so you have the latest information about your service.",
+      incidentLabel: "Issue details",
+      supportText: "Our team is already reviewing it and, if needed, will contact you with an update or proposed solution as soon as possible.",
+      contactText: "If you need to add important information, reply directly to this email and include your booking code.",
+      close: "Thank you for your understanding.",
+    },
+    pt: {
+      subject: "Incidência na sua reserva",
+      title: "Detetámos uma incidência na sua reserva",
+      intro: "Queremos avisá-lo o mais cedo possível para que tenha a informação mais atualizada sobre o seu serviço.",
+      incidentLabel: "Detalhe da incidência",
+      supportText: "A nossa equipa já está a rever a situação e, se necessário, entrará em contacto consigo com uma atualização ou proposta de solução o mais rapidamente possível.",
+      contactText: "Se precisar de acrescentar alguma informação importante, responda diretamente a este email indicando o número da reserva.",
+      close: "Obrigado pela sua compreensão.",
+    },
+    fr: {
+      subject: "Incident sur votre réservation",
+      title: "Nous avons détecté un incident sur votre réservation",
+      intro: "Nous souhaitons vous prévenir le plus tôt possible afin que vous disposiez des informations les plus récentes concernant votre service.",
+      incidentLabel: "Détail de l'incident",
+      supportText: "Notre équipe l'examine déjà et, si nécessaire, vous contactera rapidement avec une mise à jour ou une proposition de solution.",
+      contactText: "Si vous devez ajouter une information importante, répondez directement à cet email en indiquant votre numéro de réservation.",
+      close: "Merci pour votre compréhension.",
+    },
+    de: {
+      subject: "Vorfall zu Ihrer Buchung",
+      title: "Wir haben einen Vorfall zu Ihrer Buchung festgestellt",
+      intro: "Wir möchten Sie so früh wie möglich informieren, damit Sie den aktuellen Stand zu Ihrem Service kennen.",
+      incidentLabel: "Details zum Vorfall",
+      supportText: "Unser Team prüft den Fall bereits und wird Sie bei Bedarf so schnell wie möglich mit einem Update oder Lösungsvorschlag kontaktieren.",
+      contactText: "Wenn Sie wichtige zusätzliche Informationen haben, antworten Sie direkt auf diese E-Mail und geben Sie Ihren Buchungscode an.",
+      close: "Vielen Dank für Ihr Verständnis.",
+    },
+    it: {
+      subject: "Problema nella tua prenotazione",
+      title: "Abbiamo rilevato un problema nella tua prenotazione",
+      intro: "Vogliamo avvisarti il prima possibile così avrai le informazioni più aggiornate sul tuo servizio.",
+      incidentLabel: "Dettaglio del problema",
+      supportText: "Il nostro team sta già verificando la situazione e, se necessario, ti contatterà al più presto con un aggiornamento o una proposta di soluzione.",
+      contactText: "Se devi aggiungere informazioni importanti, rispondi direttamente a questa email indicando il numero di prenotazione.",
+      close: "Grazie per la comprensione.",
     },
   } as const;
 
@@ -642,6 +704,41 @@ function buildPaymentConfirmedEmail(context: ReservationEmailContext) {
   return { subject, html };
 }
 
+function buildIncidentReportedEmail(
+  context: ReservationEmailContext,
+  incidentMessage: string,
+) {
+  const locale = resolveLocale(context.language);
+  const copy = getIncidentEmailCopy(locale);
+  const firstItem = context.items[0];
+  const lastItem = context.items[context.items.length - 1];
+  const subject = `${copy.subject} · ${context.bookingCode} · Easy Brais`;
+
+  const html = `<!DOCTYPE html>
+<html lang="${locale}">
+<head><meta charset="utf-8" /></head>
+<body style="margin:0;padding:24px;background:#f6f4ee;font-family:Arial,Helvetica,sans-serif;color:#163228;">
+  <div style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e3ddd0;border-radius:12px;padding:28px;">
+    <h1 style="margin:0 0 18px;font-size:22px;color:#163228;">${copy.title}</h1>
+    <p style="margin:0 0 18px;line-height:1.7;">${copy.intro}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">🔐 <strong>${getCustomerEmailCopy(locale).bookingCode}:</strong> ${escapeHtml(context.bookingCode)}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">📅 <strong>${getCustomerEmailCopy(locale).serviceDate}:</strong> ${formatDate(context.serviceDate)}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">🏠 <strong>${getCustomerEmailCopy(locale).pickup}:</strong> ${escapeHtml(firstItem?.pickupName ?? "—")}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">🏡 <strong>${getCustomerEmailCopy(locale).dropoff}:</strong> ${escapeHtml(lastItem?.dropoffName ?? "—")}</p>
+    <div style="margin:0 0 18px;border:1px solid #fecaca;background:#fef2f2;border-radius:10px;padding:16px;">
+      <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#b91c1c;">${copy.incidentLabel}</p>
+      <p style="margin:0;line-height:1.7;color:#7f1d1d;">${nl2br(incidentMessage)}</p>
+    </div>
+    <p style="margin:0 0 16px;line-height:1.7;">${copy.supportText}</p>
+    <p style="margin:0 0 16px;line-height:1.7;">${copy.contactText}</p>
+    <p style="margin:0;line-height:1.7;">${copy.close}<br /><br />Easy Brais<br />${getCustomerEmailCopy(locale).footer}</p>
+  </div>
+</body>
+</html>`;
+
+  return { subject, html };
+}
+
 export async function sendPaymentConfirmedEmail(
   bookingId: string,
   supabase = createAdminClient(),
@@ -687,6 +784,50 @@ export async function sendPaymentConfirmedEmail(
     bookingId,
     recipient: context.customerEmail,
     template: CUSTOMER_PAYMENT_TEMPLATE,
+    sent: result.sent,
+    messageId: result.messageId,
+    error: result.error,
+  });
+
+  return result;
+}
+
+export async function sendCustomerIncidentReportedEmail(
+  bookingId: string,
+  incidentMessage: string,
+  supabase = createAdminClient(),
+): Promise<{ sent: boolean; error?: string }> {
+  const context = await getReservationEmailContext(supabase, bookingId);
+  if (!context) {
+    return { sent: false, error: "Reservation not found" };
+  }
+
+  if (!context.customerEmail) {
+    return { sent: false, error: "Customer email missing" };
+  }
+
+  const { subject, html } = buildIncidentReportedEmail(context, incidentMessage.trim());
+
+  const result = await sendEmail({
+    to: context.customerEmail,
+    subject,
+    html,
+  });
+
+  await insertEmailLog(supabase, {
+    bookingId,
+    recipient: context.customerEmail,
+    subject,
+    template: CUSTOMER_INCIDENT_TEMPLATE,
+    sent: result.sent,
+    messageId: result.messageId,
+    error: result.error,
+  });
+
+  await insertEmailEvent(supabase, {
+    bookingId,
+    recipient: context.customerEmail,
+    template: CUSTOMER_INCIDENT_TEMPLATE,
     sent: result.sent,
     messageId: result.messageId,
     error: result.error,
