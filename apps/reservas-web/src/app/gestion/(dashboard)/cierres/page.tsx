@@ -3,12 +3,17 @@ import { GenerateClosureForm } from "@/components/gestion/cierres/generate-closu
 import { ClosureSummaryCard } from "@/components/gestion/cierres/closure-summary-card";
 import { ClosureTable } from "@/components/gestion/cierres/closure-table";
 import { ClosureDateFilter } from "@/components/gestion/cierres/closure-date-filter";
+import { requireAuth } from "@/lib/gestion/auth";
+import { ensureClosuresAccess } from "@/lib/gestion/permissions";
 
 interface Props {
   searchParams: Promise<{ page?: string; dateFrom?: string; dateTo?: string }>;
 }
 
 export default async function CierresPage({ searchParams }: Props) {
+  const { profile } = await requireAuth();
+  ensureClosuresAccess(profile.role);
+
   const params = await searchParams;
   const filters: ClosureFilters = {
     page: Math.max(1, Number(params.page) || 1),
