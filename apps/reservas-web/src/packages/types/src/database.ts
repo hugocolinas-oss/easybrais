@@ -24,7 +24,7 @@ export type EventType =
   | "note_added"
   | "cancelled";
 export type ActorType = "system" | "staff" | "customer";
-export type StaffRole = "operator" | "manager" | "admin";
+export type StaffRole = "chofer" | "operator" | "manager" | "admin";
 
 export interface Database {
   public: {
