@@ -10,6 +10,7 @@ import { normalizePhoneValue } from "@/lib/phone";
 
 interface Props {
   accommodations: Accommodation[];
+  showFinancialInfo: boolean;
 }
 
 interface LegState {
@@ -113,7 +114,7 @@ const TYPE_OPTIONS: { id: BookingType; label: string }[] = [
 
 const FULL_CAMINO_LEGS = 8;
 
-export function ManualBookingForm({ accommodations }: Props) {
+export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) {
   const router = useRouter();
   const idempotencyKeyRef = useRef(crypto.randomUUID());
 
@@ -384,8 +385,14 @@ export function ManualBookingForm({ accommodations }: Props) {
                   {routeStages} etapas
                 </span>
               )}
-              <span className="text-gray-500">Total: </span>
-              <span className="font-bold text-gray-900">{formatEUR(pricing.totalAmount)}</span>
+              {showFinancialInfo ? (
+                <>
+                  <span className="text-gray-500">Total: </span>
+                  <span className="font-bold text-gray-900">{formatEUR(pricing.totalAmount)}</span>
+                </>
+              ) : (
+                <span className="font-medium text-gray-600">Resumen operativo</span>
+              )}
             </div>
           </div>
         </div>
@@ -474,7 +481,7 @@ export function ManualBookingForm({ accommodations }: Props) {
         disabled={submitting}
         className="flex items-center gap-2 rounded-lg bg-brand-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 disabled:opacity-50"
       >
-        {submitting ? "Creando..." : `Crear reserva — ${formatEUR(pricing.totalAmount)}`}
+        {submitting ? "Creando..." : showFinancialInfo ? `Crear reserva — ${formatEUR(pricing.totalAmount)}` : "Crear reserva"}
       </button>
     </form>
   );
