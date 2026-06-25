@@ -266,6 +266,7 @@ export async function createBooking(
         discount_amount: pricing.discountAmount,
         extra_weight_amount: pricing.extraWeightAmount,
         total_amount: pricing.totalAmount,
+        payment_method: data.paymentMethod === "cash" ? "cash" : "online_stripe",
       })
       .select("id")
       .single();
@@ -327,13 +328,6 @@ export async function createBooking(
 
     const stripeEnabled = isStripeConfigured();
     const wantsOnline = data.paymentMethod !== "cash" && stripeEnabled;
-
-    if (data.paymentMethod === "cash") {
-      await supabase
-        .from("bookings")
-        .update({ payment_method: "cash" })
-        .eq("id", booking.id);
-    }
 
     /* ── 7. Envío de correos (await: en serverless/Vercel las promesas “sueltas” se cortan al devolver la respuesta) */
 

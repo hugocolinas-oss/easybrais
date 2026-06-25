@@ -5,8 +5,10 @@ import { createAdminClient, PRICING_RULES } from "@easybrais/utils";
 import { requireAuth } from "@/lib/gestion/auth";
 import { OPERATIONAL_STATUSES } from "@/lib/gestion/booking-status";
 import { sendReservationEmails } from "@/lib/email/reservations";
+import { refreshRoute } from "@/app/gestion/(dashboard)/ruta/actions";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function changeBookingStatus(bookingId: string, newStatus: string) {
   if (!UUID_RE.test(bookingId)) return { error: "ID de reserva inválido." };
@@ -199,6 +201,115 @@ export async function updateBookingItem(
   } catch (err) {
     console.error("[updateBookingItem] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado." };
+  }
+}
+
+export async function updateBookingItemServiceDate(itemId: string, serviceDate: string) {
+  if (!UUID_RE.test(itemId)) return { error: "ID de tramo inválido." };
+  if (!DATE_RE.test(serviceDate)) return { error: "Fecha inválida." };
+
+  try {
+    const { userId } = await requireAuth();
+    const supabase = createAdminClient();
+
+    const { data: item, error: fetchErr } = await supabase
+      .from("booking_items")
+      .select("id, booking_id, service_date, bookings!inner(service_date)")
+      .eq("id", itemId)
+      .single();
+
+    if (fetchErr || !item) return { error: "Tramo no encontrado." };
+
+    const currentDate = item.service_date as string;
+    if (currentDate === serviceDate) return { ok: true };
+
+    const bookingId = item.booking_id as string;
+    const previousBookingServiceDate = (
+      item as { bookings?: { service_date?: string | null } | Array<{ service_date?: string | null }> | null }
+    ).bookings && !Array.isArray((item as { bookings?: unknown }).bookings)
+      ? ((item as { bookings?: { service_date?: string | null } | null }).bookings?.service_date ?? currentDate)
+      : currentDate;
+
+    const { error: updateErr } = await supabase
+      .from("booking_items")
+      .update({ service_date: serviceDate } as never)
+      .eq("id", itemId);
+
+    if (updateErr) {
+      console.error("[updateBookingItemServiceDate] item update failed:", updateErr.message);
+      return { error: "Error al actualizar la fecha del tramo." };
+    }
+
+    const { data: bookingItems, error: itemsErr } = await supabase
+      .from("booking_items")
+      .select("service_date")
+      .eq("booking_id", bookingId)
+      .order("service_date", { ascending: true });
+
+    if (itemsErr || !bookingItems || bookingItems.length === 0) {
+      console.error("[updateBookingItemServiceDate] refetch items failed:", itemsErr?.message);
+      return { error: "Error al recalcular la fecha de la reserva." };
+    }
+
+    const bookingServiceDate = bookingItems[0]!.service_date as string;
+
+    const { error: bookingErr } = await supabase
+      .from("bookings")
+      .update({ service_date: bookingServiceDate } as never)
+      .eq("id", bookingId);
+
+    if (bookingErr) {
+      console.error("[updateBookingItemServiceDate] booking update failed:", bookingErr.message);
+      return { error: "Error al actualizar la reserva." };
+    }
+
+    try {
+      await syncDailyArtifactsAfterDateChange(supabase, [currentDate, serviceDate]);
+    } catch (syncErr) {
+      console.error("[updateBookingItemServiceDate] artifact sync failed:", syncErr instanceof Error ? syncErr.message : syncErr);
+
+      await supabase
+        .from("booking_items")
+        .update({ service_date: currentDate } as never)
+        .eq("id", itemId);
+
+      await supabase
+        .from("bookings")
+        .update({ service_date: previousBookingServiceDate } as never)
+        .eq("id", bookingId);
+
+      try {
+        await syncDailyArtifactsAfterDateChange(supabase, [currentDate, serviceDate, previousBookingServiceDate]);
+      } catch (rollbackErr) {
+        console.error("[updateBookingItemServiceDate] rollback artifact sync failed:", rollbackErr instanceof Error ? rollbackErr.message : rollbackErr);
+      }
+
+      return { error: "No se pudo sincronizar la ruta o los cierres del día. No se han guardado cambios." };
+    }
+
+    await supabase.from("booking_events").insert({
+      booking_id: bookingId,
+      event_type: "updated" as const,
+      actor_type: "staff" as const,
+      actor_id: userId,
+      payload_json: {
+        kind: "service_date",
+        item_id: itemId,
+        from: currentDate,
+        to: serviceDate,
+      },
+    });
+
+    revalidatePath(`/gestion/reservas/${bookingId}`);
+    revalidatePath("/gestion/reservas");
+    revalidatePath("/gestion/operativa");
+    revalidatePath("/gestion/ruta");
+    revalidatePath("/gestion/cierres");
+    revalidatePath("/gestion");
+    return { ok: true };
+  } catch (err) {
+    console.error("[updateBookingItemServiceDate] unexpected:", err instanceof Error ? err.message : err);
+    return { error: "Error inesperado al actualizar la fecha." };
   }
 }
 
@@ -430,14 +541,20 @@ async function regenerateClosureForDate(
 ) {
   const { data: items } = await supabase
     .from("booking_items")
-    .select("bags_count, overweight_bags_count, line_total, bookings!inner(id, status, payment_status)")
+    .select("bags_count, overweight_bags_count, line_total, bookings!inner(id, status, payment_status, subtotal_amount, discount_amount)")
     .eq("service_date", date);
 
   interface ClosureItem {
     bags_count: number;
     overweight_bags_count: number;
     line_total: number;
-    bookings: { id: string; status: string; payment_status: string };
+    bookings: {
+      id: string;
+      status: string;
+      payment_status: string;
+      subtotal_amount: number;
+      discount_amount: number;
+    };
   }
 
   const rows = (items ?? []) as unknown as ClosureItem[];
@@ -453,21 +570,77 @@ async function regenerateClosureForDate(
   const totalOverweight = active.reduce((s, i) => s + (i.overweight_bags_count || 0), 0);
   const extrasAmount = totalOverweight * OVERWEIGHT_FEE;
   const grossAmount = active.reduce((s, i) => s + (Number(i.line_total) || 0), 0);
+  const discountsAmount = active.reduce((s, i) => {
+    const subtotal = Number(i.bookings.subtotal_amount) || 0;
+    const discount = Number(i.bookings.discount_amount) || 0;
+    const line = Number(i.line_total) || 0;
+    if (subtotal <= 0 || discount <= 0 || line <= 0) return s;
+    return s + (line / subtotal) * discount;
+  }, 0);
 
   const pendingItems = active.filter((i) => PENDING_PAYMENT_STATUSES.has(i.bookings.payment_status));
   const pendingCollectionAmount =
-    pendingItems.reduce((s, i) => s + (Number(i.line_total) || 0), 0) +
+    pendingItems.reduce((s, i) => {
+      const subtotal = Number(i.bookings.subtotal_amount) || 0;
+      const discount = Number(i.bookings.discount_amount) || 0;
+      const line = Number(i.line_total) || 0;
+      const allocatedDiscount = subtotal > 0 && discount > 0 && line > 0
+        ? (line / subtotal) * discount
+        : 0;
+      return s + line - allocatedDiscount;
+    }, 0) +
     pendingItems.reduce((s, i) => s + (i.overweight_bags_count || 0), 0) * OVERWEIGHT_FEE;
 
-  await supabase.from("daily_cash_closures").insert({
+  const { error } = await supabase.from("daily_cash_closures").insert({
     closure_date: date,
     total_bookings: activeBookingIds.size,
     total_bags: totalBags,
     gross_amount: grossAmount,
-    discounts_amount: 0,
+    discounts_amount: discountsAmount,
     extras_amount: extrasAmount,
-    net_amount: grossAmount + extrasAmount,
+    net_amount: grossAmount - discountsAmount + extrasAmount,
     pending_collection_amount: pendingCollectionAmount,
     cancellations_count: cancelledIds.size,
   });
+
+  if (error) {
+    throw new Error(`No se pudo regenerar el cierre del ${date}: ${error.message}`);
+  }
+}
+
+async function syncDailyArtifactsAfterDateChange(
+  supabase: ReturnType<typeof createAdminClient>,
+  dates: string[],
+) {
+  const uniqueDates = [...new Set(dates.filter((date) => DATE_RE.test(date)))];
+
+  for (const date of uniqueDates) {
+    const { data: route } = await supabase
+      .from("daily_routes")
+      .select("id, route_date")
+      .eq("route_date", date)
+      .maybeSingle();
+
+    if (route?.id && route.route_date) {
+      const routeResult = await refreshRoute(route.id, route.route_date);
+      if (routeResult && "error" in routeResult && routeResult.error) {
+        throw new Error(routeResult.error);
+      }
+    }
+
+    const { data: existingClosures } = await supabase
+      .from("daily_cash_closures")
+      .select("id")
+      .eq("closure_date", date);
+
+    const hadClosure = !!(existingClosures && existingClosures.length > 0);
+
+    if (hadClosure) {
+      for (const closure of existingClosures) {
+        await supabase.from("daily_cash_closures").delete().eq("id", closure.id);
+      }
+
+      await regenerateClosureForDate(supabase, date);
+    }
+  }
 }

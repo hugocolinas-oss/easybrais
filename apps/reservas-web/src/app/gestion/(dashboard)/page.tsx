@@ -2,10 +2,15 @@ import { getDashboardStats, getRecentBookings } from "@/lib/gestion/queries";
 import { KpiCard } from "@/components/gestion/dashboard/kpi-card";
 import { RecentBookings } from "@/components/gestion/dashboard/recent-bookings";
 import { DailySummary } from "@/components/gestion/dashboard/daily-summary";
+import { requireAuth } from "@/lib/gestion/auth";
+import { ensureDashboardAccess } from "@/lib/gestion/permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const { profile } = await requireAuth();
+  ensureDashboardAccess(profile.role);
+
   const [stats, recentBookings] = await Promise.all([
     getDashboardStats(),
     getRecentBookings(),

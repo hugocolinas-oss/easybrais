@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { OperativeItem } from "@/lib/gestion/operative-queries";
+import { getPaymentCollectionBucket } from "@/lib/gestion/payment-status";
 import { OperativeRow } from "./operative-row";
 
 interface Props {
@@ -18,10 +19,14 @@ const STATUS_TABS = [
 
 export function OperativeBoard({ items }: Props) {
   const [tab, setTab] = useState<string>("all");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "cash_pending" | "online_pending">("all");
   const [search, setSearch] = useState("");
 
   const filtered = items.filter((item) => {
     if (tab !== "all" && item.operational_status !== tab) return false;
+    if (paymentFilter !== "all" && getPaymentCollectionBucket(item.payment_status, item.payment_method) !== paymentFilter) {
+      return false;
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       return (
@@ -36,8 +41,7 @@ export function OperativeBoard({ items }: Props) {
 
   return (
     <div>
-      {/* Tabs + Search */}
-      <div className="mb-3 space-y-2 sm:mb-4 sm:flex sm:items-center sm:justify-between sm:space-y-0">
+      <div className="mb-3 space-y-2 sm:mb-4">
         <div className="-mx-3 flex gap-1 overflow-x-auto px-3 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           {STATUS_TABS.map((t) => {
             const count =
@@ -71,17 +75,39 @@ export function OperativeBoard({ items }: Props) {
           })}
         </div>
 
-        <div className="relative">
-          <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar código, cliente..."
-            className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 sm:w-72 sm:py-2"
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { key: "all", label: "Todos los pagos" },
+            { key: "cash_pending", label: "Efectivo pendiente" },
+            { key: "online_pending", label: "Online pendiente" },
+          ].map((filter) => {
+            const active = paymentFilter === filter.key;
+            return (
+              <button
+                key={filter.key}
+                type="button"
+                onClick={() => setPaymentFilter(filter.key as "all" | "cash_pending" | "online_pending")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                  active ? "bg-gray-900 text-white" : "bg-white text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                {filter.label}
+              </button>
+            );
+          })}
+
+          <div className="relative sm:ml-auto">
+            <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar código, cliente..."
+              className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 sm:w-72 sm:py-2"
+            />
+          </div>
         </div>
       </div>
 

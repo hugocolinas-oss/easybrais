@@ -102,8 +102,12 @@ export async function createAccommodation(fields: {
 export async function updateAccommodation(
   id: string,
   fields: {
+    name?: string;
     display_name?: string;
     external_code?: string | null;
+    stage_name?: string | null;
+    town?: string | null;
+    route_name?: string | null;
     active?: boolean;
     visible_in_reservations?: boolean;
     internal_notes?: string | null;
@@ -112,15 +116,81 @@ export async function updateAccommodation(
     contact_phone?: string | null;
     contact_email?: string | null;
     address?: string | null;
+    lat?: number | null;
+    lng?: number | null;
     last_verified_at?: string | null;
   },
 ): Promise<{ ok: true } | { error: string }> {
   try {
     await requireAuth();
     const supabase = await getServerSupabase();
+
+    const normalizedName = fields.name?.trim();
+    if (normalizedName != null && normalizedName.length < 2) {
+      return { error: "El nombre interno debe tener al menos 2 caracteres." };
+    }
+    if (normalizedName != null && normalizedName.length > 200) {
+      return { error: "El nombre interno es demasiado largo." };
+    }
+
+    const normalizedDisplayName = fields.display_name?.trim();
+    const normalizedExternalCode = fields.external_code?.trim() || null;
+    const normalizedStageName = fields.stage_name?.trim() || null;
+    const normalizedTown = fields.town?.trim() || null;
+    const normalizedRouteName = fields.route_name?.trim() || null;
+    const normalizedAddress = fields.address?.trim() || null;
+    const normalizedPhone = fields.contact_phone?.trim() || null;
+    const normalizedEmail = fields.contact_email?.trim() || null;
+
+    if (normalizedExternalCode) {
+      const { data: codeDup } = await supabase
+        .from("accommodations")
+        .select("id")
+        .eq("external_code", normalizedExternalCode)
+        .neq("id", id)
+        .limit(1);
+
+      if (codeDup && codeDup.length > 0) {
+        return { error: `El código externo "${normalizedExternalCode}" ya está asignado a otro alojamiento.` };
+      }
+    }
+
+    if (normalizedName) {
+      const { data: nameDup } = await supabase
+        .from("accommodations")
+        .select("id")
+        .ilike("name", normalizedName)
+        .neq("id", id)
+        .limit(1);
+
+      if (nameDup && nameDup.length > 0) {
+        return { error: `Ya existe otro alojamiento con el nombre "${normalizedName}".` };
+      }
+    }
+
+    if (fields.lat != null && !Number.isFinite(fields.lat)) {
+      return { error: "La latitud no es válida." };
+    }
+    if (fields.lng != null && !Number.isFinite(fields.lng)) {
+      return { error: "La longitud no es válida." };
+    }
+
+    const updates = {
+      ...fields,
+      name: normalizedName,
+      display_name: normalizedDisplayName || normalizedName || undefined,
+      external_code: normalizedExternalCode,
+      stage_name: normalizedStageName,
+      town: normalizedTown,
+      route_name: normalizedRouteName,
+      address: normalizedAddress,
+      contact_phone: normalizedPhone,
+      contact_email: normalizedEmail,
+    };
+
     const { error } = await supabase
       .from("accommodations")
-      .update(fields)
+      .update(updates)
       .eq("id", id);
 
     if (error) {

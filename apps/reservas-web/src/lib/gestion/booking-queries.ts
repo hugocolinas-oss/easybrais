@@ -11,6 +11,7 @@ export interface BookingListRow {
   status: string;
   total_amount: number;
   payment_status: string;
+  payment_method: string | null;
   payment_expires_at: string | null;
   source_channel: string;
   customer_name: string;
@@ -19,6 +20,8 @@ export interface BookingListRow {
   bags_count: number;
   pickup_name: string;
   dropoff_name: string;
+  incident_reason: string | null;
+  incident_reported_at: string | null;
   created_at: string;
 }
 
@@ -42,6 +45,8 @@ export interface BookingDetail {
   payment_method: string | null;
   payment_expires_at: string | null;
   paid_at: string | null;
+  incident_reason: string | null;
+  incident_reported_at: string | null;
   created_at: string;
   updated_at: string;
   customer: {
@@ -103,8 +108,11 @@ interface RawBookingList {
   status: string;
   total_amount: number;
   payment_status: string;
+  payment_method: string | null;
   payment_expires_at: string | null;
   source_channel: string;
+  incident_reason: string | null;
+  incident_reported_at: string | null;
   created_at: string;
   customers: { full_name: string; email: string | null; phone: string | null } | null;
   booking_items: Array<{
@@ -134,6 +142,8 @@ interface RawBookingDetail {
   payment_method: string | null;
   payment_expires_at: string | null;
   paid_at: string | null;
+  incident_reason: string | null;
+  incident_reported_at: string | null;
   created_at: string;
   updated_at: string;
   customers: {
@@ -180,7 +190,7 @@ export async function getBookings(filters: BookingFilters): Promise<BookingListR
   let query = supabase
     .from("bookings")
     .select(
-      "id, booking_code, service_date, status, total_amount, payment_status, payment_expires_at, source_channel, created_at, customers(full_name, email, phone), booking_items(bags_count, pickup:pickup_accommodation_id(name), dropoff:dropoff_accommodation_id(name))",
+      "id, booking_code, service_date, status, total_amount, payment_status, payment_method, payment_expires_at, source_channel, incident_reason, incident_reported_at, created_at, customers(full_name, email, phone), booking_items(bags_count, pickup:pickup_accommodation_id(name), dropoff:dropoff_accommodation_id(name))",
       { count: "exact" },
     )
     .order("service_date", { ascending: false })
@@ -237,6 +247,7 @@ export async function getBookings(filters: BookingFilters): Promise<BookingListR
         status: r.status,
         total_amount: Number(r.total_amount) || 0,
         payment_status: r.payment_status ?? "pending",
+        payment_method: r.payment_method ?? null,
         payment_expires_at: r.payment_expires_at ?? null,
         source_channel: r.source_channel ?? "web",
         customer_name: r.customers?.full_name ?? "—",
@@ -245,6 +256,8 @@ export async function getBookings(filters: BookingFilters): Promise<BookingListR
         bags_count: items.reduce((s, i) => s + (i.bags_count || 0), 0),
         pickup_name: firstItem?.pickup?.name ?? "—",
         dropoff_name: lastItem?.dropoff?.name ?? "—",
+        incident_reason: r.incident_reason ?? null,
+        incident_reported_at: r.incident_reported_at ?? null,
         created_at: r.created_at,
       };
     }),
@@ -260,7 +273,7 @@ export async function getBookingDetail(id: string): Promise<BookingDetail | null
 
   const { data: raw } = await supabase
     .from("bookings")
-    .select("id, booking_code, service_date, status, source_channel, language, notes_customer, notes_internal, subtotal_amount, discount_amount, extra_weight_amount, total_amount, payment_status, email_status, stripe_session_id, stripe_payment_intent, payment_method, payment_expires_at, paid_at, created_at, updated_at, customers(id, full_name, email, phone, language)")
+    .select("id, booking_code, service_date, status, source_channel, language, notes_customer, notes_internal, incident_reason, incident_reported_at, subtotal_amount, discount_amount, extra_weight_amount, total_amount, payment_status, email_status, stripe_session_id, stripe_payment_intent, payment_method, payment_expires_at, paid_at, created_at, updated_at, customers(id, full_name, email, phone, language)")
     .eq("id", id)
     .single();
 
@@ -318,6 +331,8 @@ export async function getBookingDetail(id: string): Promise<BookingDetail | null
     payment_method: (booking as RawBookingDetail).payment_method ?? null,
     payment_expires_at: (booking as RawBookingDetail).payment_expires_at ?? null,
     paid_at: (booking as RawBookingDetail).paid_at ?? null,
+    incident_reason: (booking as RawBookingDetail).incident_reason ?? null,
+    incident_reported_at: (booking as RawBookingDetail).incident_reported_at ?? null,
     created_at: booking.created_at,
     updated_at: booking.updated_at,
     customer: booking.customers ?? { id: "", full_name: "—", email: null, phone: null, language: "es" },

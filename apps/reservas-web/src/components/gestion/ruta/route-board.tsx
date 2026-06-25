@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useTransition } from "react";
 import type { DailyRoute, RouteStop } from "@/lib/gestion/route-queries";
 import { reorderStops } from "@/app/gestion/(dashboard)/ruta/actions";
+import { getPaymentCollectionBucket } from "@/lib/gestion/payment-status";
 import { StopRow } from "./stop-row";
 
 interface Props {
@@ -21,6 +22,7 @@ const TABS: { key: FilterTab; label: string }[] = [
 
 export function RouteBoard({ route }: Props) {
   const [tab, setTab] = useState<FilterTab>("all");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "cash_pending" | "online_pending">("all");
   const [localStops, setLocalStops] = useState<RouteStop[]>(route.stops);
 
   useEffect(() => {
@@ -38,6 +40,9 @@ export function RouteBoard({ route }: Props) {
     if (tab === "pending") return !stop.completed;
     if (tab === "completed") return stop.completed;
     return true;
+  }).filter((stop) => {
+    if (paymentFilter === "all") return true;
+    return getPaymentCollectionBucket(stop.payment_status, stop.payment_method) === paymentFilter;
   });
 
   function handleDragStart(idx: number) {
@@ -143,6 +148,27 @@ export function RouteBoard({ route }: Props) {
         {isPending && (
           <span className="ml-2 self-center text-[10px] text-gray-400">Guardando orden...</span>
         )}
+      </div>
+      <div className="mb-4 flex flex-wrap gap-2">
+        {[
+          { key: "all", label: "Todos los pagos" },
+          { key: "cash_pending", label: "Efectivo pendiente" },
+          { key: "online_pending", label: "Online pendiente" },
+        ].map((filter) => {
+          const active = paymentFilter === filter.key;
+          return (
+            <button
+              key={filter.key}
+              type="button"
+              onClick={() => setPaymentFilter(filter.key as "all" | "cash_pending" | "online_pending")}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                active ? "bg-gray-900 text-white" : "bg-white text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              {filter.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Stop list */}

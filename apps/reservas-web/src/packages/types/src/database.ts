@@ -24,7 +24,7 @@ export type EventType =
   | "note_added"
   | "cancelled";
 export type ActorType = "system" | "staff" | "customer";
-export type StaffRole = "operator" | "manager" | "admin";
+export type StaffRole = "chofer" | "operator" | "manager" | "admin";
 
 export interface Database {
   public: {
@@ -141,6 +141,8 @@ export interface Database {
           language: string;
           notes_customer: string | null;
           notes_internal: string | null;
+          incident_reason: string | null;
+          incident_reported_at: string | null;
           subtotal_amount: number;
           extra_weight_amount: number;
           discount_amount: number;
@@ -166,6 +168,8 @@ export interface Database {
           language?: string;
           notes_customer?: string | null;
           notes_internal?: string | null;
+          incident_reason?: string | null;
+          incident_reported_at?: string | null;
           subtotal_amount?: number;
           extra_weight_amount?: number;
           discount_amount?: number;
@@ -191,6 +195,8 @@ export interface Database {
           language?: string;
           notes_customer?: string | null;
           notes_internal?: string | null;
+          incident_reason?: string | null;
+          incident_reported_at?: string | null;
           subtotal_amount?: number;
           extra_weight_amount?: number;
           discount_amount?: number;

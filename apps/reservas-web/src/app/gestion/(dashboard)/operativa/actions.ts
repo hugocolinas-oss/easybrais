@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@easybrais/utils";
 import { requireAuth } from "@/lib/gestion/auth";
+import { sendCustomerIncidentReportedEmail } from "@/lib/email/reservations";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -63,6 +64,7 @@ export async function advanceItemStatus(itemId: string, newStatus: string) {
     revalidatePath("/gestion/operativa");
     revalidatePath("/gestion/reservas");
     revalidatePath(`/gestion/reservas/${bookingId}`);
+    revalidatePath("/gestion/ruta");
     revalidatePath("/gestion");
     return { ok: true };
   } catch (err) {
@@ -75,7 +77,7 @@ export async function reportIncident(
   itemId: string,
   bookingId: string,
   message: string,
-) {
+): Promise<{ ok: true; warning?: string } | { error: string }> {
   if (!UUID_RE.test(itemId)) return { error: "ID inválido." };
   if (!UUID_RE.test(bookingId)) return { error: "ID de reserva inválido." };
   if (!message.trim()) return { error: "Describe la incidencia." };
@@ -84,6 +86,18 @@ export async function reportIncident(
   try {
     const { userId } = await requireAuth();
     const supabase = createAdminClient();
+    const trimmedMessage = message.trim();
+
+    const { data: currentItem, error: itemFetchErr } = await supabase
+      .from("booking_items")
+      .select("operational_status")
+      .eq("id", itemId)
+      .single();
+
+    if (itemFetchErr || !currentItem) {
+      console.error("[reportIncident] item fetch failed:", itemFetchErr?.message);
+      return { error: "No se pudo cargar el item." };
+    }
 
     const { error: itemErr } = await supabase
       .from("booking_items")
@@ -97,30 +111,49 @@ export async function reportIncident(
 
     const { error: bookingErr } = await supabase
       .from("bookings")
-      .update({ status: "incident" } as never)
+      .update({
+        status: "incident",
+        incident_reason: trimmedMessage,
+        incident_reported_at: new Date().toISOString(),
+      } as never)
       .eq("id", bookingId);
 
     if (bookingErr) {
       console.error("[reportIncident] booking status update failed:", bookingErr.message);
+      await supabase
+        .from("booking_items")
+        .update({ operational_status: currentItem.operational_status } as never)
+        .eq("id", itemId);
+      return { error: "No se pudo guardar la incidencia en la reserva." };
     }
+
+    const warnings: string[] = [];
 
     const { error: eventErr } = await supabase.from("booking_events").insert({
       booking_id: bookingId,
       event_type: "incident_reported" as const,
       actor_type: "staff" as const,
       actor_id: userId,
-      payload_json: { item_id: itemId, message: message.trim() },
+      payload_json: { item_id: itemId, message: trimmedMessage },
     });
 
     if (eventErr) {
       console.error("[reportIncident] event insert failed:", eventErr.message);
+      warnings.push("Incidencia guardada, pero no se pudo registrar el evento en el historial.");
+    }
+
+    const emailResult = await sendCustomerIncidentReportedEmail(bookingId, message, supabase);
+    if (!emailResult.sent && emailResult.error) {
+      console.error("[reportIncident] incident email failed:", emailResult.error);
+      warnings.push("Incidencia guardada, pero no se pudo enviar el email al cliente.");
     }
 
     revalidatePath("/gestion/operativa");
     revalidatePath("/gestion/reservas");
     revalidatePath(`/gestion/reservas/${bookingId}`);
+    revalidatePath("/gestion/ruta");
     revalidatePath("/gestion");
-    return { ok: true };
+    return { ok: true, warning: warnings.length > 0 ? warnings.join(" ") : undefined };
   } catch (err) {
     console.error("[reportIncident] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al registrar la incidencia." };
@@ -161,7 +194,7 @@ async function syncBookingStatus(
 
     const { data: booking, error: bookFetchErr } = await supabase
       .from("bookings")
-      .select("status, payment_status")
+      .select("status, payment_status, payment_method")
       .eq("id", bookingId)
       .single();
 
@@ -170,9 +203,10 @@ async function syncBookingStatus(
       return;
     }
 
-    const { status: currentStatus, payment_status: payStatus } = booking as {
+    const { status: currentStatus, payment_status: payStatus, payment_method: paymentMethod } = booking as {
       status: string;
       payment_status: string;
+      payment_method: string | null;
     };
 
     const updates: Record<string, unknown> = {};
@@ -181,8 +215,13 @@ async function syncBookingStatus(
       updates.status = derivedBookingStatus;
     }
 
+    if (derivedBookingStatus !== "incident" && currentStatus === "incident") {
+      updates.incident_reason = null;
+      updates.incident_reported_at = null;
+    }
+
     const hasPickup = statuses.some((s) => s === "picked_up" || s === "delivered");
-    if (hasPickup && payStatus !== "paid") {
+    if (hasPickup && payStatus !== "paid" && paymentMethod === "cash") {
       updates.payment_status = "paid";
       updates.paid_at = new Date().toISOString();
     }

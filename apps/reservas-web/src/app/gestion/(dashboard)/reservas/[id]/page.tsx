@@ -11,11 +11,19 @@ import { BackToBookings } from "@/components/gestion/reservas/back-button";
 import { PriceEditor } from "@/components/gestion/reservas/price-editor";
 import { ItemBagsEditor } from "@/components/gestion/reservas/item-bags-editor";
 import { ItemAccommodationEditor } from "@/components/gestion/reservas/item-accommodation-editor";
+import { ItemServiceDateEditor } from "@/components/gestion/reservas/item-service-date-editor";
 import { DeleteBookingButton } from "@/components/gestion/reservas/delete-booking-button";
 import { BookingPdfButton } from "@/components/gestion/reservas/booking-pdf-button";
 import { ResendEmailsButton } from "@/components/gestion/reservas/resend-emails-button";
 import { getPaymentStatusConfig } from "@/lib/gestion/payment-status";
 import { formatPhoneForDisplay, formatPhoneHref } from "@/lib/phone";
+import { IncidentFlag } from "@/components/gestion/reservas/incident-flag";
+import { requireAuth } from "@/lib/gestion/auth";
+import {
+  canDeleteBookings,
+  canEditBookingPricing,
+  canResendReservationEmails,
+} from "@/lib/gestion/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +49,7 @@ export default async function BookingDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { profile } = await requireAuth();
   const { id } = await params;
   const [booking, supabase] = await Promise.all([getBookingDetail(id), getServerSupabase()]);
   if (!booking) notFound();
@@ -127,7 +136,9 @@ export default async function BookingDetailPage({
               {booking.items.map((item) => (
                 <div key={item.id} className="rounded-md border border-gray-100 p-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-gray-500">{fmtDateShort(item.service_date)}</span>
+                    <span className="text-xs font-medium text-gray-500">
+                      <ItemServiceDateEditor itemId={item.id} serviceDate={item.service_date} />
+                    </span>
                     <StatusBadge status={item.operational_status} />
                   </div>
                   <div className="mt-1.5 flex items-center gap-1.5 text-sm">
@@ -163,7 +174,9 @@ export default async function BookingDetailPage({
                 <tbody className="divide-y divide-gray-50">
                   {booking.items.map((item) => (
                     <tr key={item.id}>
-                      <td className="whitespace-nowrap px-5 py-2.5 text-gray-700">{fmtDateShort(item.service_date)}</td>
+                      <td className="whitespace-nowrap px-5 py-2.5 text-gray-700">
+                        <ItemServiceDateEditor itemId={item.id} serviceDate={item.service_date} />
+                      </td>
                       <td className="px-5 py-2.5">
                         <ItemAccommodationEditor itemId={item.id} field="pickup" currentName={item.pickup_name} currentTown={item.pickup_town} accommodations={accommodations} />
                       </td>
@@ -214,7 +227,11 @@ export default async function BookingDetailPage({
               <div className="border-t border-gray-200 pt-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-gray-900">Total</span>
-                  <PriceEditor bookingId={booking.id} currentTotal={booking.total_amount} />
+                  {canEditBookingPricing(profile.role) ? (
+                    <PriceEditor bookingId={booking.id} currentTotal={booking.total_amount} />
+                  ) : (
+                    <span className="text-sm font-semibold text-gray-900">{formatEUR(booking.total_amount)}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -232,6 +249,17 @@ export default async function BookingDetailPage({
               <Field label="Actualizada" value={fmtDateTime(booking.updated_at)} />
             </div>
           </Card>
+
+          {booking.incident_reason && (
+            <Card title="Incidencia">
+              <div className="space-y-2">
+                <IncidentFlag reason={booking.incident_reason} />
+                {booking.incident_reported_at && (
+                  <p className="text-xs text-gray-500">Registrada el {fmtDateTime(booking.incident_reported_at)}</p>
+                )}
+              </div>
+            </Card>
+          )}
 
           {(booking.stripe_session_id || booking.stripe_payment_intent || booking.payment_method) && (
             <Card title="Pago online">
@@ -282,9 +310,11 @@ export default async function BookingDetailPage({
 
           <BookingPdfButton booking={booking} />
 
-          <ResendEmailsButton bookingId={booking.id} />
+          {canResendReservationEmails(profile.role) && <ResendEmailsButton bookingId={booking.id} />}
 
-          <DeleteBookingButton bookingId={booking.id} bookingCode={booking.booking_code} />
+          {canDeleteBookings(profile.role) && (
+            <DeleteBookingButton bookingId={booking.id} bookingCode={booking.booking_code} />
+          )}
         </div>
       </div>
     </div>

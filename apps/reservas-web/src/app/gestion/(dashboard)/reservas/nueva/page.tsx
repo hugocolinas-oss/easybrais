@@ -49,7 +49,7 @@ export default async function NuevaReservaPage() {
         </Link>
         <h2 className="text-lg font-bold text-gray-900">Nueva reserva manual</h2>
       </div>
-      <ManualBookingForm accommodations={accommodations} />
+      <ManualBookingForm accommodations={accommodations} showFinancialInfo />
     </div>
   );
 }

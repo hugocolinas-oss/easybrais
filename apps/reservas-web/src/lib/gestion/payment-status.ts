@@ -3,10 +3,42 @@ export interface PaymentStatusConfig {
   cls: string;
 }
 
+export type PaymentCollectionBucket = "cash_pending" | "online_pending" | "settled";
+
+export const PENDING_PAYMENT_STATUSES = new Set(["pending", "partial"]);
+
 function isExpired(expiresAt: string | null | undefined): boolean {
   if (!expiresAt) return false;
   const timestamp = new Date(expiresAt).getTime();
   return Number.isFinite(timestamp) && timestamp < Date.now();
+}
+
+export function isPaymentPending(paymentStatus: string | null | undefined): boolean {
+  return !!paymentStatus && PENDING_PAYMENT_STATUSES.has(paymentStatus);
+}
+
+export function getPaymentCollectionBucket(
+  paymentStatus: string | null | undefined,
+  paymentMethod: string | null | undefined,
+  sourceChannel?: string | null,
+): PaymentCollectionBucket {
+  if (!isPaymentPending(paymentStatus)) {
+    return "settled";
+  }
+
+  if (paymentMethod === "cash") {
+    return "cash_pending";
+  }
+
+  if (paymentMethod) {
+    return "online_pending";
+  }
+
+  if (sourceChannel === "phone" || sourceChannel === "backoffice" || sourceChannel === "walk_in") {
+    return "cash_pending";
+  }
+
+  return "online_pending";
 }
 
 export function getPaymentStatusConfig(
