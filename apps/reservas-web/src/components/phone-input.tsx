@@ -142,26 +142,34 @@ function SearchableCountryPicker({
   disabled: boolean;
   onChange: (value: string) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const selected = PHONE_COUNTRIES.find((country) => country.code === value) ?? PHONE_COUNTRIES[0]!;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+    if (open) inputRef.current?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
         setOpen(false);
         setQuery("");
       }
     }
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    document.addEventListener("keydown", handleEscape);
 
-  useEffect(() => {
-    if (open) inputRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [open]);
 
   const normalizedQuery = normalizePhoneSearch(query);
@@ -190,7 +198,7 @@ function SearchableCountryPicker({
   }
 
   return (
-    <div ref={containerRef} className="relative h-full">
+    <div className="relative h-full">
       <button
         id={id}
         type="button"
@@ -208,43 +216,74 @@ function SearchableCountryPicker({
       </button>
 
       {open && !disabled && (
-        <div className="absolute left-0 top-[calc(100%+0.35rem)] z-50 w-[20rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-cream-300 bg-white shadow-xl">
-          <div className="border-b border-cream-200 p-3">
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar país o prefijo"
-              className="w-full rounded-xl border border-cream-300 px-3 py-2 text-sm text-brand-900 outline-none transition-all placeholder:text-brand-800/25 focus:border-brand-700 focus:ring-1 focus:ring-brand-700"
-            />
-          </div>
+        <div className="fixed inset-0 z-[100]">
+          <button
+            type="button"
+            aria-label="Cerrar selector de país"
+            onClick={() => {
+              setOpen(false);
+              setQuery("");
+            }}
+            className="absolute inset-0 bg-brand-900/20"
+          />
 
-          <div className="max-h-80 overflow-y-auto p-2">
-            {frequentCountries.length > 0 && (
-              <CountrySection
-                title="Frecuentes"
-                countries={frequentCountries}
-                selectedCode={selected.code}
-                onSelect={handleSelect}
-              />
-            )}
-
-            {groupedCountries.map((group) => (
-              <CountrySection
-                key={group.region}
-                title={group.label}
-                countries={group.countries}
-                selectedCode={selected.code}
-                onSelect={handleSelect}
-              />
-            ))}
-
-            {groupedCountries.length === 0 && (
-              <div className="px-3 py-8 text-center text-sm text-brand-800/35">
-                No hay países que coincidan con la búsqueda.
+          <div className="absolute left-1/2 top-24 w-[min(30rem,calc(100vw-1.5rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-cream-300 bg-white shadow-2xl">
+            <div className="border-b border-cream-200 p-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-brand-900">Selecciona prefijo</p>
+                  <p className="text-xs text-brand-800/45">Europa, América, Asia y Oceanía</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    setQuery("");
+                  }}
+                  className="rounded-full p-1 text-brand-800/45 transition-colors hover:bg-cream-100 hover:text-brand-900"
+                  aria-label="Cerrar"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-            )}
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar país o prefijo"
+                className="w-full rounded-xl border border-cream-300 px-3 py-2 text-sm text-brand-900 outline-none transition-all placeholder:text-brand-800/25 focus:border-brand-700 focus:ring-1 focus:ring-brand-700"
+              />
+            </div>
+
+            <div className="max-h-[min(70vh,32rem)] overflow-y-auto p-2">
+              {frequentCountries.length > 0 && (
+                <CountrySection
+                  title="Frecuentes"
+                  countries={frequentCountries}
+                  selectedCode={selected.code}
+                  onSelect={handleSelect}
+                />
+              )}
+
+              {groupedCountries.map((group) => (
+                <CountrySection
+                  key={group.region}
+                  title={group.label}
+                  countries={group.countries}
+                  selectedCode={selected.code}
+                  onSelect={handleSelect}
+                />
+              ))}
+
+              {groupedCountries.length === 0 && (
+                <div className="px-3 py-8 text-center text-sm text-brand-800/35">
+                  No hay países que coincidan con la búsqueda.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
