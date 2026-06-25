@@ -72,6 +72,7 @@ export function CustomerFields({ value, onChange, errors }: Props) {
             value={value.phone}
             onChange={(nextValue) => update("phone", nextValue)}
             error={errors.phone}
+            mode="searchable"
           />
         </Field>
 

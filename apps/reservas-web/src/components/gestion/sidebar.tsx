@@ -4,6 +4,8 @@ import { BrandLogo } from "@/components/brand-logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "./logout-button";
+import { canAccessClosures, canManageAccommodations, canOpenDashboard } from "@/lib/gestion/permissions";
+import type { StaffRole } from "@easybrais/types";
 
 interface NavItem {
   label: string;
@@ -16,7 +18,7 @@ interface NavItem {
 interface Props {
   fullName: string;
   email: string;
-  role: string;
+  role: StaffRole;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -84,6 +86,12 @@ const NAV_ITEMS: NavItem[] = [
 
 export function Sidebar({ fullName, email, role }: Props) {
   const pathname = usePathname();
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.href === "/gestion") return canOpenDashboard(role);
+    if (item.href === "/gestion/alojamientos") return canManageAccommodations(role);
+    if (item.href === "/gestion/cierres") return canAccessClosures(role);
+    return true;
+  });
 
   return (
     <aside className="hidden w-52 shrink-0 flex-col border-r border-gray-200 bg-white md:flex lg:w-60">
@@ -98,7 +106,7 @@ export function Sidebar({ fullName, email, role }: Props) {
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const active = !item.disabled && new RegExp(item.match).test(pathname);
           const cls = `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
             active
