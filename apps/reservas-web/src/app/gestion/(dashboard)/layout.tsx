@@ -49,7 +49,7 @@ export default async function DashboardLayout({
         <main className="mx-auto w-full max-w-5xl flex-1 p-3 pb-20 sm:p-4 md:p-6 md:pb-6">{children}</main>
       </div>
 
-      <BottomNav />
+      <BottomNav role={profile.role} />
     </div>
   );
 }
