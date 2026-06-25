@@ -18,6 +18,12 @@ import { ResendEmailsButton } from "@/components/gestion/reservas/resend-emails-
 import { getPaymentStatusConfig } from "@/lib/gestion/payment-status";
 import { formatPhoneForDisplay, formatPhoneHref } from "@/lib/phone";
 import { IncidentFlag } from "@/components/gestion/reservas/incident-flag";
+import { requireAuth } from "@/lib/gestion/auth";
+import {
+  canDeleteBookings,
+  canEditBookingPricing,
+  canResendReservationEmails,
+} from "@/lib/gestion/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +49,7 @@ export default async function BookingDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { profile } = await requireAuth();
   const { id } = await params;
   const [booking, supabase] = await Promise.all([getBookingDetail(id), getServerSupabase()]);
   if (!booking) notFound();
@@ -220,7 +227,11 @@ export default async function BookingDetailPage({
               <div className="border-t border-gray-200 pt-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-gray-900">Total</span>
-                  <PriceEditor bookingId={booking.id} currentTotal={booking.total_amount} />
+                  {canEditBookingPricing(profile.role) ? (
+                    <PriceEditor bookingId={booking.id} currentTotal={booking.total_amount} />
+                  ) : (
+                    <span className="text-sm font-semibold text-gray-900">{formatEUR(booking.total_amount)}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -299,9 +310,11 @@ export default async function BookingDetailPage({
 
           <BookingPdfButton booking={booking} />
 
-          <ResendEmailsButton bookingId={booking.id} />
+          {canResendReservationEmails(profile.role) && <ResendEmailsButton bookingId={booking.id} />}
 
-          <DeleteBookingButton bookingId={booking.id} bookingCode={booking.booking_code} />
+          {canDeleteBookings(profile.role) && (
+            <DeleteBookingButton bookingId={booking.id} bookingCode={booking.booking_code} />
+          )}
         </div>
       </div>
     </div>
