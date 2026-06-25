@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { canAccessClosures, canOpenDashboard } from "@/lib/gestion/permissions";
+import type { StaffRole } from "@easybrais/types";
 
 interface NavItem {
   label: string;
@@ -73,13 +75,21 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export function BottomNav() {
+export function BottomNav({ role }: { role: StaffRole }) {
   const pathname = usePathname();
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.href === "/gestion") return canOpenDashboard(role);
+    if (item.href === "/gestion/cierres") return canAccessClosures(role);
+    return true;
+  });
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-sm safe-b md:hidden">
-      <div className="grid h-16 grid-cols-6">
-        {NAV_ITEMS.map((item) => {
+      <div
+        className="grid h-16"
+        style={{ gridTemplateColumns: `repeat(${visibleItems.length}, minmax(0, 1fr))` }}
+      >
+        {visibleItems.map((item) => {
           const active = new RegExp(item.match).test(pathname);
           return (
             <Link
