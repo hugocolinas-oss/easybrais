@@ -322,6 +322,7 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
               value={phone}
               onChange={setPhone}
               className="rounded-lg"
+              mode="searchable"
             />
           </div>
           <div>
