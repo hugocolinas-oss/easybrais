@@ -5,10 +5,6 @@ import type { StageLeg, Accommodation } from "@/lib/types";
 import { useT } from "@/lib/i18n/context";
 import { AccommodationCombobox } from "./accommodation-combobox";
 
-function stripAccents(s: string): string {
-  return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
-}
-
 function codePrefix(acc: Accommodation): number | null {
   if (!acc.external_code) return null;
   const n = parseInt(acc.external_code.split(".")[0] ?? "", 10);
@@ -18,7 +14,6 @@ function codePrefix(acc: Accommodation): number | null {
 interface Props {
   leg: StageLeg;
   index: number;
-  towns: string[];
   allAccommodations: Accommodation[];
   canRemove: boolean;
   pickupLocked?: boolean;
@@ -31,7 +26,6 @@ interface Props {
 export function LegForm({
   leg,
   index,
-  towns,
   allAccommodations,
   canRemove,
   pickupLocked,
@@ -40,46 +34,15 @@ export function LegForm({
   onRemove,
   errors,
 }: Props) {
-  const pickupAccommodations = useMemo(
-    () =>
-      leg.departureTown
-        ? allAccommodations.filter(
-            (a) => stripAccents(a.town ?? "") === stripAccents(leg.departureTown),
-          )
-        : allAccommodations,
-    [allAccommodations, leg.departureTown],
-  );
+  const pickupAccommodations = allAccommodations;
 
   const pickupCode = useMemo(() => {
     const pickupAcc = allAccommodations.find((a) => a.id === leg.pickupAccommodationId);
     return pickupAcc ? codePrefix(pickupAcc) : null;
   }, [allAccommodations, leg.pickupAccommodationId]);
 
-  const arrivalTowns = useMemo(() => {
-    if (pickupCode === null) return towns;
-    const validTowns = new Set<string>();
-    allAccommodations.forEach((a) => {
-      const c = codePrefix(a);
-      if (c === null || c >= pickupCode) {
-        if (a.town) validTowns.add(a.town.trim());
-      }
-    });
-    return towns.filter((tw) => {
-      const twNorm = stripAccents(tw);
-      return allAccommodations.some((a) => {
-        if (!a.town) return false;
-        const c = codePrefix(a);
-        return stripAccents(a.town) === twNorm && (c === null || c >= pickupCode);
-      });
-    });
-  }, [towns, allAccommodations, pickupCode]);
-
   const dropoffAccommodations = useMemo(() => {
-    let list = leg.arrivalTown
-      ? allAccommodations.filter(
-          (a) => stripAccents(a.town ?? "") === stripAccents(leg.arrivalTown),
-        )
-      : allAccommodations;
+    let list = allAccommodations;
 
     if (pickupCode !== null) {
       list = list.filter((a) => {
@@ -89,7 +52,7 @@ export function LegForm({
     }
 
     return list;
-  }, [allAccommodations, leg.arrivalTown, pickupCode]);
+  }, [allAccommodations, pickupCode]);
 
   function update(field: keyof StageLeg, value: string | number) {
     const next = { ...leg, [field]: value };
@@ -98,11 +61,13 @@ export function LegForm({
       next.overweightBagsCount = Math.min(next.overweightBagsCount, value);
     }
 
-    if (field === "departureTown") {
-      next.pickupAccommodationId = "";
+    if (field === "pickupAccommodationId" && typeof value === "string") {
+      const pickupAcc = allAccommodations.find((a) => a.id === value);
+      next.departureTown = pickupAcc?.town ?? "";
     }
-    if (field === "arrivalTown") {
-      next.dropoffAccommodationId = "";
+    if (field === "dropoffAccommodationId" && typeof value === "string") {
+      const dropoffAcc = allAccommodations.find((a) => a.id === value);
+      next.arrivalTown = dropoffAcc?.town ?? "";
     }
 
     onUpdate(next);
@@ -176,30 +141,15 @@ export function LegForm({
                     <span className="h-2 w-2 rounded-full bg-sage-500 sm:hidden" />
                     {t("leg.pickup")}
                   </p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field label={t("leg.departure")}>
-                      <select
-                        value={leg.departureTown}
-                        onChange={(e) => update("departureTown", e.target.value)}
-                        disabled={pickupLocked}
-                        className={selectClass()}
-                      >
-                        <option value="">{t("leg.allTowns")}</option>
-                        {towns.map((tw) => (
-                          <option key={tw} value={tw}>{tw}</option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label={t("leg.accommodation")} required error={errors[`${prefix}_pickup`]}>
-                      <AccommodationCombobox
-                        value={leg.pickupAccommodationId}
-                        accommodations={pickupAccommodations}
-                        placeholder={t("leg.searchAccommodation")}
-                        error={errors[`${prefix}_pickup`]}
-                        onChange={(v) => update("pickupAccommodationId", v)}
-                      />
-                    </Field>
-                  </div>
+                  <Field label={t("leg.accommodation")} required error={errors[`${prefix}_pickup`]}>
+                    <AccommodationCombobox
+                      value={leg.pickupAccommodationId}
+                      accommodations={pickupAccommodations}
+                      placeholder={t("leg.searchAccommodation")}
+                      error={errors[`${prefix}_pickup`]}
+                      onChange={(v) => update("pickupAccommodationId", v)}
+                    />
+                  </Field>
                   {pickupLocked && leg.pickupAccommodationId && (
                     <p className="flex items-center gap-1.5 text-[11px] text-gold-600/80">
                       <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
@@ -232,29 +182,15 @@ export function LegForm({
                     <span className="h-2 w-2 rounded-full bg-gold-500 sm:hidden" />
                     {t("leg.dropoff")}
                   </p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field label={t("leg.arrival")}>
-                      <select
-                        value={leg.arrivalTown}
-                        onChange={(e) => update("arrivalTown", e.target.value)}
-                        className={selectClass()}
-                      >
-                        <option value="">{t("leg.allTowns")}</option>
-                        {arrivalTowns.map((tw) => (
-                          <option key={tw} value={tw}>{tw}</option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label={t("leg.accommodation")} required error={errors[`${prefix}_dropoff`]}>
-                      <AccommodationCombobox
-                        value={leg.dropoffAccommodationId}
-                        accommodations={dropoffAccommodations}
-                        placeholder={t("leg.searchAccommodation")}
-                        error={errors[`${prefix}_dropoff`]}
-                        onChange={(v) => update("dropoffAccommodationId", v)}
-                      />
-                    </Field>
-                  </div>
+                  <Field label={t("leg.accommodation")} required error={errors[`${prefix}_dropoff`]}>
+                    <AccommodationCombobox
+                      value={leg.dropoffAccommodationId}
+                      accommodations={dropoffAccommodations}
+                      placeholder={t("leg.searchAccommodation")}
+                      error={errors[`${prefix}_dropoff`]}
+                      onChange={(v) => update("dropoffAccommodationId", v)}
+                    />
+                  </Field>
                 </div>
               </div>
             </div>

@@ -184,17 +184,28 @@ function SearchableCountryPicker({
     filteredCountries.some((entry) => entry.code === country.code),
   );
 
+  const showFrequentCountries = normalizedQuery.length === 0;
+  const frequentCountryCodes = new Set(frequentCountries.map((country) => country.code));
+
   const groupedCountries = PHONE_COUNTRY_GROUPS
     .map((group) => ({
       ...group,
-      countries: group.countries.filter((country) => filteredCountries.some((entry) => entry.code === country.code)),
+      countries: group.countries.filter((country) => {
+        if (!filteredCountries.some((entry) => entry.code === country.code)) return false;
+        if (!showFrequentCountries) return true;
+        return !frequentCountryCodes.has(country.code);
+      }),
     }))
     .filter((group) => group.countries.length > 0);
 
-  function handleSelect(country: PhoneCountry) {
-    onChange(country.code);
+  function closePicker() {
     setOpen(false);
     setQuery("");
+  }
+
+  function handleSelect(country: PhoneCountry) {
+    onChange(country.code);
+    closePicker();
   }
 
   return (
@@ -220,26 +231,20 @@ function SearchableCountryPicker({
           <button
             type="button"
             aria-label="Cerrar selector de país"
-            onClick={() => {
-              setOpen(false);
-              setQuery("");
-            }}
+            onClick={closePicker}
             className="absolute inset-0 bg-brand-900/20"
           />
 
-          <div className="absolute left-1/2 top-24 w-[min(30rem,calc(100vw-1.5rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-cream-300 bg-white shadow-2xl">
-            <div className="border-b border-cream-200 p-3">
-              <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="absolute inset-x-3 bottom-3 top-20 flex max-h-[calc(100dvh-6rem)] flex-col overflow-hidden rounded-2xl border border-cream-300 bg-white shadow-2xl sm:left-1/2 sm:right-auto sm:top-24 sm:w-[min(32rem,calc(100vw-2rem))] sm:max-h-[min(75dvh,40rem)] sm:-translate-x-1/2">
+            <div className="shrink-0 border-b border-cream-200 p-3">
+              <div className="mb-2 flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-brand-900">Selecciona prefijo</p>
-                  <p className="text-xs text-brand-800/45">Europa, América, Asia y Oceanía</p>
+                  <p className="text-xs text-brand-800/45">Búsqueda rápida por país, código o prefijo</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setOpen(false);
-                    setQuery("");
-                  }}
+                  onClick={closePicker}
                   className="rounded-full p-1 text-brand-800/45 transition-colors hover:bg-cream-100 hover:text-brand-900"
                   aria-label="Cerrar"
                 >
@@ -247,6 +252,14 @@ function SearchableCountryPicker({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
+              </div>
+              <div className="mb-2 rounded-xl bg-cream-50 px-3 py-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-800/35">Actual</p>
+                <div className="mt-1 flex items-center gap-2 text-sm text-brand-900">
+                  <span className="text-base leading-none">{selected.flag}</span>
+                  <span className="min-w-0 flex-1 truncate font-medium">{selected.name}</span>
+                  <span className="shrink-0 font-medium tabular-nums text-brand-800/55">{selected.dialCode}</span>
+                </div>
               </div>
               <input
                 ref={inputRef}
@@ -258,8 +271,8 @@ function SearchableCountryPicker({
               />
             </div>
 
-            <div className="max-h-[min(70vh,32rem)] overflow-y-auto p-2">
-              {frequentCountries.length > 0 && (
+            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+              {showFrequentCountries && frequentCountries.length > 0 && (
                 <CountrySection
                   title="Frecuentes"
                   countries={frequentCountries}
@@ -316,12 +329,15 @@ function CountrySection({
               type="button"
               onClick={() => onSelect(country)}
               className={[
-                "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors",
-                isSelected ? "bg-cream-100 text-brand-900" : "text-brand-900 hover:bg-cream-50",
+                "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors",
+                isSelected ? "bg-cream-100 text-brand-900 ring-1 ring-cream-300" : "text-brand-900 hover:bg-cream-50",
               ].join(" ")}
             >
               <span className="text-base leading-none">{country.flag}</span>
-              <span className="min-w-0 flex-1 truncate">{country.name}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{country.name}</span>
+                <span className="block text-[11px] uppercase tracking-[0.12em] text-brand-800/35">{country.code}</span>
+              </span>
               <span className="shrink-0 font-medium tabular-nums text-brand-800/55">{country.dialCode}</span>
             </button>
           );
