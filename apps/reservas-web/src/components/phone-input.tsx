@@ -142,26 +142,34 @@ function SearchableCountryPicker({
   disabled: boolean;
   onChange: (value: string) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const selected = PHONE_COUNTRIES.find((country) => country.code === value) ?? PHONE_COUNTRIES[0]!;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+    if (open) inputRef.current?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
         setOpen(false);
         setQuery("");
       }
     }
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    document.addEventListener("keydown", handleEscape);
 
-  useEffect(() => {
-    if (open) inputRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [open]);
 
   const normalizedQuery = normalizePhoneSearch(query);
@@ -176,21 +184,32 @@ function SearchableCountryPicker({
     filteredCountries.some((entry) => entry.code === country.code),
   );
 
+  const showFrequentCountries = normalizedQuery.length === 0;
+  const frequentCountryCodes = new Set(frequentCountries.map((country) => country.code));
+
   const groupedCountries = PHONE_COUNTRY_GROUPS
     .map((group) => ({
       ...group,
-      countries: group.countries.filter((country) => filteredCountries.some((entry) => entry.code === country.code)),
+      countries: group.countries.filter((country) => {
+        if (!filteredCountries.some((entry) => entry.code === country.code)) return false;
+        if (!showFrequentCountries) return true;
+        return !frequentCountryCodes.has(country.code);
+      }),
     }))
     .filter((group) => group.countries.length > 0);
 
-  function handleSelect(country: PhoneCountry) {
-    onChange(country.code);
+  function closePicker() {
     setOpen(false);
     setQuery("");
   }
 
+  function handleSelect(country: PhoneCountry) {
+    onChange(country.code);
+    closePicker();
+  }
+
   return (
-    <div ref={containerRef} className="relative h-full">
+    <div className="relative h-full">
       <button
         id={id}
         type="button"
@@ -208,43 +227,76 @@ function SearchableCountryPicker({
       </button>
 
       {open && !disabled && (
-        <div className="absolute left-0 top-[calc(100%+0.35rem)] z-50 w-[20rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-cream-300 bg-white shadow-xl">
-          <div className="border-b border-cream-200 p-3">
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar país o prefijo"
-              className="w-full rounded-xl border border-cream-300 px-3 py-2 text-sm text-brand-900 outline-none transition-all placeholder:text-brand-800/25 focus:border-brand-700 focus:ring-1 focus:ring-brand-700"
-            />
-          </div>
+        <div className="fixed inset-0 z-[100]">
+          <button
+            type="button"
+            aria-label="Cerrar selector de país"
+            onClick={closePicker}
+            className="absolute inset-0 bg-brand-900/20"
+          />
 
-          <div className="max-h-80 overflow-y-auto p-2">
-            {frequentCountries.length > 0 && (
-              <CountrySection
-                title="Frecuentes"
-                countries={frequentCountries}
-                selectedCode={selected.code}
-                onSelect={handleSelect}
-              />
-            )}
-
-            {groupedCountries.map((group) => (
-              <CountrySection
-                key={group.region}
-                title={group.label}
-                countries={group.countries}
-                selectedCode={selected.code}
-                onSelect={handleSelect}
-              />
-            ))}
-
-            {groupedCountries.length === 0 && (
-              <div className="px-3 py-8 text-center text-sm text-brand-800/35">
-                No hay países que coincidan con la búsqueda.
+          <div className="absolute inset-x-3 bottom-3 top-20 flex max-h-[calc(100dvh-6rem)] flex-col overflow-hidden rounded-2xl border border-cream-300 bg-white shadow-2xl sm:left-1/2 sm:right-auto sm:top-24 sm:w-[min(32rem,calc(100vw-2rem))] sm:max-h-[min(75dvh,40rem)] sm:-translate-x-1/2">
+            <div className="shrink-0 border-b border-cream-200 p-3">
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-brand-900">Selecciona prefijo</p>
+                  <p className="text-xs text-brand-800/45">Búsqueda rápida por país, código o prefijo</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closePicker}
+                  className="rounded-full p-1 text-brand-800/45 transition-colors hover:bg-cream-100 hover:text-brand-900"
+                  aria-label="Cerrar"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-            )}
+              <div className="mb-2 rounded-xl bg-cream-50 px-3 py-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-800/35">Actual</p>
+                <div className="mt-1 flex items-center gap-2 text-sm text-brand-900">
+                  <span className="text-base leading-none">{selected.flag}</span>
+                  <span className="min-w-0 flex-1 truncate font-medium">{selected.name}</span>
+                  <span className="shrink-0 font-medium tabular-nums text-brand-800/55">{selected.dialCode}</span>
+                </div>
+              </div>
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar país o prefijo"
+                className="w-full rounded-xl border border-cream-300 px-3 py-2 text-sm text-brand-900 outline-none transition-all placeholder:text-brand-800/25 focus:border-brand-700 focus:ring-1 focus:ring-brand-700"
+              />
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+              {showFrequentCountries && frequentCountries.length > 0 && (
+                <CountrySection
+                  title="Frecuentes"
+                  countries={frequentCountries}
+                  selectedCode={selected.code}
+                  onSelect={handleSelect}
+                />
+              )}
+
+              {groupedCountries.map((group) => (
+                <CountrySection
+                  key={group.region}
+                  title={group.label}
+                  countries={group.countries}
+                  selectedCode={selected.code}
+                  onSelect={handleSelect}
+                />
+              ))}
+
+              {groupedCountries.length === 0 && (
+                <div className="px-3 py-8 text-center text-sm text-brand-800/35">
+                  No hay países que coincidan con la búsqueda.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -277,12 +329,15 @@ function CountrySection({
               type="button"
               onClick={() => onSelect(country)}
               className={[
-                "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors",
-                isSelected ? "bg-cream-100 text-brand-900" : "text-brand-900 hover:bg-cream-50",
+                "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors",
+                isSelected ? "bg-cream-100 text-brand-900 ring-1 ring-cream-300" : "text-brand-900 hover:bg-cream-50",
               ].join(" ")}
             >
               <span className="text-base leading-none">{country.flag}</span>
-              <span className="min-w-0 flex-1 truncate">{country.name}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{country.name}</span>
+                <span className="block text-[11px] uppercase tracking-[0.12em] text-brand-800/35">{country.code}</span>
+              </span>
               <span className="shrink-0 font-medium tabular-nums text-brand-800/55">{country.dialCode}</span>
             </button>
           );

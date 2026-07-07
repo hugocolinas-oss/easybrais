@@ -89,39 +89,6 @@ export function BookingForm({ allAccommodations }: Props) {
     [allAccommodations],
   );
 
-  const towns = useMemo(() => {
-    const townDisplay = new Map<string, string>();
-    const townMinStage = new Map<string, number>();
-
-    function normalizeTown(raw: string): string {
-      return raw
-        .trim()
-        .toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .replace(/\s+/g, " ");
-    }
-
-    function titleCase(s: string): string {
-      const lower = ["de", "do", "da", "dos", "das", "del", "a", "o", "e"];
-      return s.trim().split(/\s+/).map((w, i) => {
-        if (i > 0 && lower.includes(w.toLowerCase())) return w.toLowerCase();
-        return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-      }).join(" ");
-    }
-
-    allAccommodations.forEach((a) => {
-      if (!a.town) return;
-      const key = normalizeTown(a.town);
-      if (!townDisplay.has(key)) townDisplay.set(key, titleCase(a.town));
-      const stage = stageNumberFromCode(a) ?? 999;
-      const cur = townMinStage.get(key);
-      if (cur === undefined || stage < cur) townMinStage.set(key, stage);
-    });
-    return Array.from(townDisplay.entries())
-      .sort((a, b) => (townMinStage.get(a[0]) ?? 999) - (townMinStage.get(b[0]) ?? 999))
-      .map(([, display]) => display);
-  }, [allAccommodations]);
-
   const pricing = useMemo(
     () =>
       calculatePricing(
@@ -190,6 +157,8 @@ export function BookingForm({ allAccommodations }: Props) {
       if (pickupChanged && updated.pickupAccommodationId) {
         const newPickupAcc = accMap.get(updated.pickupAccommodationId);
         const newPickupCode = newPickupAcc ? stageNumberFromCode(newPickupAcc) : null;
+        const at = next[index];
+        if (at) next[index] = { ...at, departureTown: newPickupAcc?.town ?? at.departureTown };
         if (newPickupCode !== null && updated.dropoffAccommodationId) {
           const dropoffAcc = accMap.get(updated.dropoffAccommodationId);
           const dropoffCode = dropoffAcc ? stageNumberFromCode(dropoffAcc) : null;
@@ -204,23 +173,14 @@ export function BookingForm({ allAccommodations }: Props) {
       const dropoffChanged = prev[index]?.dropoffAccommodationId !== currentDropoff;
       if (dropoffChanged && currentDropoff && index < next.length - 1) {
         const dropoffAcc = accMap.get(currentDropoff);
+        const at = next[index];
+        if (at) next[index] = { ...at, arrivalTown: dropoffAcc?.town ?? at.arrivalTown };
         const nextLeg = next[index + 1];
         if (nextLeg) {
           next[index + 1] = {
             ...nextLeg,
             departureTown: dropoffAcc?.town ?? "",
             pickupAccommodationId: currentDropoff,
-          };
-        }
-      }
-
-      const arrivalTownChanged = prev[index]?.arrivalTown !== updated.arrivalTown;
-      if (arrivalTownChanged && updated.arrivalTown && index < next.length - 1) {
-        const nextLeg = next[index + 1];
-        if (nextLeg && !nextLeg.departureTown) {
-          next[index + 1] = {
-            ...nextLeg,
-            departureTown: updated.arrivalTown,
           };
         }
       }
@@ -388,7 +348,6 @@ export function BookingForm({ allAccommodations }: Props) {
                     key={leg.id}
                     leg={leg}
                     index={i}
-                    towns={towns}
                     allAccommodations={allAccommodations}
                     canRemove={legs.length > 1}
                     pickupLocked={i > 0 && !!legs[i - 1]?.dropoffAccommodationId}
