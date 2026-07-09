@@ -1,10 +1,15 @@
 import { getServerSupabase } from "@/lib/supabase/server";
 import { ManualBookingForm } from "@/components/gestion/reservas/manual-booking-form";
 import Link from "next/link";
+import { requireAuth } from "@/lib/gestion/auth";
+import { ensureDashboardAccess } from "@/lib/gestion/permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function NuevaReservaPage() {
+  const { profile } = await requireAuth();
+  ensureDashboardAccess(profile.role);
+
   const supabase = await getServerSupabase();
 
   const { data: rows } = await supabase

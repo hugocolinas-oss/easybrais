@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient, PRICING_RULES } from "@easybrais/utils";
 import { requireAuth } from "@/lib/gestion/auth";
 import { OPERATIONAL_STATUSES } from "@/lib/gestion/booking-status";
+import { assertDashboardAccess, PermissionError } from "@/lib/gestion/permissions";
 import { sendReservationEmails } from "@/lib/email/reservations";
 import { refreshRoute } from "@/app/gestion/(dashboard)/ruta/actions";
 
@@ -17,7 +18,8 @@ export async function changeBookingStatus(bookingId: string, newStatus: string) 
   if (!allowed.includes(newStatus)) return { error: "Estado no permitido." };
 
   try {
-    const { userId } = await requireAuth();
+    const { userId, profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: current, error: fetchErr } = await supabase
@@ -62,6 +64,7 @@ export async function changeBookingStatus(bookingId: string, newStatus: string) 
     revalidatePath("/gestion");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[changeBookingStatus] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al cambiar el estado." };
   }
@@ -72,7 +75,8 @@ export async function updateBookingPrice(bookingId: string, newTotal: number) {
   if (!Number.isFinite(newTotal) || newTotal < 0) return { error: "Precio inválido." };
 
   try {
-    const { userId } = await requireAuth();
+    const { userId, profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: current, error: fetchErr } = await supabase
@@ -111,6 +115,7 @@ export async function updateBookingPrice(bookingId: string, newTotal: number) {
     revalidatePath("/gestion/reservas");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[updateBookingPrice] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado." };
   }
@@ -128,7 +133,8 @@ export async function updateBookingItem(
   if (ow != null && (!Number.isInteger(ow) || ow < 0)) return { error: "Sobrepeso inválido." };
 
   try {
-    const { userId } = await requireAuth();
+    const { userId, profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: item, error: fetchErr } = await supabase
@@ -199,6 +205,7 @@ export async function updateBookingItem(
     revalidatePath("/gestion/reservas");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[updateBookingItem] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado." };
   }
@@ -209,7 +216,8 @@ export async function updateBookingItemServiceDate(itemId: string, serviceDate: 
   if (!DATE_RE.test(serviceDate)) return { error: "Fecha inválida." };
 
   try {
-    const { userId } = await requireAuth();
+    const { userId, profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: item, error: fetchErr } = await supabase
@@ -308,6 +316,7 @@ export async function updateBookingItemServiceDate(itemId: string, serviceDate: 
     revalidatePath("/gestion");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[updateBookingItemServiceDate] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al actualizar la fecha." };
   }
@@ -322,7 +331,8 @@ export async function updateBookingItemAccommodation(
   if (!UUID_RE.test(accommodationId)) return { error: "ID de alojamiento inválido." };
 
   try {
-    const { userId } = await requireAuth();
+    const { userId, profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: item, error: fetchErr } = await supabase
@@ -376,6 +386,7 @@ export async function updateBookingItemAccommodation(
     revalidatePath("/gestion/ruta");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[updateBookingItemAccommodation] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado." };
   }
@@ -386,7 +397,8 @@ export async function updateInternalNotes(bookingId: string, notes: string) {
   if (notes.length > 1000) return { error: "Las notas son demasiado largas." };
 
   try {
-    const { userId } = await requireAuth();
+    const { userId, profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { error } = await supabase
@@ -414,6 +426,7 @@ export async function updateInternalNotes(bookingId: string, notes: string) {
     revalidatePath(`/gestion/reservas/${bookingId}`);
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[updateInternalNotes] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al guardar las notas." };
   }
@@ -423,7 +436,8 @@ export async function deleteBooking(bookingId: string) {
   if (!UUID_RE.test(bookingId)) return { error: "ID de reserva inválido." };
 
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: booking, error: fetchErr } = await supabase
@@ -499,6 +513,7 @@ export async function deleteBooking(bookingId: string) {
     revalidatePath("/gestion");
     return { ok: true, deleted: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[deleteBooking] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al eliminar." };
   }
@@ -508,7 +523,8 @@ export async function resendReservationEmails(bookingId: string) {
   if (!UUID_RE.test(bookingId)) return { error: "ID de reserva inválido." };
 
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: booking, error } = await supabase
@@ -527,6 +543,7 @@ export async function resendReservationEmails(bookingId: string) {
     revalidatePath("/gestion/reservas");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[resendReservationEmails] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al reenviar emails." };
   }

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@easybrais/utils";
 import { requireAuth } from "@/lib/gestion/auth";
+import { assertClosuresAccess, PermissionError } from "@/lib/gestion/permissions";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -40,7 +41,8 @@ export async function generateClosure(date: string) {
   if (!DATE_RE.test(date)) return { error: "Fecha inválida." };
 
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertClosuresAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: existingRows } = await supabase
@@ -130,6 +132,7 @@ export async function generateClosure(date: string) {
     revalidatePath("/gestion");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[generateClosure] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al generar el cierre." };
   }
@@ -148,7 +151,8 @@ export async function getClosureBookings(date: string): Promise<{ rows: ClosureB
   if (!DATE_RE.test(date)) return { error: "Fecha inválida." };
 
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertClosuresAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: items, error: fetchErr } = await supabase
@@ -234,6 +238,7 @@ export async function getClosureBookings(date: string): Promise<{ rows: ClosureB
 
     return { rows };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[getClosureBookings] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado." };
   }
@@ -243,7 +248,8 @@ export async function deleteClosure(closureId: string) {
   if (!UUID_RE.test(closureId)) return { error: "ID inválido." };
 
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertClosuresAccess(profile.role);
     const supabase = createAdminClient();
 
     const { error } = await supabase
@@ -260,6 +266,7 @@ export async function deleteClosure(closureId: string) {
     revalidatePath("/gestion");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[deleteClosure] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al eliminar el cierre." };
   }

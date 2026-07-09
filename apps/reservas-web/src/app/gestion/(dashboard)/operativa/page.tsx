@@ -3,12 +3,17 @@ import { getOperativeData } from "@/lib/gestion/operative-queries";
 import { DateSelector } from "@/components/gestion/operativa/date-selector";
 import { StatusCounters } from "@/components/gestion/operativa/status-counters";
 import { OperativeBoard } from "@/components/gestion/operativa/operative-board";
+import { requireAuth } from "@/lib/gestion/auth";
+import { ensureDashboardAccess } from "@/lib/gestion/permissions";
 
 interface Props {
   searchParams: Promise<{ date?: string }>;
 }
 
 export default async function OperativaPage({ searchParams }: Props) {
+  const { profile } = await requireAuth();
+  ensureDashboardAccess(profile.role);
+
   const params = await searchParams;
   const today = new Date().toISOString().split("T")[0] ?? "";
   const date = params.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date)

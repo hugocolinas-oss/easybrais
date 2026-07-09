@@ -6,6 +6,8 @@ import { formatEUR, fmtDateShort } from "@easybrais/utils";
 import { getPaymentStatusConfig } from "@/lib/gestion/payment-status";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { IncidentFlag } from "@/components/gestion/reservas/incident-flag";
+import { requireAuth } from "@/lib/gestion/auth";
+import { ensureDashboardAccess } from "@/lib/gestion/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,9 @@ export default async function ReservasPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
+  const { profile } = await requireAuth();
+  ensureDashboardAccess(profile.role);
+
   const params = await searchParams;
   const filters: BookingFilters = {
     status: params.status ?? undefined,

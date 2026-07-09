@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@easybrais/utils";
 import { requireAuth } from "@/lib/gestion/auth";
+import { assertDashboardAccess, PermissionError } from "@/lib/gestion/permissions";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -29,7 +30,8 @@ export async function generateRoute(date: string) {
   if (!DATE_RE.test(date)) return { error: "Fecha inválida." };
 
   try {
-    const { userId } = await requireAuth();
+    const { userId, profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: existing } = await supabase
@@ -169,6 +171,7 @@ export async function generateRoute(date: string) {
     revalidatePath("/gestion/ruta");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[generateRoute] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al generar la ruta." };
   }
@@ -179,7 +182,8 @@ export async function refreshRoute(routeId: string, routeDate: string) {
     return { error: "Parámetros inválidos." };
 
   try {
-    const { userId } = await requireAuth();
+    const { userId, profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: existingStops } = await supabase
@@ -309,6 +313,7 @@ export async function refreshRoute(routeId: string, routeDate: string) {
     revalidatePath("/gestion/ruta");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[refreshRoute] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al actualizar la ruta." };
   }
@@ -318,7 +323,8 @@ export async function deleteRoute(routeId: string) {
   if (!UUID_RE.test(routeId)) return { error: "ID inválido." };
 
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { error } = await supabase
@@ -334,6 +340,7 @@ export async function deleteRoute(routeId: string) {
     revalidatePath("/gestion/ruta");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[deleteRoute] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al eliminar la ruta." };
   }
@@ -348,7 +355,8 @@ export async function swapStopPositions(
     return { error: "ID inválido." };
 
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: stops, error: fetchErr } = await supabase
@@ -408,6 +416,7 @@ export async function swapStopPositions(
     revalidatePath("/gestion/ruta");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[swapStopPositions] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al reordenar." };
   }
@@ -417,7 +426,8 @@ export async function toggleStopCompleted(stopId: string, completed: boolean) {
   if (!UUID_RE.test(stopId)) return { error: "ID inválido." };
 
   try {
-    const { userId } = await requireAuth();
+    const { userId, profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: stop, error: stopFetchErr } = await supabase
@@ -500,6 +510,7 @@ export async function toggleStopCompleted(stopId: string, completed: boolean) {
     revalidatePath("/gestion");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[toggleStopCompleted] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado." };
   }
@@ -600,7 +611,8 @@ export async function reorderStops(
   if (!UUID_RE.test(routeId)) return { error: "ID inválido." };
 
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const OFFSET = 10000;
@@ -633,6 +645,7 @@ export async function reorderStops(
     revalidatePath("/gestion/ruta");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[reorderStops] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado." };
   }
@@ -644,7 +657,8 @@ export async function updateRouteStatus(routeId: string, status: string) {
     return { error: "Estado no válido." };
 
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { error } = await supabase
@@ -660,6 +674,7 @@ export async function updateRouteStatus(routeId: string, status: string) {
     revalidatePath("/gestion/ruta");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[updateRouteStatus] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado." };
   }
