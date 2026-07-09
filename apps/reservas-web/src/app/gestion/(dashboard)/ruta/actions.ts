@@ -434,7 +434,7 @@ export async function toggleStopCompleted(stopId: string, completed: boolean) {
       .from("daily_route_stops")
       .select("id, stop_type, booking_item_id")
       .eq("id", stopId)
-      .single();
+      .maybeSingle();
 
     if (stopFetchErr || !stop) {
       console.error("[toggleStopCompleted] fetch stop failed:", stopFetchErr?.message);
@@ -609,17 +609,21 @@ export async function reorderStops(
   orderedStopIds: string[],
 ) {
   if (!UUID_RE.test(routeId)) return { error: "ID inválido." };
+  if (orderedStopIds.length === 0) return { error: "No hay paradas para reordenar." };
+  if (orderedStopIds.some((stopId) => !UUID_RE.test(stopId))) {
+    return { error: "Paradas inválidas." };
+  }
 
   try {
     const { profile } = await requireAuth();
     assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
-    const OFFSET = 10000;
+    const tempBase = -Math.floor(Date.now() / 1000) - orderedStopIds.length - 1000;
     for (let i = 0; i < orderedStopIds.length; i++) {
       const { error } = await supabase
         .from("daily_route_stops")
-        .update({ position: OFFSET + i + 1 } as never)
+        .update({ position: tempBase - i } as never)
         .eq("id", orderedStopIds[i]!)
         .eq("route_id", routeId);
 

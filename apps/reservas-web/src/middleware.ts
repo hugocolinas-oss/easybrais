@@ -13,14 +13,25 @@ export async function middleware(request: NextRequest) {
 
   try {
     const { supabase } = createMiddlewareClient(request, response);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
     const isPublicPath = GESTION_PUBLIC_PATHS.some((p) =>
       pathname.startsWith(p)
     );
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      if (isPublicPath) {
+        return response;
+      }
+
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = "/gestion/login";
+      loginUrl.searchParams.set("error", "session-expired");
+      return NextResponse.redirect(loginUrl);
+    }
 
     if (!user && !isPublicPath) {
       const loginUrl = request.nextUrl.clone();
