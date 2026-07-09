@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@easybrais/utils";
 import { requireAuth } from "@/lib/gestion/auth";
+import { assertDashboardAccess, PermissionError } from "@/lib/gestion/permissions";
 import { sendCustomerIncidentReportedEmail } from "@/lib/email/reservations";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -17,7 +18,8 @@ export async function advanceItemStatus(itemId: string, newStatus: string) {
   if (!allowed.includes(newStatus)) return { error: "Estado no permitido." };
 
   try {
-    const { userId } = await requireAuth();
+    const { userId, profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: item, error: fetchErr } = await supabase
@@ -68,6 +70,7 @@ export async function advanceItemStatus(itemId: string, newStatus: string) {
     revalidatePath("/gestion");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[advanceItemStatus] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al actualizar el estado." };
   }
@@ -84,7 +87,8 @@ export async function reportIncident(
   if (message.length > 500) return { error: "Mensaje demasiado largo (máx 500 caracteres)." };
 
   try {
-    const { userId } = await requireAuth();
+    const { userId, profile } = await requireAuth();
+    assertDashboardAccess(profile.role);
     const supabase = createAdminClient();
     const trimmedMessage = message.trim();
 
@@ -155,6 +159,7 @@ export async function reportIncident(
     revalidatePath("/gestion");
     return { ok: true, warning: warnings.length > 0 ? warnings.join(" ") : undefined };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[reportIncident] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado al registrar la incidencia." };
   }

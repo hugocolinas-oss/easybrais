@@ -2,10 +2,15 @@ import Link from "next/link";
 import { getStagesInfo } from "@/lib/gestion/accommodation-queries";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { CreateAccommodationForm } from "@/components/gestion/alojamientos/create-form";
+import { requireAuth } from "@/lib/gestion/auth";
+import { ensureAccommodationsAccess } from "@/lib/gestion/permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function NuevoAlojamientoPage() {
+  const { profile } = await requireAuth();
+  ensureAccommodationsAccess(profile.role);
+
   const [stagesInfo, towns, existingCodes] = await Promise.all([
     getStagesInfo(),
     getDistinctTowns(),

@@ -3,6 +3,8 @@ import { getAccommodations, getStagesInfo, type AccommodationFilters } from "@/l
 import { AccommodationFilters as Filters } from "@/components/gestion/alojamientos/accommodation-filters";
 import { StageManager } from "@/components/gestion/alojamientos/stage-manager";
 import { ToggleActiveButton, ToggleVisibleButton } from "@/components/gestion/alojamientos/toggle-buttons";
+import { requireAuth } from "@/lib/gestion/auth";
+import { ensureAccommodationsAccess } from "@/lib/gestion/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +13,9 @@ export default async function AlojamientosPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
+  const { profile } = await requireAuth();
+  ensureAccommodationsAccess(profile.role);
+
   const params = await searchParams;
   const filters: AccommodationFilters = {
     q: params.q ?? undefined,

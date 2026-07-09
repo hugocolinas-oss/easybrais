@@ -4,6 +4,8 @@ import { RouteDateSelector } from "@/components/gestion/ruta/route-date-selector
 import { RouteHeader } from "@/components/gestion/ruta/route-header";
 import { RouteBoard } from "@/components/gestion/ruta/route-board";
 import { GenerateRouteButton } from "@/components/gestion/ruta/generate-route-button";
+import { requireAuth } from "@/lib/gestion/auth";
+import { ensureDashboardAccess } from "@/lib/gestion/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +14,9 @@ interface Props {
 }
 
 export default async function RutaPage({ searchParams }: Props) {
+  const { profile } = await requireAuth();
+  ensureDashboardAccess(profile.role);
+
   const params = await searchParams;
   const today = new Date().toISOString().split("T")[0] ?? "";
   const date =

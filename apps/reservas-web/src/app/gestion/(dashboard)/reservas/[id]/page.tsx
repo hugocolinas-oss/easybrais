@@ -23,6 +23,7 @@ import {
   canDeleteBookings,
   canEditBookingPricing,
   canResendReservationEmails,
+  ensureDashboardAccess,
 } from "@/lib/gestion/permissions";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,7 @@ export default async function BookingDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { profile } = await requireAuth();
+  ensureDashboardAccess(profile.role);
   const { id } = await params;
   const [booking, supabase] = await Promise.all([getBookingDetail(id), getServerSupabase()]);
   if (!booking) notFound();

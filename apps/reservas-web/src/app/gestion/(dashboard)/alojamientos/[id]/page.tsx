@@ -3,6 +3,8 @@ import { getAccommodationById } from "@/lib/gestion/accommodation-queries";
 import { EditAccommodationForm } from "@/components/gestion/alojamientos/edit-form";
 import { MarkVerifiedButton } from "@/components/gestion/alojamientos/toggle-buttons";
 import { DeleteAccommodationButton } from "@/components/gestion/alojamientos/delete-accommodation-button";
+import { requireAuth } from "@/lib/gestion/auth";
+import { ensureAccommodationsAccess } from "@/lib/gestion/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +13,8 @@ export default async function AccommodationDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { profile } = await requireAuth();
+  ensureAccommodationsAccess(profile.role);
   const { id } = await params;
   const accommodation = await getAccommodationById(id);
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@easybrais/utils";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/gestion/auth";
+import { assertAccommodationsAccess, PermissionError } from "@/lib/gestion/permissions";
 
 // ---------------------------------------------------------------------------
 // Create
@@ -26,7 +27,8 @@ export async function createAccommodation(fields: {
   reservation_notes?: string;
 }): Promise<{ ok: true; id: string } | { error: string }> {
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertAccommodationsAccess(profile.role);
     const name = fields.name.trim();
     if (!name || name.length < 2) return { error: "El nombre es obligatorio (mín. 2 caracteres)." };
     if (name.length > 200) return { error: "El nombre es demasiado largo." };
@@ -90,6 +92,7 @@ export async function createAccommodation(fields: {
     revalidatePath("/gestion/alojamientos");
     return { ok: true, id: created.id };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[alojamientos] createAccommodation unexpected:", err);
     return { error: "Error inesperado al crear el alojamiento." };
   }
@@ -122,7 +125,8 @@ export async function updateAccommodation(
   },
 ): Promise<{ ok: true } | { error: string }> {
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertAccommodationsAccess(profile.role);
     const supabase = await getServerSupabase();
 
     const normalizedName = fields.name?.trim();
@@ -202,6 +206,7 @@ export async function updateAccommodation(
     revalidatePath(`/gestion/alojamientos/${id}`);
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[alojamientos] updateAccommodation unexpected:", err);
     return { error: "Error inesperado al actualizar." };
   }
@@ -212,7 +217,8 @@ export async function toggleActive(
   active: boolean,
 ): Promise<{ ok: true } | { error: string }> {
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertAccommodationsAccess(profile.role);
     const supabase = await getServerSupabase();
     const { error } = await supabase
       .from("accommodations")
@@ -227,6 +233,7 @@ export async function toggleActive(
     revalidatePath("/gestion/alojamientos");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[alojamientos] toggleActive unexpected:", err);
     return { error: "Error inesperado." };
   }
@@ -237,7 +244,8 @@ export async function toggleVisibility(
   visible: boolean,
 ): Promise<{ ok: true } | { error: string }> {
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertAccommodationsAccess(profile.role);
     const supabase = await getServerSupabase();
     const { error } = await supabase
       .from("accommodations")
@@ -252,6 +260,7 @@ export async function toggleVisibility(
     revalidatePath("/gestion/alojamientos");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[alojamientos] toggleVisibility unexpected:", err);
     return { error: "Error inesperado." };
   }
@@ -261,7 +270,8 @@ export async function markVerified(
   id: string,
 ): Promise<{ ok: true } | { error: string }> {
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertAccommodationsAccess(profile.role);
     const supabase = await getServerSupabase();
     const { error } = await supabase
       .from("accommodations")
@@ -277,6 +287,7 @@ export async function markVerified(
     revalidatePath(`/gestion/alojamientos/${id}`);
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[alojamientos] markVerified unexpected:", err);
     return { error: "Error inesperado." };
   }
@@ -290,7 +301,8 @@ export async function deleteAccommodation(
   id: string,
 ): Promise<{ ok: true } | { error: string }> {
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertAccommodationsAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: refs } = await supabase
@@ -316,6 +328,7 @@ export async function deleteAccommodation(
     revalidatePath("/gestion/alojamientos");
     return { ok: true };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[alojamientos] deleteAccommodation unexpected:", err);
     return { error: "Error inesperado al eliminar." };
   }
@@ -330,7 +343,8 @@ export async function toggleStageActive(
   active: boolean,
 ): Promise<{ ok: true; count: number } | { error: string }> {
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertAccommodationsAccess(profile.role);
     const supabase = await getServerSupabase();
     const { data, error } = await supabase
       .from("accommodations")
@@ -346,6 +360,7 @@ export async function toggleStageActive(
     revalidatePath("/gestion/alojamientos");
     return { ok: true, count: data?.length ?? 0 };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[alojamientos] toggleStageActive unexpected:", err);
     return { error: "Error inesperado." };
   }
@@ -356,7 +371,8 @@ export async function toggleStageVisibility(
   visible: boolean,
 ): Promise<{ ok: true; count: number } | { error: string }> {
   try {
-    await requireAuth();
+    const { profile } = await requireAuth();
+    assertAccommodationsAccess(profile.role);
     const supabase = await getServerSupabase();
     const { data, error } = await supabase
       .from("accommodations")
@@ -372,6 +388,7 @@ export async function toggleStageVisibility(
     revalidatePath("/gestion/alojamientos");
     return { ok: true, count: data?.length ?? 0 };
   } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
     console.error("[alojamientos] toggleStageVisibility unexpected:", err);
     return { error: "Error inesperado." };
   }

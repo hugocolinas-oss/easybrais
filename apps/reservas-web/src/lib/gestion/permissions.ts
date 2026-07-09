@@ -1,6 +1,13 @@
 import { redirect } from "next/navigation";
 import type { StaffRole } from "@easybrais/types";
 
+export class PermissionError extends Error {
+  constructor(message = "No tienes permisos para realizar esta accion.") {
+    super(message);
+    this.name = "PermissionError";
+  }
+}
+
 export function canViewFinancialInfo(role: StaffRole): boolean {
   return role !== "chofer";
 }
@@ -10,7 +17,7 @@ export function canAccessClosures(role: StaffRole): boolean {
 }
 
 export function canManageAccommodations(role: StaffRole): boolean {
-  return true;
+  return role !== "chofer";
 }
 
 export function canDeleteBookings(role: StaffRole): boolean {
@@ -39,4 +46,16 @@ export function ensureClosuresAccess(role: StaffRole): void {
 
 export function ensureAccommodationsAccess(role: StaffRole): void {
   if (!canManageAccommodations(role)) redirect("/gestion/reservas");
+}
+
+export function assertDashboardAccess(role: StaffRole): void {
+  if (!canOpenDashboard(role)) throw new PermissionError();
+}
+
+export function assertClosuresAccess(role: StaffRole): void {
+  if (!canAccessClosures(role)) throw new PermissionError();
+}
+
+export function assertAccommodationsAccess(role: StaffRole): void {
+  if (!canManageAccommodations(role)) throw new PermissionError();
 }
