@@ -9,7 +9,7 @@ export class PermissionError extends Error {
 }
 
 export function canViewFinancialInfo(role: StaffRole): boolean {
-  return role !== "chofer";
+  return true;
 }
 
 export function canAccessClosures(role: StaffRole): boolean {
@@ -21,15 +21,15 @@ export function canManageAccommodations(role: StaffRole): boolean {
 }
 
 export function canDeleteBookings(role: StaffRole): boolean {
-  return role !== "chofer";
+  return true;
 }
 
 export function canResendReservationEmails(role: StaffRole): boolean {
-  return role !== "chofer";
+  return true;
 }
 
 export function canEditBookingPricing(role: StaffRole): boolean {
-  return role !== "chofer";
+  return true;
 }
 
 export function canOpenDashboard(role: StaffRole): boolean {
@@ -37,7 +37,7 @@ export function canOpenDashboard(role: StaffRole): boolean {
 }
 
 export function canAccessBookings(role: StaffRole): boolean {
-  return role !== "chofer";
+  return true;
 }
 
 export function canAccessOperative(role: StaffRole): boolean {
