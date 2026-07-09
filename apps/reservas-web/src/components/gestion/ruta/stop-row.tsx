@@ -6,7 +6,7 @@ import type { RouteStop } from "@/lib/gestion/route-queries";
 import { formatEUR } from "@easybrais/utils";
 import { toggleStopCompleted, swapStopPositions } from "@/app/gestion/(dashboard)/ruta/actions";
 import { buildWhatsAppHref, formatPhoneForDisplay, formatPhoneHref } from "@/lib/phone";
-import { getPaymentCollectionBucket } from "@/lib/gestion/payment-status";
+import { getPaymentTypeConfig } from "@/lib/gestion/payment-status";
 import { IncidentFlag } from "@/components/gestion/reservas/incident-flag";
 
 interface Props {
@@ -32,13 +32,7 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
   const customerPhoneDisplay = formatPhoneForDisplay(stop.customer_phone);
   const customerPhoneHref = formatPhoneHref(stop.customer_phone);
   const customerWhatsAppHref = buildWhatsAppHref(stop.customer_phone);
-  const paymentBucket = getPaymentCollectionBucket(stop.payment_status, stop.payment_method, stop.source_channel);
-  const paymentLabel =
-    paymentBucket === "cash_pending"
-      ? "Efectivo pendiente"
-      : paymentBucket === "online_pending"
-        ? "Online pendiente"
-        : null;
+  const paymentType = getPaymentTypeConfig(stop.payment_status, stop.payment_method, stop.source_channel);
 
   function handleToggle() {
     const next = !optimisticCompleted;
@@ -163,9 +157,9 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
               <p className="font-mono text-xs font-semibold text-brand-600">{stop.booking_code}</p>
             )}
             <p className="text-xs font-semibold text-gray-700">{stop.customer_name}</p>
-            {paymentLabel && (
-              <p className="mt-1 text-[10px] font-semibold text-amber-700">{paymentLabel}</p>
-            )}
+            <p className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${paymentType.cls}`}>
+              {paymentType.label}
+            </p>
             {stop.booking_total != null && (
               <p className="text-xs font-bold text-green-700">{formatEUR(stop.booking_total)}</p>
             )}
@@ -236,9 +230,9 @@ export function StopRow({ stop, routeId, isFirst, isLast }: Props) {
               <p className="font-mono text-xs font-semibold text-brand-600">{stop.booking_code}</p>
             )}
             <p className="text-xs font-semibold text-gray-700">{stop.customer_name}</p>
-            {paymentLabel && (
-              <p className="mt-1 text-[10px] font-semibold text-amber-700">{paymentLabel}</p>
-            )}
+            <p className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${paymentType.cls}`}>
+              {paymentType.label}
+            </p>
           </div>
           {stop.booking_total != null && (
             <span className="text-sm font-bold text-green-700">{formatEUR(stop.booking_total)}</span>

@@ -24,7 +24,7 @@ export function OperativeBoard({ items }: Props) {
 
   const filtered = items.filter((item) => {
     if (tab !== "all" && item.operational_status !== tab) return false;
-    if (paymentFilter !== "all" && getPaymentCollectionBucket(item.payment_status, item.payment_method) !== paymentFilter) {
+    if (paymentFilter !== "all" && getPaymentCollectionBucket(item.payment_status, item.payment_method, item.source_channel) !== paymentFilter) {
       return false;
     }
     if (search.trim()) {

@@ -42,7 +42,7 @@ export function RouteBoard({ route }: Props) {
     return true;
   }).filter((stop) => {
     if (paymentFilter === "all") return true;
-    return getPaymentCollectionBucket(stop.payment_status, stop.payment_method) === paymentFilter;
+    return getPaymentCollectionBucket(stop.payment_status, stop.payment_method, stop.source_channel) === paymentFilter;
   });
 
   function handleDragStart(idx: number) {
