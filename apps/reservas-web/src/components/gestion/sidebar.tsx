@@ -4,7 +4,15 @@ import { BrandLogo } from "@/components/brand-logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "./logout-button";
-import { canAccessClosures, canManageAccommodations, canOpenDashboard } from "@/lib/gestion/permissions";
+import {
+  canAccessBookings,
+  canAccessClosures,
+  canAccessOperative,
+  canAccessRoutes,
+  canManageAccommodations,
+  canOpenDashboard,
+  getDefaultGestionPath,
+} from "@/lib/gestion/permissions";
 import type { StaffRole } from "@easybrais/types";
 
 interface NavItem {
@@ -88,6 +96,9 @@ export function Sidebar({ fullName, email, role }: Props) {
   const pathname = usePathname();
   const visibleItems = NAV_ITEMS.filter((item) => {
     if (item.href === "/gestion") return canOpenDashboard(role);
+    if (item.href === "/gestion/operativa") return canAccessOperative(role);
+    if (item.href === "/gestion/ruta") return canAccessRoutes(role);
+    if (item.href === "/gestion/reservas") return canAccessBookings(role);
     if (item.href === "/gestion/alojamientos") return canManageAccommodations(role);
     if (item.href === "/gestion/cierres") return canAccessClosures(role);
     return true;
@@ -96,7 +107,7 @@ export function Sidebar({ fullName, email, role }: Props) {
   return (
     <aside className="hidden w-52 shrink-0 flex-col border-r border-gray-200 bg-white md:flex lg:w-60">
       <div className="border-b border-gray-100 px-5 py-4">
-        <Link href="/gestion" className="flex items-center gap-3">
+        <Link href={getDefaultGestionPath(role)} className="flex items-center gap-3">
           <BrandLogo size="md" className="ring-1 ring-brand-100" imgClassName="p-0.5" />
           <div>
             <h1 className="text-lg font-bold text-brand-700">Easy Brais</h1>

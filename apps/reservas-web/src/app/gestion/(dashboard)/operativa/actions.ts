@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@easybrais/utils";
 import { requireAuth } from "@/lib/gestion/auth";
-import { assertDashboardAccess, PermissionError } from "@/lib/gestion/permissions";
+import { assertOperativeAccess, PermissionError } from "@/lib/gestion/permissions";
 import { sendCustomerIncidentReportedEmail } from "@/lib/email/reservations";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -19,7 +19,7 @@ export async function advanceItemStatus(itemId: string, newStatus: string) {
 
   try {
     const { userId, profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertOperativeAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: item, error: fetchErr } = await supabase
@@ -88,7 +88,7 @@ export async function reportIncident(
 
   try {
     const { userId, profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertOperativeAccess(profile.role);
     const supabase = createAdminClient();
     const trimmedMessage = message.trim();
 

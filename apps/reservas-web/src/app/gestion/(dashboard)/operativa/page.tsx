@@ -4,7 +4,7 @@ import { DateSelector } from "@/components/gestion/operativa/date-selector";
 import { StatusCounters } from "@/components/gestion/operativa/status-counters";
 import { OperativeBoard } from "@/components/gestion/operativa/operative-board";
 import { requireAuth } from "@/lib/gestion/auth";
-import { ensureDashboardAccess } from "@/lib/gestion/permissions";
+import { ensureOperativeAccess } from "@/lib/gestion/permissions";
 
 interface Props {
   searchParams: Promise<{ date?: string }>;
@@ -12,7 +12,7 @@ interface Props {
 
 export default async function OperativaPage({ searchParams }: Props) {
   const { profile } = await requireAuth();
-  ensureDashboardAccess(profile.role);
+  ensureOperativeAccess(profile.role);
 
   const params = await searchParams;
   const today = new Date().toISOString().split("T")[0] ?? "";

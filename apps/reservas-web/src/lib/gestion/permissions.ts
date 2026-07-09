@@ -36,20 +36,60 @@ export function canOpenDashboard(role: StaffRole): boolean {
   return role !== "chofer";
 }
 
+export function canAccessBookings(role: StaffRole): boolean {
+  return role !== "chofer";
+}
+
+export function canAccessOperative(role: StaffRole): boolean {
+  return role === "chofer" || canOpenDashboard(role);
+}
+
+export function canAccessRoutes(role: StaffRole): boolean {
+  return role === "chofer" || canOpenDashboard(role);
+}
+
+export function getDefaultGestionPath(role: StaffRole): string {
+  return role === "chofer" ? "/gestion/operativa" : "/gestion";
+}
+
 export function ensureDashboardAccess(role: StaffRole): void {
-  if (!canOpenDashboard(role)) redirect("/gestion/reservas");
+  if (!canOpenDashboard(role)) redirect(getDefaultGestionPath(role));
+}
+
+export function ensureBookingsAccess(role: StaffRole): void {
+  if (!canAccessBookings(role)) redirect(getDefaultGestionPath(role));
+}
+
+export function ensureOperativeAccess(role: StaffRole): void {
+  if (!canAccessOperative(role)) redirect(getDefaultGestionPath(role));
+}
+
+export function ensureRoutesAccess(role: StaffRole): void {
+  if (!canAccessRoutes(role)) redirect(getDefaultGestionPath(role));
 }
 
 export function ensureClosuresAccess(role: StaffRole): void {
-  if (!canAccessClosures(role)) redirect("/gestion/reservas");
+  if (!canAccessClosures(role)) redirect(getDefaultGestionPath(role));
 }
 
 export function ensureAccommodationsAccess(role: StaffRole): void {
-  if (!canManageAccommodations(role)) redirect("/gestion/reservas");
+  if (!canManageAccommodations(role)) redirect(getDefaultGestionPath(role));
 }
 
 export function assertDashboardAccess(role: StaffRole): void {
   if (!canOpenDashboard(role)) throw new PermissionError();
+}
+
+export function assertBookingsAccess(role: StaffRole): void {
+  if (!canAccessBookings(role)) throw new PermissionError();
+}
+
+export function assertOperativeAccess(role: StaffRole): void {
+  if (!canAccessOperative(role)) throw new PermissionError();
+}
+
+export function assertRoutesAccess(role: StaffRole): void {
+  if (!canAccessRoutes(role)) throw new PermissionError();
 }
 
 export function assertClosuresAccess(role: StaffRole): void {

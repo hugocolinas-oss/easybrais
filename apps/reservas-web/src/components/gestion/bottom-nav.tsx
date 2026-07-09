@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { canAccessClosures, canOpenDashboard } from "@/lib/gestion/permissions";
+import {
+  canAccessBookings,
+  canAccessClosures,
+  canAccessOperative,
+  canAccessRoutes,
+  canManageAccommodations,
+  canOpenDashboard,
+} from "@/lib/gestion/permissions";
 import type { StaffRole } from "@easybrais/types";
 
 interface NavItem {
@@ -79,6 +86,10 @@ export function BottomNav({ role }: { role: StaffRole }) {
   const pathname = usePathname();
   const visibleItems = NAV_ITEMS.filter((item) => {
     if (item.href === "/gestion") return canOpenDashboard(role);
+    if (item.href === "/gestion/operativa") return canAccessOperative(role);
+    if (item.href === "/gestion/ruta") return canAccessRoutes(role);
+    if (item.href === "/gestion/reservas") return canAccessBookings(role);
+    if (item.href === "/gestion/alojamientos") return canManageAccommodations(role);
     if (item.href === "/gestion/cierres") return canAccessClosures(role);
     return true;
   });
