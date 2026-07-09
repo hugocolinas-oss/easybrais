@@ -4,6 +4,7 @@ import { createAdminClient } from "@easybrais/utils";
 import { generateInvoicePdf, type InvoiceData } from "@easybrais/utils/pdf";
 import { getSmtpConfig, sendEmail, type EmailAttachment } from "@easybrais/utils/email";
 import { SUPPORTED_LOCALES, type Locale } from "@/lib/i18n/translations";
+import { buildWhatsAppHref } from "@/lib/phone";
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -12,6 +13,7 @@ const ADMIN_TEMPLATE = "admin_new_reservation";
 const CUSTOMER_TEMPLATE = "customer_reservation_confirmation";
 const CUSTOMER_PAYMENT_TEMPLATE = "customer_payment_confirmed";
 const CUSTOMER_INCIDENT_TEMPLATE = "customer_incident_reported";
+const EASYBRAIS_WHATSAPP = "+34 603 327 780";
 
 interface ReservationEmailContext {
   bookingId: string;
@@ -98,7 +100,7 @@ function getCustomerEmailCopy(locale: Locale) {
       notes: "Comentarios",
       noMoreSteps: "No tienes que hacer nada más. Nosotros nos encargamos de transportar tu equipaje hasta el destino indicado.",
       saveEmail: "Guarda este correo y el PDF adjunto como justificante de la reserva.",
-      reviewData: "Si detectas algún error o necesitas modificar algún dato, responde directamente a este correo y lo revisamos contigo.",
+      reviewData: "Si detectas algun error o necesitas modificar algun dato, escribenos por WhatsApp y lo revisamos contigo.",
       attachedPdf: "Te adjuntamos el PDF de la reserva como justificante.",
       farewell: "Buen Camino",
       footer: "Transporte de mochilas en el Camino Portugués",
@@ -120,7 +122,7 @@ function getCustomerEmailCopy(locale: Locale) {
       notes: "Notes",
       noMoreSteps: "You do not need to do anything else. We will transport your luggage to the selected destination.",
       saveEmail: "Keep this email and the attached PDF as your booking confirmation.",
-      reviewData: "If you spot any mistake or need to change any detail, reply directly to this email and we will review it with you.",
+      reviewData: "If you spot any mistake or need to change any detail, send us a WhatsApp message and we will review it with you.",
       attachedPdf: "We have attached the booking PDF as your receipt.",
       farewell: "Buen Camino",
       footer: "Luggage transport on the Portuguese Way",
@@ -142,7 +144,7 @@ function getCustomerEmailCopy(locale: Locale) {
       notes: "Observações",
       noMoreSteps: "Não precisa de fazer mais nada. Nós tratamos do transporte da sua bagagem até ao destino indicado.",
       saveEmail: "Guarde este email e o PDF em anexo como comprovativo da reserva.",
-      reviewData: "Se detetar algum erro ou precisar de alterar algum dado, responda diretamente a este email e revemos consigo.",
+      reviewData: "Se detetar algum erro ou precisar de alterar algum dado, envie-nos uma mensagem por WhatsApp e revemos consigo.",
       attachedPdf: "Enviamos em anexo o PDF da reserva como comprovativo.",
       farewell: "Bom Caminho",
       footer: "Transporte de mochilas no Caminho Português",
@@ -164,7 +166,7 @@ function getCustomerEmailCopy(locale: Locale) {
       notes: "Observations",
       noMoreSteps: "Vous n'avez rien d'autre à faire. Nous nous chargeons de transporter vos bagages jusqu'à la destination indiquée.",
       saveEmail: "Conservez cet email et le PDF joint comme justificatif de réservation.",
-      reviewData: "Si vous repérez une erreur ou devez modifier une information, répondez directement à cet email et nous la vérifierons avec vous.",
+      reviewData: "Si vous reperez une erreur ou devez modifier une information, ecrivez-nous sur WhatsApp et nous la verifierons avec vous.",
       attachedPdf: "Le PDF de la réservation est joint à cet email comme justificatif.",
       farewell: "Bon Chemin",
       footer: "Transport de bagages sur le Chemin Portugais",
@@ -186,7 +188,7 @@ function getCustomerEmailCopy(locale: Locale) {
       notes: "Hinweise",
       noMoreSteps: "Sie müssen nichts weiter tun. Wir kümmern uns um den Transport Ihres Gepäcks zum angegebenen Ziel.",
       saveEmail: "Bewahren Sie diese E-Mail und das beigefügte PDF als Buchungsbestätigung auf.",
-      reviewData: "Wenn Ihnen ein Fehler auffällt oder Sie Angaben ändern müssen, antworten Sie direkt auf diese E-Mail und wir prüfen es mit Ihnen.",
+      reviewData: "Wenn Ihnen ein Fehler auffallt oder Sie Angaben andern mussen, schreiben Sie uns per WhatsApp und wir prufen es mit Ihnen.",
       attachedPdf: "Das PDF der Buchung ist als Beleg beigefügt.",
       farewell: "Buen Camino",
       footer: "Gepäcktransport auf dem Portugiesischen Weg",
@@ -208,7 +210,7 @@ function getCustomerEmailCopy(locale: Locale) {
       notes: "Note",
       noMoreSteps: "Non devi fare altro. Ci occupiamo noi di trasportare il tuo bagaglio fino alla destinazione indicata.",
       saveEmail: "Conserva questa email e il PDF allegato come conferma della prenotazione.",
-      reviewData: "Se noti un errore o hai bisogno di modificare qualche dato, rispondi direttamente a questa email e lo controlleremo con te.",
+      reviewData: "Se noti un errore o hai bisogno di modificare qualche dato, scrivici su WhatsApp e lo controlleremo con te.",
       attachedPdf: "Ti alleghiamo il PDF della prenotazione come ricevuta.",
       farewell: "Buen Camino",
       footer: "Trasporto bagagli sul Cammino Portoghese",
@@ -416,6 +418,7 @@ function buildCustomerEmail(context: ReservationEmailContext) {
   const bagsCount = context.items.reduce((sum, item) => sum + item.bagsCount, 0);
   const overweightBagsText = getOverweightText(context.items);
   const subject = `${copy.subjectConfirmed} · Easy Brais · ${context.bookingCode}`;
+  const whatsappHref = buildWhatsAppHref(EASYBRAIS_WHATSAPP);
 
   const html = `<!DOCTYPE html>
 <html lang="${locale}">
@@ -435,6 +438,9 @@ function buildCustomerEmail(context: ReservationEmailContext) {
     <p style="margin:0 0 16px;line-height:1.7;">${copy.noMoreSteps}</p>
     <p style="margin:0 0 16px;line-height:1.7;">${copy.saveEmail}</p>
     <p style="margin:0 0 16px;line-height:1.7;">${copy.reviewData}</p>
+    ${whatsappHref
+      ? `<p style="margin:0 0 16px;line-height:1.7;"><strong>WhatsApp Easy Brais:</strong> <a href="${escapeHtml(whatsappHref)}" style="color:#166534;text-decoration:none;">${escapeHtml(EASYBRAIS_WHATSAPP)}</a></p>`
+      : ""}
     <p style="margin:0;line-height:1.7;">${copy.farewell}!<br /><br />Easy Brais<br />${copy.footer}</p>
   </div>
 </body>
