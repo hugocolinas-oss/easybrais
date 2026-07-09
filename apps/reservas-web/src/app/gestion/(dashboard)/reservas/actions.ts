@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient, PRICING_RULES } from "@easybrais/utils";
 import { requireAuth } from "@/lib/gestion/auth";
 import { OPERATIONAL_STATUSES } from "@/lib/gestion/booking-status";
-import { assertDashboardAccess, PermissionError } from "@/lib/gestion/permissions";
+import { assertBookingsAccess, PermissionError } from "@/lib/gestion/permissions";
 import { sendReservationEmails } from "@/lib/email/reservations";
 import { refreshRoute } from "@/app/gestion/(dashboard)/ruta/actions";
 
@@ -19,7 +19,7 @@ export async function changeBookingStatus(bookingId: string, newStatus: string) 
 
   try {
     const { userId, profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertBookingsAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: current, error: fetchErr } = await supabase
@@ -76,7 +76,7 @@ export async function updateBookingPrice(bookingId: string, newTotal: number) {
 
   try {
     const { userId, profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertBookingsAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: current, error: fetchErr } = await supabase
@@ -134,7 +134,7 @@ export async function updateBookingItem(
 
   try {
     const { userId, profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertBookingsAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: item, error: fetchErr } = await supabase
@@ -217,7 +217,7 @@ export async function updateBookingItemServiceDate(itemId: string, serviceDate: 
 
   try {
     const { userId, profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertBookingsAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: item, error: fetchErr } = await supabase
@@ -332,7 +332,7 @@ export async function updateBookingItemAccommodation(
 
   try {
     const { userId, profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertBookingsAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: item, error: fetchErr } = await supabase
@@ -398,7 +398,7 @@ export async function updateInternalNotes(bookingId: string, notes: string) {
 
   try {
     const { userId, profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertBookingsAccess(profile.role);
     const supabase = createAdminClient();
 
     const { error } = await supabase
@@ -437,7 +437,7 @@ export async function deleteBooking(bookingId: string) {
 
   try {
     const { profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertBookingsAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: booking, error: fetchErr } = await supabase
@@ -524,7 +524,7 @@ export async function resendReservationEmails(bookingId: string) {
 
   try {
     const { profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertBookingsAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: booking, error } = await supabase
