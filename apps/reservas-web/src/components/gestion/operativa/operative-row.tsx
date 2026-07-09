@@ -4,7 +4,7 @@ import { useState, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
 import type { OperativeItem } from "@/lib/gestion/operative-queries";
 import { advanceItemStatus, reportIncident } from "@/app/gestion/(dashboard)/operativa/actions";
-import { getPaymentCollectionBucket } from "@/lib/gestion/payment-status";
+import { getPaymentTypeConfig } from "@/lib/gestion/payment-status";
 import { IncidentFlag } from "@/components/gestion/reservas/incident-flag";
 
 interface Props {
@@ -107,13 +107,7 @@ export function OperativeRow({ item }: Props) {
 
   const cfg = STATUS_MAP[optimisticStatus] ?? STATUS_OPTIONS[0];
   const next = FLOW_NEXT[optimisticStatus] as { status: string; label: string; icon: string } | undefined;
-  const paymentBucket = getPaymentCollectionBucket(item.payment_status, item.payment_method, item.source_channel);
-  const paymentLabel =
-    paymentBucket === "cash_pending"
-      ? "Efectivo pendiente"
-      : paymentBucket === "online_pending"
-        ? "Online pendiente"
-        : null;
+  const paymentType = getPaymentTypeConfig(item.payment_status, item.payment_method, item.source_channel);
 
   function changeStatus(newStatus: string) {
     if (newStatus === optimisticStatus) return;
@@ -188,11 +182,9 @@ export function OperativeRow({ item }: Props) {
             {item.bags_count} 🎒
           </span>
 
-          {paymentLabel && (
-            <span className="hidden shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 lg:inline-flex">
-              {paymentLabel}
-            </span>
-          )}
+          <span className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold lg:inline-flex ${paymentType.cls}`}>
+            {paymentType.label}
+          </span>
 
           {item.incident_reason && (
             <div className="hidden lg:block">
@@ -241,13 +233,11 @@ export function OperativeRow({ item }: Props) {
             <span className="text-xs text-gray-400">{item.customer_name}</span>
             <StatusDropdown currentStatus={optimisticStatus} onSelect={changeStatus} disabled={pending} />
           </div>
-          {paymentLabel && (
-            <div className="mt-1">
-              <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-                {paymentLabel}
-              </span>
-            </div>
-          )}
+          <div className="mt-1">
+            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${paymentType.cls}`}>
+              {paymentType.label}
+            </span>
+          </div>
           {item.incident_reason && (
             <div className="mt-1">
               <IncidentFlag reason={item.incident_reason} compact />

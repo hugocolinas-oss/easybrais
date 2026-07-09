@@ -63,3 +63,33 @@ export function getPaymentStatusConfig(
 
   return { label: "Pago pendiente", cls: "text-amber-700 bg-amber-50" };
 }
+
+export function getPaymentTypeConfig(
+  paymentStatus: string | null | undefined,
+  paymentMethod: string | null | undefined,
+  sourceChannel?: string | null,
+): PaymentStatusConfig {
+  if (paymentStatus === "refunded") {
+    return { label: "Reembolsado", cls: "text-gray-600 bg-gray-100" };
+  }
+
+  const bucket = getPaymentCollectionBucket(paymentStatus, paymentMethod, sourceChannel);
+
+  if (bucket === "cash_pending") {
+    return { label: "Efectivo", cls: "text-amber-700 bg-amber-50" };
+  }
+
+  if (bucket === "online_pending") {
+    return { label: "Online", cls: "text-sky-700 bg-sky-50" };
+  }
+
+  if (paymentMethod === "cash") {
+    return { label: "Efectivo", cls: "text-green-700 bg-green-50" };
+  }
+
+  if (paymentMethod) {
+    return { label: "Online", cls: "text-green-700 bg-green-50" };
+  }
+
+  return { label: "Pagado", cls: "text-green-700 bg-green-50" };
+}
