@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@easybrais/utils";
 import { requireAuth } from "@/lib/gestion/auth";
-import { assertDashboardAccess, PermissionError } from "@/lib/gestion/permissions";
+import { assertRoutesAccess, PermissionError } from "@/lib/gestion/permissions";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -31,7 +31,7 @@ export async function generateRoute(date: string) {
 
   try {
     const { userId, profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertRoutesAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: existing } = await supabase
@@ -183,7 +183,7 @@ export async function refreshRoute(routeId: string, routeDate: string) {
 
   try {
     const { userId, profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertRoutesAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: existingStops } = await supabase
@@ -324,7 +324,7 @@ export async function deleteRoute(routeId: string) {
 
   try {
     const { profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertRoutesAccess(profile.role);
     const supabase = createAdminClient();
 
     const { error } = await supabase
@@ -356,7 +356,7 @@ export async function swapStopPositions(
 
   try {
     const { profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertRoutesAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: stops, error: fetchErr } = await supabase
@@ -427,7 +427,7 @@ export async function toggleStopCompleted(stopId: string, completed: boolean) {
 
   try {
     const { userId, profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertRoutesAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: stop, error: stopFetchErr } = await supabase
@@ -616,7 +616,7 @@ export async function reorderStops(
 
   try {
     const { profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertRoutesAccess(profile.role);
     const supabase = createAdminClient();
 
     const tempBase = -Math.floor(Date.now() / 1000) - orderedStopIds.length - 1000;
@@ -662,7 +662,7 @@ export async function updateRouteStatus(routeId: string, status: string) {
 
   try {
     const { profile } = await requireAuth();
-    assertDashboardAccess(profile.role);
+    assertRoutesAccess(profile.role);
     const supabase = createAdminClient();
 
     const { error } = await supabase
