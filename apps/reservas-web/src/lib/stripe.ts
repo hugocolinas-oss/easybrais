@@ -18,10 +18,9 @@ export function getStripe(): Stripe {
 }
 
 export function isStripeConfigured(): boolean {
-  return !!(
-    process.env.STRIPE_SECRET_KEY
-    && process.env.STRIPE_WEBHOOK_SECRET
-  );
+  return process.env.STRIPE_PAYMENTS_ENABLED === "true"
+    && !!process.env.STRIPE_SECRET_KEY
+    && !!process.env.STRIPE_WEBHOOK_SECRET;
 }
 
 export function getStripeReturnOrigin(requestOrigin: string): string {
