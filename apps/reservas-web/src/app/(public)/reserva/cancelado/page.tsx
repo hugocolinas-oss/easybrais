@@ -2,20 +2,22 @@ import { createAdminClient } from "@easybrais/utils";
 import Link from "next/link";
 
 interface Props {
-  searchParams: Promise<{ booking_id?: string }>;
+  searchParams: Promise<{ booking_id?: string; booking_code?: string }>;
 }
 
 export default async function PaymentCancelledPage({ searchParams }: Props) {
   const params = await searchParams;
   const bookingId = params.booking_id;
+  const requestedBookingCode = params.booking_code;
   let bookingCode: string | null = null;
 
-  if (bookingId) {
+  if (bookingId && requestedBookingCode) {
     const supabase = createAdminClient();
     const { data } = await supabase
       .from("bookings")
       .select("booking_code")
       .eq("id", bookingId)
+      .eq("booking_code", requestedBookingCode)
       .single();
     bookingCode = data?.booking_code ?? null;
   }

@@ -195,7 +195,7 @@ export async function createBooking(
         legsCount: data.legs.length,
         firstServiceDate: data.legs[0]?.serviceDate ?? "",
         pricing,
-        stripeEnabled: isStripeConfigured(),
+        stripeEnabled: data.paymentMethod !== "cash" && isStripeConfigured(),
         customerEmailSent: false,
         customerEmailError: "Solicitud duplicada: esta reserva ya estaba registrada. Revisa tu correo (incl. spam) o contacta con nosotros.",
       };

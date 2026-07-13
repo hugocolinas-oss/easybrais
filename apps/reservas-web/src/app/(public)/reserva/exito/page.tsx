@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { BRAND_LOGO_SRC } from "@/lib/brand";
 import { getPaymentStatusConfig } from "@/lib/gestion/payment-status";
+import { getStripe } from "@/lib/stripe";
 
 interface Props {
   searchParams: Promise<{ session_id?: string; booking_id?: string }>;
@@ -11,11 +12,31 @@ interface Props {
 export default async function PaymentSuccessPage({ searchParams }: Props) {
   const params = await searchParams;
   const bookingId = params.booking_id;
+  const sessionId = params.session_id;
 
-  if (!bookingId) {
+  if (!bookingId || !sessionId) {
     return (
       <div className="mx-auto max-w-lg py-12 text-center">
         <p className="text-sm text-brand-800/50">Parámetros inválidos.</p>
+        <Link href="/" className="mt-4 inline-block text-sm font-semibold text-brand-900 underline">
+          Volver al inicio
+        </Link>
+      </div>
+    );
+  }
+
+  try {
+    const session = await getStripe().checkout.sessions.retrieve(sessionId);
+    if (
+      session.metadata?.booking_id !== bookingId
+      || session.client_reference_id !== bookingId
+    ) {
+      throw new Error("Stripe session does not match booking");
+    }
+  } catch {
+    return (
+      <div className="mx-auto max-w-lg py-12 text-center">
+        <p className="text-sm text-brand-800/50">No se ha podido validar el pago.</p>
         <Link href="/" className="mt-4 inline-block text-sm font-semibold text-brand-900 underline">
           Volver al inicio
         </Link>
@@ -39,6 +60,7 @@ export default async function PaymentSuccessPage({ searchParams }: Props) {
        )`,
     )
     .eq("id", bookingId)
+    .eq("stripe_session_id", sessionId)
     .single();
 
   if (!booking) {

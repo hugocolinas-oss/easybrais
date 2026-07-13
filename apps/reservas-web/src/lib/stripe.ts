@@ -18,5 +18,19 @@ export function getStripe(): Stripe {
 }
 
 export function isStripeConfigured(): boolean {
-  return !!process.env.STRIPE_SECRET_KEY;
+  return !!(
+    process.env.STRIPE_SECRET_KEY
+    && process.env.STRIPE_WEBHOOK_SECRET
+  );
+}
+
+export function getStripeReturnOrigin(requestOrigin: string): string {
+  const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  const url = new URL(configuredOrigin || requestOrigin);
+
+  if (process.env.NODE_ENV === "production" && url.protocol !== "https:") {
+    throw new Error("Stripe return URL must use HTTPS in production");
+  }
+
+  return url.origin;
 }
