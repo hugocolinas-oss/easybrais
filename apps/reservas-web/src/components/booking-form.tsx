@@ -19,6 +19,60 @@ const FULL_CAMINO_LEGS = 8;
 
 type PaymentMethod = "online" | "cash";
 
+const LOCKER_CITIES = [
+  {
+    city: "Vigo",
+    payOnPickup: true,
+    spots: [
+      { name: "Hostel Ancla Dorada", price: "3€ / mochila", url: "https://goo.su/KLEAU" },
+      { name: "Chocolatería Ocumare", price: "1€", url: "https://maps.app.goo.gl/P19L5ZN24yzGoTEWA" },
+    ],
+  },
+  {
+    city: "Redondela",
+    payOnPickup: false,
+    spots: [
+      { name: "Cafetería La Farola", url: "https://maps.app.goo.gl/G6BwMV4FY28NFkD2A?g_st=ic" },
+      { name: "Royal Picasso", url: "https://maps.app.goo.gl/mutqCzLYmrDKQmKt6?g_st=aw" },
+      { name: "Vinarius", url: "https://share.google/nu3dzqe4gW7CeCy4J" },
+    ],
+  },
+  {
+    city: "Pontevedra",
+    payOnPickup: true,
+    spots: [
+      { name: "Albergue GBC", price: "2€ / mochila", url: "https://maps.app.goo.gl/t6SXUF3rK8yV8xK37?g_st=ic" },
+      { name: "Pensión Santa Clara", price: "3€ / mochila", url: "https://maps.app.goo.gl/uBgedmpFpSdSikVo9?g_st=ic" },
+    ],
+  },
+  {
+    city: "Caldas de Reis",
+    payOnPickup: true,
+    spots: [
+      { name: "GBC Caldas", price: "2€ / mochila", url: "https://maps.app.goo.gl/SxnMeaxuaCPi2vWi9?g_st=ic" },
+      { name: "Albergue Urraka", price: "2€ / mochila", url: "https://maps.app.goo.gl/oXXTamKnwN4PGoN88?g_st=ic" },
+    ],
+  },
+  {
+    city: "Padrón",
+    payOnPickup: true,
+    spots: [
+      { name: "Albergue Da Meiga", price: "3€ / mochila", url: "https://maps.app.goo.gl/22TEqa3YZ7RCNqxa8?g_st=ic" },
+      { name: "Albergue Murgadán", price: "3€ / mochila", url: "https://maps.app.goo.gl/3FhpJr6HSsNcEg57A?g_st=ic" },
+    ],
+  },
+  {
+    city: "Santiago",
+    payOnPickup: true,
+    spots: [
+      { name: "Santiago Lockers", price: "2,50€ / mochila", url: "https://maps.app.goo.gl/igtjdgJfRJpzrutk7?g_st=ipc" },
+      { name: "Hotel Hórreo", price: "3€ / mochila", url: "https://maps.app.goo.gl/2fFoZeS95mu1HCBJ8?g_st=ic" },
+      { name: "Albergue The Last Stamp", price: "3€ / mochila", url: "https://maps.app.goo.gl/DfXrJP8bLtqcXcCS7?g_st=ic" },
+      { name: "Albergue KM0", price: "5€ / mochila", url: "https://maps.google.com?q=Albergue%20Santiago%20KM0,%20R%C3%BAa%20das%20Carretas,%2011,%2015705%20Santiago%20de%20Compostela,%20A%20Coru%C3%B1a&ftid=0xd2effe210d79ffd:0x14b9efccb0e5552c&hl=es-ES&gl=es&entry=gps&lucs=,47071704&g_st=ic" },
+    ],
+  },
+] as const;
+
 function createLeg(): StageLeg {
   return {
     id: crypto.randomUUID(),
@@ -336,6 +390,8 @@ export function BookingForm({ allAccommodations }: Props) {
           </FormSection>
 
           {/* Section 2: Transport Legs */}
+          <LockerHelp />
+
           <FormSection step={2} title={t("section.details")} subtitle={t("section.details.sub")}>
             <div className="space-y-4">
               {legs.map((leg, i) => {
@@ -642,6 +698,64 @@ function PriceBreakdown({ pricing }: { pricing: ReturnType<typeof calculatePrici
           <span>+{formatEUR(pricing.extraWeightAmount)}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+function LockerHelp() {
+  return (
+    <div className="rounded-2xl border border-sky-200/80 bg-white shadow-card">
+      <div className="border-b border-sky-100 bg-sky-50/70 px-4 py-3 sm:px-5">
+        <p className="text-sm font-bold text-brand-900">Consignas / lockers</p>
+        <p className="mt-1 text-sm text-brand-800/70">
+          Si no encuentras tu alojamiento, escoge la consigna o locker más cercana. Tienes opciones en todas estas ciudades.
+        </p>
+      </div>
+
+      <div className="space-y-3 px-4 py-4 sm:px-5">
+        <div className="rounded-xl border border-amber-200/80 bg-amber-50 px-3.5 py-3 text-sm text-amber-900">
+          El precio de la consigna se paga cuando vayas a recoger tu equipaje, salvo que el establecimiento indique otra cosa.
+        </div>
+
+        <div className="space-y-2">
+          {LOCKER_CITIES.map((city) => (
+            <details key={city.city} className="group overflow-hidden rounded-xl border border-cream-300/80 bg-cream-50/40">
+              <summary className="flex cursor-pointer items-center justify-between gap-3 px-3.5 py-3 text-sm font-semibold text-brand-900 marker:hidden">
+                <span>{city.city}</span>
+                <svg className="h-4 w-4 shrink-0 text-brand-800/45 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </summary>
+
+              <div className="space-y-2 border-t border-cream-200/80 bg-white px-3.5 py-3">
+                {city.payOnPickup && (
+                  <p className="text-xs font-medium text-brand-800/55">
+                    El precio de la consigna se paga al recoger el equipaje.
+                  </p>
+                )}
+
+                {city.spots.map((spot) => (
+                  <a
+                    key={`${city.city}-${spot.name}`}
+                    href={spot.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded-lg border border-cream-200 px-3 py-2.5 transition-colors hover:border-sky-300 hover:bg-sky-50/50"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-brand-900">{spot.name}</p>
+                        {spot.price && <p className="mt-0.5 text-xs text-brand-800/55">{spot.price}</p>}
+                      </div>
+                      <span className="shrink-0 text-xs font-semibold text-sky-700">Abrir mapa</span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </details>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
