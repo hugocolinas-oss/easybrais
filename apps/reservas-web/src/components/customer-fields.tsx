@@ -8,7 +8,7 @@ interface CustomerData {
   fullName: string;
   email: string;
   phone: string;
-  language: string;
+  language: Locale;
   notes: string;
 }
 
@@ -31,7 +31,7 @@ export function CustomerFields({ value, onChange, errors }: Props) {
   const { t } = useT();
 
   function update(field: keyof CustomerData, v: string) {
-    onChange({ ...value, [field]: v });
+    onChange({ ...value, [field]: v as CustomerData[typeof field] });
   }
 
   return (
