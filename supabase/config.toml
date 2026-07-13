@@ -1,10 +1,6 @@
-[project]
-id = "easybrais"
-name = "Easy Brais"
+project_id = "easybrais"
 
 [db]
-# Migrations directory relative to supabase/
-migrations_dir = "migrations"
 
 [auth]
 site_url = "http://localhost:3000"

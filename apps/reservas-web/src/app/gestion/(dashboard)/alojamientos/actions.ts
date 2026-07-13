@@ -6,6 +6,14 @@ import { getServerSupabase } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/gestion/auth";
 import { assertAccommodationsAccess, PermissionError } from "@/lib/gestion/permissions";
 
+function getStageCode(externalCode: string | null): number | null {
+  if (!externalCode) return null;
+  const match = externalCode.match(/^(\d+)\./);
+  if (!match) return null;
+  const code = Number.parseInt(match[1] ?? "", 10);
+  return Number.isNaN(code) ? null : code;
+}
+
 // ---------------------------------------------------------------------------
 // Create
 // ---------------------------------------------------------------------------
@@ -38,6 +46,10 @@ export async function createAccommodation(fields: {
     const town = fields.town?.trim() || null;
 
     const supabase = await getServerSupabase();
+    const stageCode = getStageCode(externalCode);
+    const { data: routeStage } = stageCode === null
+      ? { data: null }
+      : await supabase.from("route_stages").select("id, name").eq("code", stageCode).maybeSingle();
 
     // Duplicate check: same name + same town
     const { data: dup } = await supabase
@@ -69,7 +81,7 @@ export async function createAccommodation(fields: {
         name,
         display_name: displayName,
         external_code: externalCode,
-        stage_name: fields.stage_name?.trim() || null,
+        stage_name: fields.stage_name?.trim() || routeStage?.name || null,
         town,
         route_name: fields.route_name?.trim() || null,
         address: fields.address?.trim() || null,
@@ -80,6 +92,7 @@ export async function createAccommodation(fields: {
         sort_order: fields.sort_order,
         internal_notes: fields.internal_notes?.trim() || null,
         reservation_notes: fields.reservation_notes?.trim() || null,
+        route_stage_id: routeStage?.id ?? null,
       })
       .select("id")
       .single();
@@ -145,6 +158,10 @@ export async function updateAccommodation(
     const normalizedAddress = fields.address?.trim() || null;
     const normalizedPhone = fields.contact_phone?.trim() || null;
     const normalizedEmail = fields.contact_email?.trim() || null;
+    const stageCode = getStageCode(normalizedExternalCode);
+    const { data: routeStage } = stageCode === null
+      ? { data: null }
+      : await supabase.from("route_stages").select("id, name").eq("code", stageCode).maybeSingle();
 
     if (normalizedExternalCode) {
       const { data: codeDup } = await supabase
@@ -184,12 +201,13 @@ export async function updateAccommodation(
       name: normalizedName,
       display_name: normalizedDisplayName || normalizedName || undefined,
       external_code: normalizedExternalCode,
-      stage_name: normalizedStageName,
       town: normalizedTown,
       route_name: normalizedRouteName,
       address: normalizedAddress,
       contact_phone: normalizedPhone,
       contact_email: normalizedEmail,
+      route_stage_id: routeStage?.id ?? null,
+      stage_name: normalizedStageName || routeStage?.name || null,
     };
 
     const { error } = await supabase

@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAdminClient, calculatePricing, getRealEtapas, resolvePerBagPrice, type PricingBreakdown } from "@easybrais/utils";
+import { createAdminClient, calculatePricing, getRealEtapas, getRealEtapasForStages, resolvePerBagPrice, resolveRouteStagePrice, type PricingBreakdown } from "@easybrais/utils";
 import type { BookingFormData } from "@/lib/types";
 import { isStripeConfigured } from "@/lib/stripe";
 import { sendReservationEmails } from "@/lib/email/reservations";
-import { normalizePhoneValue } from "@/lib/phone";
-import { getAccommodationSequence } from "@/lib/accommodation-order";
+import { isPhoneValueValid, normalizePhoneValue } from "@/lib/phone";
+import { getAccommodationPricingStage, getAccommodationSequence, isValidAccommodationLeg } from "@/lib/accommodation-order";
+import type { RouteStage } from "@/lib/types";
 import { SUPPORTED_LOCALES, type Locale } from "@/lib/i18n/translations";
 
 // ---------------------------------------------------------------------------
@@ -80,6 +81,7 @@ export async function createBooking(
   const normalizedPhone = normalizePhoneValue(data.customer.phone ?? "");
   const normalizedLanguage = normalizeCustomerLanguage(data.customer.language);
   if (!normalizedPhone) return fail("El teléfono es obligatorio.");
+  if (!isPhoneValueValid(normalizedPhone)) return fail("El teléfono no es válido.");
   if (normalizedPhone && normalizedPhone.length > 30)
     return fail("El teléfono es demasiado largo.");
   if (data.customer.notes && data.customer.notes.length > 500)
@@ -111,11 +113,11 @@ export async function createBooking(
 
     const { data: accRows } = await supabase
       .from("accommodations")
-      .select("id, external_code, sort_order")
+      .select("id, external_code, sort_order, route_stage:route_stages!accommodations_route_stage_id_fkey(code, name, route_section, branch_sequence, price_to_redondela)")
       .in("id", uniqueAccIds);
 
-    type AccRow = { id: string; external_code: string | null; sort_order: number };
-    const accLookup = new Map((accRows ?? []).map((a: AccRow) => [a.id, a]));
+    type AccRow = { id: string; external_code: string | null; sort_order: number; route_stage: RouteStage | null };
+    const accLookup = new Map(((accRows ?? []) as unknown as AccRow[]).map((a) => [a.id, a]));
 
     function stageNumber(code: string | null): number | null {
       if (!code) return null;
@@ -126,32 +128,45 @@ export async function createBooking(
     function getLegPrefixes(pickupId: string, dropoffId: string) {
       const p = stageNumber(accLookup.get(pickupId)?.external_code ?? null);
       const d = stageNumber(accLookup.get(dropoffId)?.external_code ?? null);
-      const etapas = p !== null && d !== null ? getRealEtapas(p, d) : 1;
-      return { pickupPrefix: p, dropoffPrefix: d, stagesCount: etapas };
+      const pickupAcc = accLookup.get(pickupId);
+      const dropoffAcc = accLookup.get(dropoffId);
+      const pickupStage = pickupAcc ? getAccommodationPricingStage(pickupAcc) : null;
+      const dropoffStage = dropoffAcc ? getAccommodationPricingStage(dropoffAcc) : null;
+      const etapas = pickupStage && dropoffStage
+        ? getRealEtapasForStages(pickupStage, dropoffStage)
+        : p !== null && d !== null ? getRealEtapas(p, d) : 1;
+      return { pickupPrefix: p, dropoffPrefix: d, stagesCount: etapas, pickupStage, dropoffStage };
     }
 
     for (const [i, leg] of data.legs.entries()) {
       const pickupSeq = getAccommodationSequence(
-        accLookup.get(leg.pickupAccommodationId) ?? { external_code: null, sort_order: 0 },
+        accLookup.get(leg.pickupAccommodationId) ?? { external_code: null, sort_order: 0, route_stage: null },
       );
       const dropoffSeq = getAccommodationSequence(
-        accLookup.get(leg.dropoffAccommodationId) ?? { external_code: null, sort_order: 0 },
+        accLookup.get(leg.dropoffAccommodationId) ?? { external_code: null, sort_order: 0, route_stage: null },
       );
       const { pickupPrefix, dropoffPrefix } = getLegPrefixes(leg.pickupAccommodationId, leg.dropoffAccommodationId);
-      if (pickupSeq !== null && dropoffSeq !== null && dropoffSeq < pickupSeq) {
+      const pickupAcc = accLookup.get(leg.pickupAccommodationId);
+      const dropoffAcc = accLookup.get(leg.dropoffAccommodationId);
+      const invalidByStage = pickupAcc && dropoffAcc && pickupAcc.route_stage && dropoffAcc.route_stage
+        ? !isValidAccommodationLeg(pickupAcc, dropoffAcc)
+        : false;
+      if (invalidByStage || (pickupSeq !== null && dropoffSeq !== null && dropoffSeq < pickupSeq)) {
         return fail(`Tramo ${i + 1}: la entrega (código ${dropoffPrefix}) no puede ser anterior a la recogida (código ${pickupPrefix}).`);
       }
     }
 
     const pricing = calculatePricing(
       data.legs.map((l) => {
-        const { pickupPrefix, dropoffPrefix, stagesCount } = getLegPrefixes(l.pickupAccommodationId, l.dropoffAccommodationId);
+        const { pickupPrefix, dropoffPrefix, stagesCount, pickupStage, dropoffStage } = getLegPrefixes(l.pickupAccommodationId, l.dropoffAccommodationId);
         return {
           bagsCount: l.bagsCount,
           overweightBagsCount: l.overweightBagsCount,
           stagesCount,
           pickupPrefix,
           dropoffPrefix,
+          pickupStage,
+          dropoffStage,
         };
       }),
     );
@@ -286,8 +301,10 @@ export async function createBooking(
     /* ── 4. Create booking items ──────────────────────────────────── */
 
     const items = data.legs.map((leg) => {
-      const { pickupPrefix, dropoffPrefix, stagesCount } = getLegPrefixes(leg.pickupAccommodationId, leg.dropoffAccommodationId);
-      const perBag = resolvePerBagPrice(pickupPrefix, dropoffPrefix, stagesCount);
+      const { pickupPrefix, dropoffPrefix, stagesCount, pickupStage, dropoffStage } = getLegPrefixes(leg.pickupAccommodationId, leg.dropoffAccommodationId);
+      const perBag = pickupStage && dropoffStage
+        ? resolveRouteStagePrice(pickupStage, dropoffStage)
+        : resolvePerBagPrice(pickupPrefix, dropoffPrefix, stagesCount);
       return {
         booking_id: booking.id,
         service_date: leg.serviceDate,

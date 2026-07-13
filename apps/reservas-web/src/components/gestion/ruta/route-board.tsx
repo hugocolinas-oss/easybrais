@@ -178,29 +178,44 @@ export function RouteBoard({ route }: Props) {
         </div>
       ) : (
         <div className="pl-1">
-          {filtered.map((stop, i) => (
-            <div
-              key={stop.id}
-              draggable
-              onDragStart={() => handleDragStart(i)}
-              onDragOver={(e) => handleDragOver(e, i)}
-              onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
-              onDrop={() => handleDrop(i)}
-              onTouchStart={(e) => handleTouchStart(e, i)}
-              onTouchEnd={(e) => handleTouchEnd(e)}
-              className={`transition-opacity ${
-                dragIdx === i ? "opacity-40" : ""
-              } ${overIdx === i && dragIdx !== i ? "border-t-2 border-brand-500" : ""}`}
-            >
-              <StopRow
-                stop={stop}
-                routeId={route.id}
-                isFirst={i === 0}
-                isLast={i === filtered.length - 1}
-                totalStops={filtered.length}
-              />
-            </div>
-          ))}
+          {filtered.map((stop, i) => {
+            const previous = filtered[i - 1];
+            const startsCentral = stop.route_section === "central" && previous?.route_section !== "central";
+            return (
+              <div key={stop.id}>
+                {startsCentral && (
+                  <div className="my-4 flex items-center gap-3" aria-label="Inicio del Camino Central">
+                    <div className="h-px flex-1 bg-brand-200" />
+                    <div className="rounded-full border border-brand-200 bg-brand-50 px-4 py-2 text-center shadow-sm">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-700">Camino Central</p>
+                      <p className="mt-0.5 text-[11px] font-medium text-brand-900/65">Valença · Tui · O Porriño</p>
+                    </div>
+                    <div className="h-px flex-1 bg-brand-200" />
+                  </div>
+                )}
+                <div
+                  draggable
+                  onDragStart={() => handleDragStart(i)}
+                  onDragOver={(e) => handleDragOver(e, i)}
+                  onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
+                  onDrop={() => handleDrop(i)}
+                  onTouchStart={(e) => handleTouchStart(e, i)}
+                  onTouchEnd={(e) => handleTouchEnd(e)}
+                  className={`transition-opacity ${
+                    dragIdx === i ? "opacity-40" : ""
+                  } ${overIdx === i && dragIdx !== i ? "border-t-2 border-brand-500" : ""}`}
+                >
+                  <StopRow
+                    stop={stop}
+                    routeId={route.id}
+                    isFirst={i === 0}
+                    isLast={i === filtered.length - 1}
+                    totalStops={filtered.length}
+                  />
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

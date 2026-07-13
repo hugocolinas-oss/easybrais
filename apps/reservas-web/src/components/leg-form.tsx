@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import type { StageLeg, Accommodation } from "@/lib/types";
 import { useT } from "@/lib/i18n/context";
-import { getAccommodationSequence } from "@/lib/accommodation-order";
+import { isValidAccommodationLeg } from "@/lib/accommodation-order";
 import { AccommodationCombobox } from "./accommodation-combobox";
 
 interface Props {
@@ -31,23 +31,20 @@ export function LegForm({
 }: Props) {
   const pickupAccommodations = allAccommodations;
 
-  const pickupCode = useMemo(() => {
+  const pickupAccommodation = useMemo(() => {
     const pickupAcc = allAccommodations.find((a) => a.id === leg.pickupAccommodationId);
-    return pickupAcc ? getAccommodationSequence(pickupAcc) : null;
+    return pickupAcc ?? null;
   }, [allAccommodations, leg.pickupAccommodationId]);
 
   const dropoffAccommodations = useMemo(() => {
     let list = allAccommodations;
 
-    if (pickupCode !== null) {
-      list = list.filter((a) => {
-        const c = getAccommodationSequence(a);
-        return c === null || c >= pickupCode;
-      });
+    if (pickupAccommodation) {
+      list = list.filter((a) => isValidAccommodationLeg(pickupAccommodation, a));
     }
 
     return list;
-  }, [allAccommodations, pickupCode]);
+  }, [allAccommodations, pickupAccommodation]);
 
   function update(field: keyof StageLeg, value: string | number) {
     const next = { ...leg, [field]: value };

@@ -3,11 +3,16 @@ export { formatDate, fmtDateShort, formatTime } from "./format";
 export {
   PRICING_RULES,
   getRealEtapas,
+  getRealEtapasForStages,
   resolvePerBagPrice,
+  resolveRouteStagePrice,
+  isRouteStageLegValid,
   calculatePricing,
   formatEUR,
   type PricingInput,
   type PricingBreakdown,
+  type RoutePricingStage,
+  type RouteSection,
 } from "./pricing";
 
 export {

@@ -36,21 +36,29 @@ export function PhoneInput({
   const initial = splitPhoneNumber(value);
   const [countryCode, setCountryCode] = useState(initial.country.code);
   const [nationalNumber, setNationalNumber] = useState(initial.nationalNumber);
+  const countryCodeRef = useRef(initial.country.code);
 
   useEffect(() => {
-    const next = splitPhoneNumber(value, countryCode);
+    if (!value.trim()) {
+      setNationalNumber("");
+      return;
+    }
+
+    const next = splitPhoneNumber(value, countryCodeRef.current);
+    countryCodeRef.current = next.country.code;
     setCountryCode(next.country.code);
     setNationalNumber(next.nationalNumber);
-  }, [value, countryCode]);
+  }, [value]);
 
   function handleCountryChange(nextCountryCode: string) {
+    countryCodeRef.current = nextCountryCode;
     setCountryCode(nextCountryCode);
     onChange(nationalNumber.trim() ? normalizePhoneValue(nationalNumber, nextCountryCode) : "");
   }
 
   function handleNumberChange(nextNationalNumber: string) {
     setNationalNumber(nextNationalNumber);
-    onChange(nextNationalNumber.trim() ? normalizePhoneValue(nextNationalNumber, countryCode) : "");
+    onChange(nextNationalNumber.trim() ? normalizePhoneValue(nextNationalNumber, countryCodeRef.current) : "");
   }
 
   const borderClass = error
