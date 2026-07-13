@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { getAccommodationById } from "@/lib/gestion/accommodation-queries";
 import { EditAccommodationForm } from "@/components/gestion/alojamientos/edit-form";
-import { MarkVerifiedButton } from "@/components/gestion/alojamientos/toggle-buttons";
 import { DeleteAccommodationButton } from "@/components/gestion/alojamientos/delete-accommodation-button";
 import { requireAuth } from "@/lib/gestion/auth";
 import { ensureAccommodationsAccess } from "@/lib/gestion/permissions";
@@ -37,14 +36,6 @@ export default async function AccommodationDetailPage({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <MarkVerifiedButton id={accommodation.id} />
-          {accommodation.last_verified_at && (
-            <span className="text-xs text-gray-400">
-              Verificado: {new Date(accommodation.last_verified_at).toLocaleDateString("es-ES")}
-            </span>
-          )}
-        </div>
       </div>
 
       {/* Coordinates info */}

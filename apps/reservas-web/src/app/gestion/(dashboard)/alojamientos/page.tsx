@@ -139,7 +139,6 @@ export default async function AlojamientosPage({
                     <th className="px-4 py-3">Localidad</th>
                     <th className="px-4 py-3 text-center">Estado</th>
                     <th className="px-4 py-3 text-center">Visible</th>
-                    <th className="px-4 py-3 text-center">Verificado</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -188,11 +187,6 @@ export default async function AlojamientosPage({
                         </td>
                         <td className="px-4 py-2.5 text-center">
                           <ToggleVisibleButton id={a.id} visible={a.visible_in_reservations} />
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-2.5 text-center text-xs text-gray-400">
-                          {a.last_verified_at
-                            ? new Date(a.last_verified_at).toLocaleDateString("es-ES")
-                            : "—"}
                         </td>
                       </tr>
                     );

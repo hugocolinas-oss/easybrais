@@ -29,6 +29,35 @@ export type StaffRole = "chofer" | "operator" | "manager" | "admin";
 export interface Database {
   public: {
     Tables: {
+      accommodation_internal_costs: {
+        Row: {
+          accommodation_id: string;
+          extra_cost: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          accommodation_id: string;
+          extra_cost?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          accommodation_id?: string;
+          extra_cost?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "accommodation_internal_costs_accommodation_id_fkey";
+            columns: ["accommodation_id"];
+            isOneToOne: true;
+            referencedRelation: "accommodations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       customers: {
         Row: {
           id: string;
@@ -81,7 +110,6 @@ export interface Database {
           reservation_notes: string | null;
           sort_order: number;
           route_stage_id: string | null;
-          last_verified_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -104,7 +132,6 @@ export interface Database {
           reservation_notes?: string | null;
           sort_order?: number;
           route_stage_id?: string | null;
-          last_verified_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -127,7 +154,6 @@ export interface Database {
           reservation_notes?: string | null;
           sort_order?: number;
           route_stage_id?: string | null;
-          last_verified_at?: string | null;
           updated_at?: string;
         };
         Relationships: [

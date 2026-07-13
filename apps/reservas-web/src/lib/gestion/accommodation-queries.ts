@@ -17,6 +17,7 @@ export interface AccommodationRow {
   visible_in_reservations: boolean;
   internal_notes: string | null;
   reservation_notes: string | null;
+  internal_cost: { extra_cost: number } | null;
   sort_order: number;
   route_stage_id: string | null;
   route_stage: {
@@ -24,7 +25,6 @@ export interface AccommodationRow {
     route_section: "coastal" | "central" | "shared";
     branch_sequence: number;
   } | null;
-  last_verified_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -50,7 +50,7 @@ export interface StageInfo {
 const PAGE_SIZE = 50;
 
 const SELECT_FIELDS =
-  "id, external_code, name, display_name, stage_name, town, route_name, address, lat, lng, contact_phone, contact_email, active, visible_in_reservations, internal_notes, reservation_notes, sort_order, route_stage_id, route_stage:route_stages!accommodations_route_stage_id_fkey(code, route_section, branch_sequence), last_verified_at, created_at, updated_at";
+  "id, external_code, name, display_name, stage_name, town, route_name, address, lat, lng, contact_phone, contact_email, active, visible_in_reservations, internal_notes, reservation_notes, sort_order, route_stage_id, route_stage:route_stages!accommodations_route_stage_id_fkey(code, route_section, branch_sequence), internal_cost:accommodation_internal_costs(extra_cost), created_at, updated_at";
 
 function parseCode(code: string | null): [number, number] {
   if (!code) return [9999, 9999];

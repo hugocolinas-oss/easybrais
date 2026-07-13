@@ -46,6 +46,7 @@ export function CreateAccommodationForm({ stages, towns, existingCodes = [], sta
   const [active, setActive] = useState(true);
   const [visible, setVisible] = useState(true);
   const [sortOrder, setSortOrder] = useState(0);
+  const [extraCost, setExtraCost] = useState(0);
   const [internalNotes, setInternalNotes] = useState("");
   const [reservationNotes, setReservationNotes] = useState("");
 
@@ -103,6 +104,7 @@ export function CreateAccommodationForm({ stages, towns, existingCodes = [], sta
         active,
         visible_in_reservations: visible,
         sort_order: sortOrder,
+        extra_cost: extraCost,
         internal_notes: internalNotes || undefined,
         reservation_notes: reservationNotes || undefined,
       });
@@ -125,6 +127,7 @@ export function CreateAccommodationForm({ stages, towns, existingCodes = [], sta
         setInternalNotes("");
         setReservationNotes("");
         setSortOrder(0);
+        setExtraCost(0);
       }
     });
   }
@@ -232,6 +235,21 @@ export function CreateAccommodationForm({ stages, towns, existingCodes = [], sta
           </Field>
           <Field label="Email">
             <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contacto@alojamiento.es" maxLength={254} className={inputClass} />
+          </Field>
+        </div>
+      </Section>
+
+      <Section title="Gestión interna">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Extra por desplazamiento (€)" hint="Solo visible para el equipo">
+            <input
+              type="number"
+              value={extraCost}
+              onChange={(e) => setExtraCost(Number(e.target.value) || 0)}
+              min={0}
+              step="0.01"
+              className={inputClass}
+            />
           </Field>
         </div>
       </Section>
