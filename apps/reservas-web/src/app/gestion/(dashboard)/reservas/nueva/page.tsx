@@ -3,6 +3,7 @@ import { ManualBookingForm } from "@/components/gestion/reservas/manual-booking-
 import Link from "next/link";
 import { requireAuth } from "@/lib/gestion/auth";
 import { ensureBookingsAccess } from "@/lib/gestion/permissions";
+import type { Accommodation } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export default async function NuevaReservaPage() {
 
   const { data: rows } = await supabase
     .from("accommodations")
-    .select("id, external_code, name, display_name, stage_name, town, address, reservation_notes, sort_order")
+    .select("id, external_code, name, display_name, stage_name, town, address, reservation_notes, sort_order, route_stage:route_stages!accommodations_route_stage_id_fkey(code, name, route_section, branch_sequence, price_to_redondela)")
     .eq("active", true)
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
@@ -29,6 +30,7 @@ export default async function NuevaReservaPage() {
     address: string | null;
     reservation_notes: string | null;
     sort_order: number;
+    route_stage: Accommodation["route_stage"];
   };
 
   const accommodations = ((rows ?? []) as unknown as RawRow[]).map((r) => ({
@@ -41,6 +43,7 @@ export default async function NuevaReservaPage() {
     address: r.address,
     reservation_notes: r.reservation_notes ?? null,
     sort_order: r.sort_order ?? 0,
+    route_stage: r.route_stage,
   }));
 
   return (

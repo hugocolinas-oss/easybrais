@@ -4,6 +4,7 @@ export interface RouteStop {
   id: string;
   position: number;
   stop_type: "pickup" | "dropoff";
+  route_section: "coastal" | "central" | "shared";
   accommodation_id: string | null;
   accommodation_name: string;
   accommodation_town: string | null;
@@ -60,6 +61,7 @@ interface RawStop {
   id: string;
   position: number;
   stop_type: string;
+  route_section: string;
   accommodation_id: string | null;
   accommodation_name: string;
   accommodation_town: string | null;
@@ -87,7 +89,7 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
   const { data: rawStops } = await supabase
     .from("daily_route_stops")
     .select(
-      "id, position, stop_type, accommodation_id, accommodation_name, accommodation_town, booking_item_id, booking_code, customer_name, bags_count, completed, completed_at, notes",
+      "id, position, stop_type, route_section, accommodation_id, accommodation_name, accommodation_town, booking_item_id, booking_code, customer_name, bags_count, completed, completed_at, notes",
     )
     .eq("route_id", r.id)
     .order("position", { ascending: true });
@@ -145,6 +147,7 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
       id: s.id,
       position: s.position,
       stop_type: s.stop_type as "pickup" | "dropoff",
+      route_section: s.route_section as "coastal" | "central" | "shared",
       accommodation_id: s.accommodation_id,
       accommodation_name: s.accommodation_name,
       accommodation_town: s.accommodation_town,

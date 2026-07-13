@@ -242,10 +242,11 @@ export function splitPhoneNumber(
   value: string,
   preferredCountryCode?: string,
 ): { country: PhoneCountry; nationalNumber: string; hasExplicitPrefix: boolean } {
-  const raw = compactWhitespace(sanitizeRawPhone(value));
+  const sanitized = compactWhitespace(sanitizeRawPhone(value));
+  const raw = sanitized.replace(/^00(?=\d)/, "+");
   if (!raw.startsWith("+")) {
     return {
-      country: getCountryByCode(DEFAULT_COUNTRY_CODE),
+      country: getCountryByCode(preferredCountryCode ?? DEFAULT_COUNTRY_CODE),
       nationalNumber: raw,
       hasExplicitPrefix: false,
     };
@@ -277,7 +278,7 @@ export function splitPhoneNumber(
 }
 
 export function normalizePhoneValue(value: string, countryCode = DEFAULT_COUNTRY_CODE): string {
-  const raw = compactWhitespace(sanitizeRawPhone(value));
+  const raw = compactWhitespace(sanitizeRawPhone(value)).replace(/^00(?=\d)/, "+");
   if (!raw) return "";
 
   if (raw.startsWith("+")) {
@@ -289,6 +290,12 @@ export function normalizePhoneValue(value: string, countryCode = DEFAULT_COUNTRY
   if (!digits) return "";
 
   return `${getCountryByCode(countryCode).dialCode}${digits}`;
+}
+
+export function isPhoneValueValid(value: string): boolean {
+  const normalized = normalizePhoneValue(value);
+  const digits = digitsOnly(normalized);
+  return normalized.startsWith("+") && digits.length >= 6 && digits.length <= 15;
 }
 
 export function formatPhoneForDisplay(value: string | null | undefined): string | null {

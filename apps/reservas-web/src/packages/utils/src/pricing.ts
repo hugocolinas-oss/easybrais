@@ -22,6 +22,15 @@ export const PRICING_RULES = {
   OVERWEIGHT_FEE: 5,
 } as const;
 
+export type RouteSection = "coastal" | "central" | "shared";
+
+export interface RoutePricingStage {
+  code: number;
+  routeSection: RouteSection;
+  branchSequence: number;
+  priceToRedondela: number | null;
+}
+
 /**
  * Direct price per bag for each code-prefix pair (codes 5–13).
  * Key: "lo:hi" where lo ≤ hi.
@@ -118,10 +127,52 @@ function getDirectPrice(a: number, b: number): number {
   return Math.min(toFive + (PAIR_PRICES[`5:${hi}`] ?? (hi - 5) * BASE_PRICE), MAX_PER_BAG);
 }
 
+export function isRouteStageLegValid(
+  pickup: RoutePricingStage,
+  dropoff: RoutePricingStage,
+): boolean {
+  if (pickup.routeSection === "shared") {
+    return dropoff.routeSection === "shared" && dropoff.branchSequence >= pickup.branchSequence;
+  }
+
+  if (dropoff.routeSection === "shared") return true;
+  return pickup.routeSection === dropoff.routeSection
+    && dropoff.branchSequence >= pickup.branchSequence;
+}
+
+export function resolveRouteStagePrice(
+  pickup: RoutePricingStage,
+  dropoff: RoutePricingStage,
+): number {
+  const { BASE_PRICE } = PRICING_RULES;
+  if (!isRouteStageLegValid(pickup, dropoff)) return BASE_PRICE;
+
+  if (pickup.routeSection === "shared" && dropoff.routeSection === "shared") {
+    return getDirectPrice(pickup.code, dropoff.code);
+  }
+
+  if (dropoff.routeSection === "shared") {
+    const toRedondela = pickup.priceToRedondela ?? BASE_PRICE;
+    const afterRedondela = dropoff.code === 5 ? 0 : getDirectPrice(5, dropoff.code);
+    return Math.max(BASE_PRICE, toRedondela + afterRedondela);
+  }
+
+  const pickupToMerge = pickup.priceToRedondela ?? 0;
+  const dropoffToMerge = dropoff.priceToRedondela ?? 0;
+  return Math.max(BASE_PRICE, Math.abs(pickupToMerge - dropoffToMerge));
+}
+
 /** Compute the approximate number of pricing etapas between two codes (for display). */
 export function getRealEtapas(pickupPrefix: number, dropoffPrefix: number): number {
   const price = getDirectPrice(pickupPrefix, dropoffPrefix);
   return Math.max(1, Math.round(price / PRICING_RULES.BASE_PRICE));
+}
+
+export function getRealEtapasForStages(
+  pickup: RoutePricingStage,
+  dropoff: RoutePricingStage,
+): number {
+  return Math.max(1, Math.round(resolveRouteStagePrice(pickup, dropoff) / PRICING_RULES.BASE_PRICE));
 }
 
 /**
@@ -149,6 +200,8 @@ export interface PricingInput {
   pickupPrefix?: number | null;
   /** External-code prefix of dropoff accommodation */
   dropoffPrefix?: number | null;
+  pickupStage?: RoutePricingStage | null;
+  dropoffStage?: RoutePricingStage | null;
 }
 
 export interface PricingBreakdown {
@@ -178,11 +231,13 @@ export function calculatePricing(legs: PricingInput[]): PricingBreakdown {
 
   let subtotalAmount = 0;
   for (const leg of legs) {
-    const perBag = resolvePerBagPrice(
-      leg.pickupPrefix ?? null,
-      leg.dropoffPrefix ?? null,
-      Math.max(1, leg.stagesCount ?? 1),
-    );
+    const perBag = leg.pickupStage && leg.dropoffStage
+      ? resolveRouteStagePrice(leg.pickupStage, leg.dropoffStage)
+      : resolvePerBagPrice(
+          leg.pickupPrefix ?? null,
+          leg.dropoffPrefix ?? null,
+          Math.max(1, leg.stagesCount ?? 1),
+        );
     subtotalAmount += leg.bagsCount * perBag;
   }
 
@@ -192,9 +247,11 @@ export function calculatePricing(legs: PricingInput[]): PricingBreakdown {
 
   let extraWeightAmount = 0;
   for (const leg of legs) {
-    const etapas = (leg.pickupPrefix != null && leg.dropoffPrefix != null)
-      ? getRealEtapas(leg.pickupPrefix, leg.dropoffPrefix)
-      : Math.max(1, leg.stagesCount ?? 1);
+    const etapas = leg.pickupStage && leg.dropoffStage
+      ? getRealEtapasForStages(leg.pickupStage, leg.dropoffStage)
+      : (leg.pickupPrefix != null && leg.dropoffPrefix != null)
+        ? getRealEtapas(leg.pickupPrefix, leg.dropoffPrefix)
+        : Math.max(1, leg.stagesCount ?? 1);
     extraWeightAmount += leg.overweightBagsCount * OVERWEIGHT_FEE * etapas;
   }
 

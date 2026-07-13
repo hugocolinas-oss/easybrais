@@ -10,7 +10,7 @@ export default async function HomePage() {
 
   const { data: rows } = await supabase
     .from("accommodations")
-    .select("id, external_code, name, display_name, stage_name, town, address, reservation_notes, sort_order")
+    .select("id, external_code, name, display_name, stage_name, town, address, reservation_notes, sort_order, route_stage:route_stages!accommodations_route_stage_id_fkey(code, name, route_section, branch_sequence, price_to_redondela)")
     .eq("active", true)
     .eq("visible_in_reservations", true)
     .order("sort_order", { ascending: true })
@@ -26,6 +26,7 @@ export default async function HomePage() {
     address: string | null;
     reservation_notes: string | null;
     sort_order: number;
+    route_stage: Accommodation["route_stage"];
   };
   const raw = (rows ?? []) as unknown as RawRow[];
 
@@ -39,6 +40,7 @@ export default async function HomePage() {
     address: r.address,
     reservation_notes: r.reservation_notes ?? null,
     sort_order: r.sort_order ?? 0,
+    route_stage: r.route_stage,
   }));
 
   return (

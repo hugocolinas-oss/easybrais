@@ -614,6 +614,14 @@ const t = {
     de: "Ungültige E-Mail",
     it: "Email non valida",
   },
+  "val.invalidPhone": {
+    es: "Teléfono no válido",
+    en: "Invalid phone number",
+    pt: "Telefone inválido",
+    fr: "Numéro de téléphone invalide",
+    de: "Ungültige Telefonnummer",
+    it: "Numero di telefono non valido",
+  },
   "val.selectDate": {
     es: "Selecciona fecha",
     en: "Select date",

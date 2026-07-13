@@ -4,10 +4,10 @@ import { useState, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { Accommodation, BookingType } from "@/lib/types";
 import { createBooking } from "@/app/actions";
-import { formatEUR, calculatePricing, getRealEtapas } from "@easybrais/utils";
+import { formatEUR, calculatePricing, getRealEtapas, getRealEtapasForStages } from "@easybrais/utils";
 import { PhoneInput } from "@/components/phone-input";
-import { compareAccommodationsBySequence, getAccommodationPricingPrefix, getAccommodationSequence } from "@/lib/accommodation-order";
-import { normalizePhoneValue } from "@/lib/phone";
+import { compareAccommodationsBySequence, getAccommodationPricingPrefix, getAccommodationPricingStage, isValidAccommodationLeg } from "@/lib/accommodation-order";
+import { isPhoneValueValid, normalizePhoneValue } from "@/lib/phone";
 
 interface Props {
   accommodations: Accommodation[];
@@ -157,12 +157,10 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
 
       if (field === "pickupId" && value) {
         const newPickupAcc = accMap.get(value);
-        const newPickupSeq = newPickupAcc ? getAccommodationSequence(newPickupAcc) : null;
         const currentDropoff = next[index]!.dropoffId;
-        if (newPickupSeq !== null && currentDropoff) {
+        if (newPickupAcc && currentDropoff) {
           const dropoffAcc = accMap.get(currentDropoff);
-          const dropoffSeq = dropoffAcc ? getAccommodationSequence(dropoffAcc) : null;
-          if (dropoffSeq !== null && dropoffSeq < newPickupSeq) {
+          if (dropoffAcc && !isValidAccommodationLeg(newPickupAcc, dropoffAcc)) {
             next[index] = { ...next[index]!, dropoffId: "" };
           }
         }
@@ -208,10 +206,14 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
       legs.map((leg) => {
         const pickup = accMap.get(leg.pickupId);
         const dropoff = accMap.get(leg.dropoffId);
+        const pickupStage = pickup ? getAccommodationPricingStage(pickup) : null;
+        const dropoffStage = dropoff ? getAccommodationPricingStage(dropoff) : null;
         const p = pickup ? getAccommodationPricingPrefix(pickup) : null;
         const d = dropoff ? getAccommodationPricingPrefix(dropoff) : null;
-        const stages = p !== null && d !== null ? getRealEtapas(p, d) : 1;
-        return { bagsCount, overweightBagsCount: overweightBags, stagesCount: stages, pickupPrefix: p, dropoffPrefix: d };
+        const stages = pickupStage && dropoffStage
+          ? getRealEtapasForStages(pickupStage, dropoffStage)
+          : p !== null && d !== null ? getRealEtapas(p, d) : 1;
+        return { bagsCount, overweightBagsCount: overweightBags, stagesCount: stages, pickupPrefix: p, dropoffPrefix: d, pickupStage, dropoffStage };
       }),
     );
   }, [legs, accMap, bagsCount, overweightBags]);
@@ -219,6 +221,9 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
   const routeStages = useMemo(() => {
     const firstPickup = accMap.get(legs[0]?.pickupId ?? "");
     const lastDropoff = accMap.get(legs[legs.length - 1]?.dropoffId ?? "");
+    const pickupStage = firstPickup ? getAccommodationPricingStage(firstPickup) : null;
+    const dropoffStage = lastDropoff ? getAccommodationPricingStage(lastDropoff) : null;
+    if (pickupStage && dropoffStage) return getRealEtapasForStages(pickupStage, dropoffStage);
     const p = firstPickup ? getAccommodationPricingPrefix(firstPickup) : null;
     const d = lastDropoff ? getAccommodationPricingPrefix(lastDropoff) : null;
     if (p !== null && d !== null) return getRealEtapas(p, d);
@@ -231,7 +236,8 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
     setSuccess(null);
 
     if (!fullName.trim()) { setError("Nombre obligatorio"); return; }
-    if (!normalizePhoneValue(phone.trim())) { setError("Teléfono obligatorio"); return; }
+    if (!phone.trim()) { setError("Teléfono obligatorio"); return; }
+    if (!isPhoneValueValid(phone)) { setError("Teléfono no válido"); return; }
 
     for (const [i, leg] of legs.entries()) {
       if (!leg.serviceDate) { setError(`Etapa ${i + 1}: fecha obligatoria`); return; }
@@ -240,9 +246,7 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
       if (leg.pickupId === leg.dropoffId) { setError(`Etapa ${i + 1}: recogida y entrega deben ser diferentes`); return; }
       const pAcc = accMap.get(leg.pickupId);
       const dAcc = accMap.get(leg.dropoffId);
-      const pSeq = pAcc ? getAccommodationSequence(pAcc) : null;
-      const dSeq = dAcc ? getAccommodationSequence(dAcc) : null;
-      if (pSeq !== null && dSeq !== null && dSeq < pSeq) {
+      if (pAcc && dAcc && !isValidAccommodationLeg(pAcc, dAcc)) {
         setError(`Etapa ${i + 1}: la entrega no puede ser anterior a la recogida en la dirección del Camino`);
         return;
       }
@@ -399,12 +403,8 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
         {legs.map((leg, i) => {
           const pickupLocked = i > 0 && legs[i - 1]?.dropoffId === leg.pickupId && !!leg.pickupId;
           const pickupAcc = accMap.get(leg.pickupId);
-          const pickupSeq = pickupAcc ? getAccommodationSequence(pickupAcc) : null;
-          const dropoffFiltered = pickupSeq !== null
-            ? sortedAccommodations.filter((a) => {
-                const c = getAccommodationSequence(a);
-                return c === null || c >= pickupSeq;
-              })
+          const dropoffFiltered = pickupAcc
+            ? sortedAccommodations.filter((a) => isValidAccommodationLeg(pickupAcc, a))
             : sortedAccommodations;
           return (
             <div key={leg.id} className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6">

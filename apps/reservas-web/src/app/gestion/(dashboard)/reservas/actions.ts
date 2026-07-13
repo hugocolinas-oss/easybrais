@@ -7,6 +7,8 @@ import { OPERATIONAL_STATUSES } from "@/lib/gestion/booking-status";
 import { assertBookingsAccess, PermissionError } from "@/lib/gestion/permissions";
 import { sendReservationEmails } from "@/lib/email/reservations";
 import { refreshRoute } from "@/app/gestion/(dashboard)/ruta/actions";
+import { isValidAccommodationLeg } from "@/lib/accommodation-order";
+import type { RouteStage } from "@/lib/types";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -347,6 +349,22 @@ export async function updateBookingItemAccommodation(
     const oldId = field === "pickup" ? item.pickup_accommodation_id : item.dropoff_accommodation_id;
 
     if (oldId === accommodationId) return { ok: true };
+
+    const pickupId = field === "pickup" ? accommodationId : item.pickup_accommodation_id;
+    const dropoffId = field === "dropoff" ? accommodationId : item.dropoff_accommodation_id;
+    if (pickupId && dropoffId) {
+      const { data: routeAccommodations } = await supabase
+        .from("accommodations")
+        .select("id, external_code, route_stage:route_stages!accommodations_route_stage_id_fkey(code, name, route_section, branch_sequence, price_to_redondela)")
+        .in("id", [pickupId, dropoffId]);
+      type RouteAccommodation = { id: string; external_code: string | null; route_stage: RouteStage | null };
+      const routeMap = new Map(((routeAccommodations ?? []) as unknown as RouteAccommodation[]).map((a) => [a.id, a]));
+      const pickup = routeMap.get(pickupId);
+      const dropoff = routeMap.get(dropoffId);
+      if (pickup?.route_stage && dropoff?.route_stage && !isValidAccommodationLeg(pickup, dropoff)) {
+        return { error: "La recogida y la entrega pertenecen a ramas incompatibles o están en sentido inverso." };
+      }
+    }
 
     const { error: updateErr } = await supabase
       .from("booking_items")

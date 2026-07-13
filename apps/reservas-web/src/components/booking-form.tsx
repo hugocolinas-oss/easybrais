@@ -2,14 +2,15 @@
 
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import type { Accommodation, BookingType, StageLeg, BookingFormData } from "@/lib/types";
-import { calculatePricing, formatEUR, fmtDateShort, PRICING_RULES, getRealEtapas } from "@easybrais/utils";
+import { calculatePricing, formatEUR, fmtDateShort, PRICING_RULES, getRealEtapas, getRealEtapasForStages } from "@easybrais/utils";
 import { createBooking, type BookingSuccess } from "@/app/actions";
 import { useT } from "@/lib/i18n/context";
-import { getAccommodationPricingPrefix, getAccommodationSequence } from "@/lib/accommodation-order";
+import { getAccommodationPricingPrefix, getAccommodationPricingStage, isValidAccommodationLeg } from "@/lib/accommodation-order";
 import { BookingTypeSelector } from "./booking-type-selector";
 import { LegForm } from "./leg-form";
 import { CustomerFields } from "./customer-fields";
 import { BookingConfirmation } from "./booking-confirmation";
+import { isPhoneValueValid } from "@/lib/phone";
 
 interface Props {
   allAccommodations: Accommodation[];
@@ -20,70 +21,17 @@ const FULL_CAMINO_LEGS = 8;
 type PaymentMethod = "online" | "cash";
 
 interface LockerSpot {
+  id: string;
   name: string;
+  address?: string;
+  note?: string;
   url: string;
-  price?: string;
 }
 
 interface LockerCity {
   city: string;
-  payOnPickup: boolean;
   spots: LockerSpot[];
 }
-
-const LOCKER_CITIES: LockerCity[] = [
-  {
-    city: "Vigo",
-    payOnPickup: true,
-    spots: [
-      { name: "Hostel Ancla Dorada", price: "3€ / mochila", url: "https://goo.su/KLEAU" },
-      { name: "Chocolatería Ocumare", price: "1€", url: "https://maps.app.goo.gl/P19L5ZN24yzGoTEWA" },
-    ],
-  },
-  {
-    city: "Redondela",
-    payOnPickup: false,
-    spots: [
-      { name: "Cafetería La Farola", url: "https://maps.app.goo.gl/G6BwMV4FY28NFkD2A?g_st=ic" },
-      { name: "Royal Picasso", url: "https://maps.app.goo.gl/mutqCzLYmrDKQmKt6?g_st=aw" },
-      { name: "Vinarius", url: "https://share.google/nu3dzqe4gW7CeCy4J" },
-    ],
-  },
-  {
-    city: "Pontevedra",
-    payOnPickup: true,
-    spots: [
-      { name: "Albergue GBC", price: "2€ / mochila", url: "https://maps.app.goo.gl/t6SXUF3rK8yV8xK37?g_st=ic" },
-      { name: "Pensión Santa Clara", price: "3€ / mochila", url: "https://maps.app.goo.gl/uBgedmpFpSdSikVo9?g_st=ic" },
-    ],
-  },
-  {
-    city: "Caldas de Reis",
-    payOnPickup: true,
-    spots: [
-      { name: "GBC Caldas", price: "2€ / mochila", url: "https://maps.app.goo.gl/SxnMeaxuaCPi2vWi9?g_st=ic" },
-      { name: "Albergue Urraka", price: "2€ / mochila", url: "https://maps.app.goo.gl/oXXTamKnwN4PGoN88?g_st=ic" },
-    ],
-  },
-  {
-    city: "Padrón",
-    payOnPickup: true,
-    spots: [
-      { name: "Albergue Da Meiga", price: "3€ / mochila", url: "https://maps.app.goo.gl/22TEqa3YZ7RCNqxa8?g_st=ic" },
-      { name: "Albergue Murgadán", price: "3€ / mochila", url: "https://maps.app.goo.gl/3FhpJr6HSsNcEg57A?g_st=ic" },
-    ],
-  },
-  {
-    city: "Santiago",
-    payOnPickup: true,
-    spots: [
-      { name: "Santiago Lockers", price: "2,50€ / mochila", url: "https://maps.app.goo.gl/igtjdgJfRJpzrutk7?g_st=ipc" },
-      { name: "Hotel Hórreo", price: "3€ / mochila", url: "https://maps.app.goo.gl/2fFoZeS95mu1HCBJ8?g_st=ic" },
-      { name: "Albergue The Last Stamp", price: "3€ / mochila", url: "https://maps.app.goo.gl/DfXrJP8bLtqcXcCS7?g_st=ic" },
-      { name: "Albergue KM0", price: "5€ / mochila", url: "https://maps.google.com?q=Albergue%20Santiago%20KM0,%20R%C3%BAa%20das%20Carretas,%2011,%2015705%20Santiago%20de%20Compostela,%20A%20Coru%C3%B1a&ftid=0xd2effe210d79ffd:0x14b9efccb0e5552c&hl=es-ES&gl=es&entry=gps&lucs=,47071704&g_st=ic" },
-    ],
-  },
-] as const;
 
 function createLeg(): StageLeg {
   return {
@@ -111,10 +59,51 @@ function getStagesCount(
   dropoffAcc: Accommodation | undefined,
 ): number {
   if (!pickupAcc || !dropoffAcc) return 1;
+  const pickupStage = getAccommodationPricingStage(pickupAcc);
+  const dropoffStage = getAccommodationPricingStage(dropoffAcc);
+  if (pickupStage && dropoffStage) {
+    return getRealEtapasForStages(pickupStage, dropoffStage);
+  }
   const p = getAccommodationPricingPrefix(pickupAcc);
   const d = getAccommodationPricingPrefix(dropoffAcc);
   if (p === null || d === null) return 1;
   return getRealEtapas(p, d);
+}
+
+function normalizeText(value: string | null | undefined) {
+  return (value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatTownLabel(value: string | null | undefined) {
+  const cleaned = (value ?? "").replace(/\*/g, " ").replace(/\s+/g, " ").trim();
+  if (!cleaned) return "Otras ubicaciones";
+  return cleaned
+    .toLocaleLowerCase("es-ES")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toLocaleUpperCase("es-ES") + part.slice(1))
+    .join(" ");
+}
+
+function buildMapsSearchUrl(accommodation: Accommodation) {
+  const query = accommodation.address?.trim()
+    ? accommodation.address
+    : [accommodation.display_name, accommodation.town].filter(Boolean).join(", ");
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function isLockerAccommodation(accommodation: Accommodation) {
+  const haystack = normalizeText([
+    accommodation.name,
+    accommodation.display_name,
+    accommodation.reservation_notes,
+  ].filter(Boolean).join(" "));
+  return haystack.includes("consigna") || haystack.includes("locker");
 }
 
 export function BookingForm({ allAccommodations }: Props) {
@@ -153,21 +142,58 @@ export function BookingForm({ allAccommodations }: Props) {
     [allAccommodations],
   );
 
+  const lockerCities = useMemo<LockerCity[]>(() => {
+    const grouped = new Map<string, LockerCity>();
+
+    allAccommodations
+      .filter(isLockerAccommodation)
+      .sort((a, b) =>
+        `${formatTownLabel(a.town)}-${a.display_name}`.localeCompare(
+          `${formatTownLabel(b.town)}-${b.display_name}`,
+          "es-ES",
+          { numeric: true, sensitivity: "base" },
+        ),
+      )
+      .forEach((accommodation) => {
+        const city = formatTownLabel(accommodation.town);
+        let bucket = grouped.get(city);
+        if (!bucket) {
+          bucket = { city, spots: [] };
+          grouped.set(city, bucket);
+        }
+        bucket.spots.push({
+          id: accommodation.id,
+          name: accommodation.display_name,
+          address: accommodation.address ?? undefined,
+          note: accommodation.reservation_notes ?? undefined,
+          url: buildMapsSearchUrl(accommodation),
+        });
+      });
+
+    return Array.from(grouped.values());
+  }, [allAccommodations]);
+
   const pricing = useMemo(
     () =>
       calculatePricing(
         legs.map((l) => {
           const pickup = accMap.get(l.pickupAccommodationId);
           const dropoff = accMap.get(l.dropoffAccommodationId);
+          const pickupStage = pickup ? getAccommodationPricingStage(pickup) : null;
+          const dropoffStage = dropoff ? getAccommodationPricingStage(dropoff) : null;
           const p = pickup ? getAccommodationPricingPrefix(pickup) : null;
           const d = dropoff ? getAccommodationPricingPrefix(dropoff) : null;
-          const stages = p !== null && d !== null ? getRealEtapas(p, d) : 1;
+          const stages = pickupStage && dropoffStage
+            ? getRealEtapasForStages(pickupStage, dropoffStage)
+            : p !== null && d !== null ? getRealEtapas(p, d) : 1;
           return {
             bagsCount: l.bagsCount,
             overweightBagsCount: l.overweightBagsCount,
             stagesCount: stages,
             pickupPrefix: p,
             dropoffPrefix: d,
+            pickupStage,
+            dropoffStage,
           };
         }),
       ),
@@ -220,13 +246,11 @@ export function BookingForm({ allAccommodations }: Props) {
       const pickupChanged = prev[index]?.pickupAccommodationId !== updated.pickupAccommodationId;
       if (pickupChanged && updated.pickupAccommodationId) {
         const newPickupAcc = accMap.get(updated.pickupAccommodationId);
-        const newPickupSeq = newPickupAcc ? getAccommodationSequence(newPickupAcc) : null;
         const at = next[index];
         if (at) next[index] = { ...at, departureTown: newPickupAcc?.town ?? at.departureTown };
-        if (newPickupSeq !== null && updated.dropoffAccommodationId) {
+        if (newPickupAcc && updated.dropoffAccommodationId) {
           const dropoffAcc = accMap.get(updated.dropoffAccommodationId);
-          const dropoffSeq = dropoffAcc ? getAccommodationSequence(dropoffAcc) : null;
-          if (dropoffSeq !== null && dropoffSeq < newPickupSeq) {
+          if (dropoffAcc && !isValidAccommodationLeg(newPickupAcc, dropoffAcc)) {
             const at = next[index];
             if (at) next[index] = { ...at, dropoffAccommodationId: "", arrivalTown: "" };
           }
@@ -294,6 +318,7 @@ export function BookingForm({ allAccommodations }: Props) {
     else if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(customer.email))
       errs.email = t("val.invalidEmail");
     if (!customer.phone.trim()) errs.phone = t("val.required");
+    else if (!isPhoneValueValid(customer.phone)) errs.phone = t("val.invalidPhone");
 
     legs.forEach((leg, i) => {
       const p = `leg_${i}`;
@@ -313,9 +338,7 @@ export function BookingForm({ allAccommodations }: Props) {
       if (leg.pickupAccommodationId && leg.dropoffAccommodationId) {
         const pAcc = accMap.get(leg.pickupAccommodationId);
         const dAcc = accMap.get(leg.dropoffAccommodationId);
-        const pSeq = pAcc ? getAccommodationSequence(pAcc) : null;
-        const dSeq = dAcc ? getAccommodationSequence(dAcc) : null;
-        if (pSeq !== null && dSeq !== null && dSeq < pSeq) {
+        if (pAcc && dAcc && !isValidAccommodationLeg(pAcc, dAcc)) {
           errs[`${p}_dropoff`] = t("val.reverseDirection");
         }
       }
@@ -395,14 +418,14 @@ export function BookingForm({ allAccommodations }: Props) {
     <form onSubmit={handleSubmit}>
       <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:gap-8">
         {/* Left column — Form */}
-        <div className="space-y-6 sm:space-y-8">
+        <div className="min-w-0 space-y-6 sm:space-y-8">
           {/* Section 1: Booking Type */}
           <FormSection step={1} title={t("section.type")} subtitle={t("section.type.sub")}>
             <BookingTypeSelector value={bookingType} onChange={handleTypeChange} />
           </FormSection>
 
           {/* Section 2: Transport Legs */}
-          <LockerHelp />
+          <LockerHelp cities={lockerCities} />
 
           <FormSection step={2} title={t("section.details")} subtitle={t("section.details.sub")}>
             <div className="space-y-4">
@@ -714,7 +737,9 @@ function PriceBreakdown({ pricing }: { pricing: ReturnType<typeof calculatePrici
   );
 }
 
-function LockerHelp() {
+function LockerHelp({ cities }: { cities: LockerCity[] }) {
+  if (cities.length === 0) return null;
+
   return (
     <div className="overflow-hidden rounded-2xl border border-cream-300/80 bg-white shadow-card">
       <div className="border-b border-cream-200/80 bg-cream-50 px-4 py-3 sm:px-5">
@@ -739,7 +764,7 @@ function LockerHelp() {
         </div>
 
         <div className="space-y-2.5">
-          {LOCKER_CITIES.map((city) => (
+          {cities.map((city) => (
             <details key={city.city} className="group overflow-hidden rounded-xl border border-cream-300/80 bg-cream-50/50 transition-colors open:bg-white">
               <summary className="flex cursor-pointer items-center justify-between gap-3 px-3.5 py-3 text-sm font-semibold text-brand-900 marker:hidden">
                 <div className="flex items-center gap-2.5">
@@ -754,26 +779,25 @@ function LockerHelp() {
               </summary>
 
               <div className="space-y-2 border-t border-cream-200/80 bg-white px-3.5 py-3">
-                {city.payOnPickup && (
-                  <p className="text-xs font-medium text-brand-800/55">
-                    El precio de la consigna se paga al recoger el equipaje.
-                  </p>
-                )}
-
                 {city.spots.map((spot) => (
                   <a
-                    key={`${city.city}-${spot.name}`}
+                    key={spot.id}
                     href={spot.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block rounded-xl border border-cream-200 px-3.5 py-3 transition-colors hover:border-sage-300 hover:bg-sage-50/40"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-brand-900">{spot.name}</p>
-                        {spot.price && (
-                          <p className="mt-1 inline-flex rounded-full bg-gold-100 px-2 py-0.5 text-[11px] font-semibold text-gold-800">
-                            {spot.price}
+                        {spot.address && (
+                          <p className="mt-1 text-xs leading-relaxed text-brand-800/45">
+                            {spot.address}
+                          </p>
+                        )}
+                        {spot.note && (
+                          <p className="mt-2 rounded-lg border border-gold-200/70 bg-gold-50/70 px-2.5 py-2 text-[11px] leading-relaxed text-gold-900/85">
+                            {spot.note}
                           </p>
                         )}
                       </div>

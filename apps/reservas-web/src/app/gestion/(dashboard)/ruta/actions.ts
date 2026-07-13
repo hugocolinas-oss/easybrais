@@ -13,9 +13,21 @@ interface RawBookingItem {
   bags_count: number;
   pickup_accommodation_id: string | null;
   dropoff_accommodation_id: string | null;
-  pickup: { name: string; town: string | null; external_code: string | null } | null;
-  dropoff: { name: string; town: string | null; external_code: string | null } | null;
+  pickup: RawAccommodation | null;
+  dropoff: RawAccommodation | null;
   bookings: { booking_code: string; status: string; customers: { full_name: string; phone: string | null } | null } | null;
+}
+
+type RouteSection = "coastal" | "central" | "shared";
+
+interface RawAccommodation {
+  name: string;
+  town: string | null;
+  external_code: string | null;
+  route_stage: {
+    route_section: RouteSection;
+    branch_sequence: number;
+  } | null;
 }
 
 function parseStageCode(code: string | null): [number, number] {
@@ -24,6 +36,30 @@ function parseStageCode(code: string | null): [number, number] {
   const a = parseInt(parts[0] ?? "", 10);
   const b = parseInt(parts[1] ?? "0", 10);
   return [Number.isNaN(a) ? 9999 : a, Number.isNaN(b) ? 9999 : b];
+}
+
+const SECTION_ORDER: Record<RouteSection, number> = { coastal: 0, central: 1, shared: 2 };
+
+function getRouteSortKey(accommodation: RawAccommodation | null): [number, number, number] {
+  const [, minor] = parseStageCode(accommodation?.external_code ?? null);
+  if (accommodation?.route_stage) {
+    return [
+      SECTION_ORDER[accommodation.route_stage.route_section],
+      accommodation.route_stage.branch_sequence,
+      minor,
+    ];
+  }
+
+  const [major] = parseStageCode(accommodation?.external_code ?? null);
+  if (major >= 1 && major <= 4) return [0, major, minor];
+  if (major >= 5 && major <= 13) return [2, major - 4, minor];
+  const centralSequence: Record<number, number> = { 19: 1, 18: 2, 17: 3 };
+  if (centralSequence[major]) return [1, centralSequence[major], minor];
+  return [3, major, minor];
+}
+
+function getRouteSection(accommodation: RawAccommodation | null): RouteSection {
+  return accommodation?.route_stage?.route_section ?? "shared";
 }
 
 export async function generateRoute(date: string) {
@@ -48,8 +84,8 @@ export async function generateRoute(date: string) {
       .from("booking_items")
       .select(
         `id, bags_count, pickup_accommodation_id, dropoff_accommodation_id,
-         pickup:accommodations!booking_items_pickup_accommodation_id_fkey(name, town, external_code),
-         dropoff:accommodations!booking_items_dropoff_accommodation_id_fkey(name, town, external_code),
+         pickup:accommodations!booking_items_pickup_accommodation_id_fkey(name, town, external_code, route_stage:route_stages!accommodations_route_stage_id_fkey(route_section, branch_sequence)),
+         dropoff:accommodations!booking_items_dropoff_accommodation_id_fkey(name, town, external_code, route_stage:route_stages!accommodations_route_stage_id_fkey(route_section, branch_sequence)),
          bookings!inner(booking_code, status, customers(full_name, phone))`,
       )
       .eq("service_date", date)
@@ -72,6 +108,8 @@ export async function generateRoute(date: string) {
       accommodation_name: string;
       accommodation_town: string | null;
       accommodation_code: string | null;
+      route_section: RouteSection;
+      route_sort_key: [number, number, number];
       booking_item_id: string;
       booking_code: string;
       customer_name: string;
@@ -92,6 +130,8 @@ export async function generateRoute(date: string) {
         accommodation_name: item.pickup?.name ?? "—",
         accommodation_town: item.pickup?.town ?? null,
         accommodation_code: item.pickup?.external_code ?? null,
+        route_section: getRouteSection(item.pickup),
+        route_sort_key: getRouteSortKey(item.pickup),
         booking_item_id: item.id,
         booking_code: code,
         customer_name: customer,
@@ -105,6 +145,8 @@ export async function generateRoute(date: string) {
         accommodation_name: item.dropoff?.name ?? "—",
         accommodation_town: item.dropoff?.town ?? null,
         accommodation_code: item.dropoff?.external_code ?? null,
+        route_section: getRouteSection(item.dropoff),
+        route_sort_key: getRouteSortKey(item.dropoff),
         booking_item_id: item.id,
         booking_code: code,
         customer_name: customer,
@@ -116,10 +158,10 @@ export async function generateRoute(date: string) {
     const allStops = [...pickupStops, ...dropoffStops];
 
     allStops.sort((a, b) => {
-      const [a1, a2] = parseStageCode(a.accommodation_code);
-      const [b1, b2] = parseStageCode(b.accommodation_code);
-      if (a1 !== b1) return a1 - b1;
-      if (a2 !== b2) return a2 - b2;
+      for (let i = 0; i < a.route_sort_key.length; i++) {
+        const diff = (a.route_sort_key[i] ?? 0) - (b.route_sort_key[i] ?? 0);
+        if (diff !== 0) return diff;
+      }
       // Same accommodation: delivery (dropoff) before pickup
       if (a.stop_type !== b.stop_type) return a.stop_type === "dropoff" ? -1 : 1;
       return 0;
@@ -154,6 +196,7 @@ export async function generateRoute(date: string) {
       accommodation_town: stop.accommodation_town,
       booking_item_id: stop.booking_item_id,
       booking_code: stop.booking_code,
+      route_section: stop.route_section,
       customer_name: stop.customer_name,
       bags_count: stop.bags_count,
     }));
@@ -203,8 +246,8 @@ export async function refreshRoute(routeId: string, routeDate: string) {
       .from("booking_items")
       .select(
         `id, bags_count, pickup_accommodation_id, dropoff_accommodation_id,
-         pickup:accommodations!booking_items_pickup_accommodation_id_fkey(name, town, external_code),
-         dropoff:accommodations!booking_items_dropoff_accommodation_id_fkey(name, town, external_code),
+         pickup:accommodations!booking_items_pickup_accommodation_id_fkey(name, town, external_code, route_stage:route_stages!accommodations_route_stage_id_fkey(route_section, branch_sequence)),
+         dropoff:accommodations!booking_items_dropoff_accommodation_id_fkey(name, town, external_code, route_stage:route_stages!accommodations_route_stage_id_fkey(route_section, branch_sequence)),
          bookings!inner(booking_code, status, customers(full_name, phone))`,
       )
       .eq("service_date", routeDate)
@@ -231,6 +274,8 @@ export async function refreshRoute(routeId: string, routeDate: string) {
       accommodation_name: string;
       accommodation_town: string | null;
       accommodation_code: string | null;
+      route_section: RouteSection;
+      route_sort_key: [number, number, number];
       booking_item_id: string;
       booking_code: string;
       customer_name: string;
@@ -247,6 +292,8 @@ export async function refreshRoute(routeId: string, routeDate: string) {
         accommodation_name: item.pickup?.name ?? "—",
         accommodation_town: item.pickup?.town ?? null,
         accommodation_code: item.pickup?.external_code ?? null,
+        route_section: getRouteSection(item.pickup),
+        route_sort_key: getRouteSortKey(item.pickup),
         booking_item_id: item.id,
         booking_code: code,
         customer_name: customer,
@@ -259,6 +306,8 @@ export async function refreshRoute(routeId: string, routeDate: string) {
         accommodation_name: item.dropoff?.name ?? "—",
         accommodation_town: item.dropoff?.town ?? null,
         accommodation_code: item.dropoff?.external_code ?? null,
+        route_section: getRouteSection(item.dropoff),
+        route_sort_key: getRouteSortKey(item.dropoff),
         booking_item_id: item.id,
         booking_code: code,
         customer_name: customer,
@@ -267,10 +316,10 @@ export async function refreshRoute(routeId: string, routeDate: string) {
     }
 
     allStops.sort((a, b) => {
-      const [a1, a2] = parseStageCode(a.accommodation_code);
-      const [b1, b2] = parseStageCode(b.accommodation_code);
-      if (a1 !== b1) return a1 - b1;
-      if (a2 !== b2) return a2 - b2;
+      for (let i = 0; i < a.route_sort_key.length; i++) {
+        const diff = (a.route_sort_key[i] ?? 0) - (b.route_sort_key[i] ?? 0);
+        if (diff !== 0) return diff;
+      }
       if (a.stop_type !== b.stop_type) return a.stop_type === "dropoff" ? -1 : 1;
       return 0;
     });
@@ -288,6 +337,7 @@ export async function refreshRoute(routeId: string, routeDate: string) {
         accommodation_town: stop.accommodation_town,
         booking_item_id: stop.booking_item_id,
         booking_code: stop.booking_code,
+        route_section: stop.route_section,
         customer_name: stop.customer_name,
         bags_count: stop.bags_count,
         completed: prevStop?.completed ?? false,

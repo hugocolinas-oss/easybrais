@@ -80,6 +80,7 @@ export interface Database {
           internal_notes: string | null;
           reservation_notes: string | null;
           sort_order: number;
+          route_stage_id: string | null;
           last_verified_at: string | null;
           created_at: string;
           updated_at: string;
@@ -102,6 +103,7 @@ export interface Database {
           internal_notes?: string | null;
           reservation_notes?: string | null;
           sort_order?: number;
+          route_stage_id?: string | null;
           last_verified_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -124,7 +126,51 @@ export interface Database {
           internal_notes?: string | null;
           reservation_notes?: string | null;
           sort_order?: number;
+          route_stage_id?: string | null;
           last_verified_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "accommodations_route_stage_id_fkey";
+            columns: ["route_stage_id"];
+            isOneToOne: false;
+            referencedRelation: "route_stages";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      route_stages: {
+        Row: {
+          id: string;
+          code: number;
+          name: string;
+          route_section: string;
+          branch_sequence: number;
+          price_to_redondela: number | null;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: number;
+          name: string;
+          route_section: string;
+          branch_sequence: number;
+          price_to_redondela?: number | null;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          code?: number;
+          name?: string;
+          route_section?: string;
+          branch_sequence?: number;
+          price_to_redondela?: number | null;
+          active?: boolean;
           updated_at?: string;
         };
         Relationships: [];
@@ -419,6 +465,7 @@ export interface Database {
           route_date: string;
           status: string;
           notes: string | null;
+          route_section: string;
           total_stops: number;
           total_bags: number;
           created_by: string | null;
@@ -430,6 +477,7 @@ export interface Database {
           route_date: string;
           status?: string;
           notes?: string | null;
+          route_section?: string;
           total_stops?: number;
           total_bags?: number;
           created_by?: string | null;
@@ -441,6 +489,7 @@ export interface Database {
           route_date?: string;
           status?: string;
           notes?: string | null;
+          route_section?: string;
           total_stops?: number;
           total_bags?: number;
           created_by?: string | null;
