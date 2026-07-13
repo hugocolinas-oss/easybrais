@@ -33,6 +33,14 @@ interface LockerCity {
   spots: LockerSpot[];
 }
 
+const LOCKER_MAP_URLS: Record<string, string> = {
+  "6.26": "https://maps.app.goo.gl/uBgedmpFpSdSikVo9?g_st=ic",
+  "13.02": "https://maps.app.goo.gl/igtjdgJfRJpzrutk7?g_st=ipc",
+  "13.11": "https://maps.app.goo.gl/2fFoZeS95mu1HCBJ8?g_st=ic",
+  "13.31": "https://maps.google.com?q=Albergue%20Santiago%20KM0,%20R%C3%BAa%20das%20Carretas,%2011,%2015705%20Santiago%20de%20Compostela,%20A%20Coru%C3%B1a&ftid=0xd2effe210d79ffd:0x14b9efccb0e5552c&hl=es-ES&gl=es&entry=gps&lucs=,47071704&g_st=ic",
+  "13.39": "https://maps.app.goo.gl/DfXrJP8bLtqcXcCS7?g_st=ic",
+};
+
 function createLeg(): StageLeg {
   return {
     id: crypto.randomUUID(),
@@ -166,7 +174,7 @@ export function BookingForm({ allAccommodations }: Props) {
           name: accommodation.display_name,
           address: accommodation.address ?? undefined,
           note: accommodation.reservation_notes ?? undefined,
-          url: buildMapsSearchUrl(accommodation),
+          url: LOCKER_MAP_URLS[accommodation.external_code ?? ""] ?? buildMapsSearchUrl(accommodation),
         });
       });
 
@@ -425,8 +433,6 @@ export function BookingForm({ allAccommodations }: Props) {
           </FormSection>
 
           {/* Section 2: Transport Legs */}
-          <LockerHelp cities={lockerCities} />
-
           <FormSection step={2} title={t("section.details")} subtitle={t("section.details.sub")}>
             <div className="space-y-4">
               {legs.map((leg, i) => {
@@ -623,6 +629,10 @@ export function BookingForm({ allAccommodations }: Props) {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mt-8 sm:mt-10">
+        <LockerHelp cities={lockerCities} />
       </div>
     </form>
   );
