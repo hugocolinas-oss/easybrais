@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { toggleActive, toggleVisibility, markVerified } from "@/app/gestion/(dashboard)/alojamientos/actions";
+import { toggleActive, toggleVisibility } from "@/app/gestion/(dashboard)/alojamientos/actions";
 
 interface ToggleProps {
   id: string;
@@ -50,25 +50,6 @@ export function ToggleVisibleButton({ id, visible }: VisibleProps) {
       title={visible ? "Ocultar en reservas" : "Mostrar en reservas"}
     >
       {visible ? "Visible" : "Oculto"}
-    </button>
-  );
-}
-
-interface VerifyProps {
-  id: string;
-}
-
-export function MarkVerifiedButton({ id }: VerifyProps) {
-  const [pending, startTransition] = useTransition();
-
-  return (
-    <button
-      type="button"
-      disabled={pending}
-      onClick={() => startTransition(async () => { await markVerified(id); })}
-      className={`rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 active:bg-gray-100 ${pending ? "opacity-50" : ""}`}
-    >
-      {pending ? "Verificando..." : "Marcar verificado"}
     </button>
   );
 }

@@ -31,6 +31,7 @@ export async function createAccommodation(fields: {
   active: boolean;
   visible_in_reservations: boolean;
   sort_order: number;
+  extra_cost: number;
   internal_notes?: string;
   reservation_notes?: string;
 }): Promise<{ ok: true; id: string } | { error: string }> {
@@ -40,6 +41,9 @@ export async function createAccommodation(fields: {
     const name = fields.name.trim();
     if (!name || name.length < 2) return { error: "El nombre es obligatorio (mín. 2 caracteres)." };
     if (name.length > 200) return { error: "El nombre es demasiado largo." };
+    if (!Number.isFinite(fields.extra_cost) || fields.extra_cost < 0) {
+      return { error: "El extra por desplazamiento no es válido." };
+    }
 
     const displayName = fields.display_name.trim() || name;
     const externalCode = fields.external_code?.trim() || null;
@@ -102,6 +106,15 @@ export async function createAccommodation(fields: {
       return { error: "Error al guardar el alojamiento. Inténtalo de nuevo." };
     }
 
+    const { error: costErr } = await supabase
+      .from("accommodation_internal_costs")
+      .upsert({ accommodation_id: created.id, extra_cost: fields.extra_cost });
+
+    if (costErr) {
+      console.error("[alojamientos] createAccommodation cost error:", costErr.message);
+      return { error: "El alojamiento se creó, pero no se pudo guardar el coste interno." };
+    }
+
     revalidatePath("/gestion/alojamientos");
     return { ok: true, id: created.id };
   } catch (err) {
@@ -134,7 +147,7 @@ export async function updateAccommodation(
     address?: string | null;
     lat?: number | null;
     lng?: number | null;
-    last_verified_at?: string | null;
+    extra_cost?: number;
   },
 ): Promise<{ ok: true } | { error: string }> {
   try {
@@ -195,9 +208,13 @@ export async function updateAccommodation(
     if (fields.lng != null && !Number.isFinite(fields.lng)) {
       return { error: "La longitud no es válida." };
     }
+    if (fields.extra_cost != null && (!Number.isFinite(fields.extra_cost) || fields.extra_cost < 0)) {
+      return { error: "El extra por desplazamiento no es válido." };
+    }
 
+    const { extra_cost: extraCost, ...accommodationFields } = fields;
     const updates = {
-      ...fields,
+      ...accommodationFields,
       name: normalizedName,
       display_name: normalizedDisplayName || normalizedName || undefined,
       external_code: normalizedExternalCode,
@@ -218,6 +235,17 @@ export async function updateAccommodation(
     if (error) {
       console.error("[alojamientos] updateAccommodation error:", error.message);
       return { error: "No se pudo actualizar el alojamiento." };
+    }
+
+    if (extraCost != null) {
+      const { error: costError } = await supabase
+        .from("accommodation_internal_costs")
+        .upsert({ accommodation_id: id, extra_cost: extraCost });
+
+      if (costError) {
+        console.error("[alojamientos] updateAccommodation cost error:", costError.message);
+        return { error: "El alojamiento se actualizó, pero no se pudo guardar el coste interno." };
+      }
     }
 
     revalidatePath("/gestion/alojamientos");
@@ -280,33 +308,6 @@ export async function toggleVisibility(
   } catch (err) {
     if (err instanceof PermissionError) return { error: err.message };
     console.error("[alojamientos] toggleVisibility unexpected:", err);
-    return { error: "Error inesperado." };
-  }
-}
-
-export async function markVerified(
-  id: string,
-): Promise<{ ok: true } | { error: string }> {
-  try {
-    const { profile } = await requireAuth();
-    assertAccommodationsAccess(profile.role);
-    const supabase = await getServerSupabase();
-    const { error } = await supabase
-      .from("accommodations")
-      .update({ last_verified_at: new Date().toISOString() })
-      .eq("id", id);
-
-    if (error) {
-      console.error("[alojamientos] markVerified error:", error.message);
-      return { error: "No se pudo marcar como verificado." };
-    }
-
-    revalidatePath("/gestion/alojamientos");
-    revalidatePath(`/gestion/alojamientos/${id}`);
-    return { ok: true };
-  } catch (err) {
-    if (err instanceof PermissionError) return { error: err.message };
-    console.error("[alojamientos] markVerified unexpected:", err);
     return { error: "Error inesperado." };
   }
 }

@@ -18,7 +18,6 @@ export interface AccommodationRow {
   internal_notes: string | null;
   reservation_notes: string | null;
   sort_order: number;
-  last_verified_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,7 +34,7 @@ export interface AccommodationFilters {
 const PAGE_SIZE = 25;
 
 const SELECT_FIELDS =
-  "id, external_code, name, display_name, stage_name, town, route_name, address, lat, lng, contact_phone, contact_email, active, visible_in_reservations, internal_notes, reservation_notes, sort_order, last_verified_at, created_at, updated_at";
+  "id, external_code, name, display_name, stage_name, town, route_name, address, lat, lng, contact_phone, contact_email, active, visible_in_reservations, internal_notes, reservation_notes, sort_order, created_at, updated_at";
 
 export async function getAccommodations(filters: AccommodationFilters) {
   const supabase = await getServerSupabase();

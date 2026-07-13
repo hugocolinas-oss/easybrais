@@ -23,6 +23,7 @@ export function EditAccommodationForm({ accommodation: a }: Props) {
     const fd = new FormData(e.currentTarget);
     const rawLat = (fd.get("lat") as string)?.trim();
     const rawLng = (fd.get("lng") as string)?.trim();
+    const rawExtraCost = (fd.get("extra_cost") as string)?.trim();
 
     const fields = {
       name: (fd.get("name") as string)?.trim() || a.name,
@@ -41,6 +42,7 @@ export function EditAccommodationForm({ accommodation: a }: Props) {
       address: (fd.get("address") as string) || null,
       lat: rawLat ? Number(rawLat) : null,
       lng: rawLng ? Number(rawLng) : null,
+      extra_cost: rawExtraCost ? Number(rawExtraCost) : 0,
     };
 
     startTransition(async () => {
@@ -179,6 +181,18 @@ export function EditAccommodationForm({ accommodation: a }: Props) {
             defaultValue={a.sort_order}
             className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
           />
+        </Field>
+
+        <Field label="Extra por desplazamiento (€)">
+          <input
+            type="number"
+            name="extra_cost"
+            min={0}
+            step="0.01"
+            defaultValue={a.internal_cost?.extra_cost ?? 0}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
+          />
+          <p className="mt-1 text-[11px] text-gray-400">Solo visible para el equipo.</p>
         </Field>
       </div>
 

@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { getAccommodationById } from "@/lib/accommodation-queries";
 import { EditAccommodationForm } from "@/components/alojamientos/edit-form";
-import { MarkVerifiedButton } from "@/components/alojamientos/toggle-buttons";
 
 export const dynamic = "force-dynamic";
 
@@ -32,14 +31,6 @@ export default async function AccommodationDetailPage({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <MarkVerifiedButton id={accommodation.id} />
-          {accommodation.last_verified_at && (
-            <span className="text-xs text-gray-400">
-              Verificado: {new Date(accommodation.last_verified_at).toLocaleDateString("es-ES")}
-            </span>
-          )}
-        </div>
       </div>
 
       {/* Coordinates info */}

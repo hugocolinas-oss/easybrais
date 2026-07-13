@@ -109,7 +109,6 @@ export async function updateAccommodation(
     contact_phone?: string | null;
     contact_email?: string | null;
     address?: string | null;
-    last_verified_at?: string | null;
   },
 ): Promise<{ ok: true } | { error: string }> {
   try {
@@ -179,31 +178,6 @@ export async function toggleVisibility(
     return { ok: true };
   } catch (err) {
     console.error("[alojamientos] toggleVisibility unexpected:", err);
-    return { error: "Error inesperado." };
-  }
-}
-
-export async function markVerified(
-  id: string,
-): Promise<{ ok: true } | { error: string }> {
-  try {
-    const supabase = await getServerSupabase();
-    const { error } = await supabase
-      .from("accommodations")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- migration 010
-      .update({ last_verified_at: new Date().toISOString() } as any)
-      .eq("id", id);
-
-    if (error) {
-      console.error("[alojamientos] markVerified error:", error.message);
-      return { error: "No se pudo marcar como verificado." };
-    }
-
-    revalidatePath("/alojamientos");
-    revalidatePath(`/alojamientos/${id}`);
-    return { ok: true };
-  } catch (err) {
-    console.error("[alojamientos] markVerified unexpected:", err);
     return { error: "Error inesperado." };
   }
 }
