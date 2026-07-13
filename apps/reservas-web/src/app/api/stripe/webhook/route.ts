@@ -36,6 +36,11 @@ export async function POST(req: NextRequest) {
         await handleCheckoutCompleted(session);
         break;
       }
+      case "checkout.session.async_payment_succeeded": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await handleCheckoutCompleted(session);
+        break;
+      }
       case "checkout.session.expired": {
         const session = event.data.object as Stripe.Checkout.Session;
         await handleCheckoutExpired(session);
@@ -46,6 +51,7 @@ export async function POST(req: NextRequest) {
     }
   } catch (err) {
     console.error(`[CRITICAL][stripe/webhook] error processing ${event.type}:`, err);
+    return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });
@@ -64,17 +70,32 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const supabase = createAdminClient();
 
+  if (session.payment_status !== "paid") {
+    console.log("[stripe/webhook] completed: payment is not paid yet:", session.id);
+    return;
+  }
+
   /* ── Idempotency: check if already processed ─────────────────── */
 
   const { data: current } = await supabase
     .from("bookings")
-    .select("id, payment_status, status")
+    .select("id, booking_code, total_amount, payment_status, status, stripe_session_id")
     .eq("id", bookingId)
     .single();
 
   if (!current) {
-    console.error("[stripe/webhook] completed: booking not found:", bookingId);
-    return;
+    throw new Error(`Booking not found for Stripe session ${session.id}`);
+  }
+
+  const expectedAmount = Math.round(Number(current.total_amount) * 100);
+  if (
+    current.stripe_session_id !== session.id
+    || session.client_reference_id !== bookingId
+    || session.metadata?.booking_code !== current.booking_code
+    || session.currency !== "eur"
+    || session.amount_total !== expectedAmount
+  ) {
+    throw new Error(`Stripe session validation failed for booking ${bookingId}`);
   }
 
   if (current.payment_status === "paid") {
@@ -91,7 +112,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const now = new Date().toISOString();
 
-  const { error: updateErr } = await supabase
+  const { data: updated, error: updateErr } = await supabase
     .from("bookings")
     .update({
       payment_status: "paid",
@@ -100,16 +121,24 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       paid_at: now,
       payment_method: "online_stripe",
     })
-    .eq("id", bookingId);
+    .eq("id", bookingId)
+    .eq("stripe_session_id", session.id)
+    .neq("payment_status", "paid")
+    .select("id")
+    .maybeSingle();
 
   if (updateErr) {
-    console.error("[CRITICAL][stripe/webhook] completed: booking update failed:", updateErr.message, "bookingId:", bookingId);
+    throw new Error(`Booking payment update failed: ${updateErr.message}`);
+  }
+
+  if (!updated) {
+    console.log("[stripe/webhook] completed: concurrently processed, skipping:", bookingId);
     return;
   }
 
   /* ── Events ──────────────────────────────────────────────────── */
 
-  await supabase.from("booking_events").insert({
+  const { error: paymentEventError } = await supabase.from("booking_events").insert({
     booking_id: bookingId,
     event_type: "payment_received" as const,
     actor_type: "system" as const,
@@ -122,17 +151,25 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       customer_email: session.customer_email,
     },
   });
+  if (paymentEventError) {
+    console.error("[stripe/webhook] payment event insert failed:", paymentEventError.message);
+  }
 
-  await supabase.from("booking_events").insert({
-    booking_id: bookingId,
-    event_type: "status_changed" as const,
-    actor_type: "system" as const,
-    payload_json: {
-      from: current.status,
-      to: "confirmed",
-      reason: "stripe_payment_completed",
-    },
-  });
+  if (current.status !== "confirmed") {
+    const { error: statusEventError } = await supabase.from("booking_events").insert({
+      booking_id: bookingId,
+      event_type: "status_changed" as const,
+      actor_type: "system" as const,
+      payload_json: {
+        from: current.status,
+        to: "confirmed",
+        reason: "stripe_payment_completed",
+      },
+    });
+    if (statusEventError) {
+      console.error("[stripe/webhook] status event insert failed:", statusEventError.message);
+    }
+  }
 
   console.log("[stripe/webhook] completed: booking", bookingId, "marked as paid+confirmed");
 
@@ -167,11 +204,16 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 
   const { data: current } = await supabase
     .from("bookings")
-    .select("id, status, payment_status")
+    .select("id, status, payment_status, stripe_session_id")
     .eq("id", bookingId)
     .single();
 
   if (!current) return;
+
+  if (current.stripe_session_id !== session.id) {
+    console.log("[stripe/webhook] expired: stale session, skipping:", session.id);
+    return;
+  }
 
   if (current.payment_status === "paid") {
     console.log("[stripe/webhook] expired: already paid, skipping:", bookingId);
@@ -194,15 +236,14 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
     .eq("id", bookingId);
 
   if (updateErr) {
-    console.error("[CRITICAL][stripe/webhook] expired: booking update failed:", updateErr.message, "bookingId:", bookingId);
-    return;
+    throw new Error(`Expired booking update failed: ${updateErr.message}`);
   }
 
   console.log("[stripe/webhook] expired: booking", bookingId, "kept confirmed with expired payment session");
 
   /* ── Event ───────────────────────────────────────────────────── */
 
-  await supabase.from("booking_events").insert({
+  const { error: eventError } = await supabase.from("booking_events").insert({
     booking_id: bookingId,
     event_type: "payment_expired" as const,
     actor_type: "system" as const,
@@ -213,4 +254,7 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
       payment_status: current.payment_status,
     },
   });
+  if (eventError) {
+    console.error("[stripe/webhook] expiry event insert failed:", eventError.message);
+  }
 }

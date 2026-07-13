@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStripe, isStripeConfigured } from "@/lib/stripe";
+import { getStripe, getStripeReturnOrigin, isStripeConfigured } from "@/lib/stripe";
 import { createAdminClient } from "@easybrais/utils";
 
 const PAYMENT_WINDOW_SECONDS = 3600; // 1 hour
@@ -14,10 +14,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { bookingId } = body as { bookingId: string };
+    const { bookingId, bookingCode } = body as { bookingId?: string; bookingCode?: string };
 
-    if (!bookingId) {
-      return NextResponse.json({ error: "bookingId requerido" }, { status: 400 });
+    if (!bookingId || !bookingCode) {
+      return NextResponse.json({ error: "Reserva no válida" }, { status: 400 });
     }
 
     const supabase = createAdminClient();
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
         "id, booking_code, total_amount, payment_status, status, stripe_session_id, customers(full_name, email)",
       )
       .eq("id", bookingId)
+      .eq("booking_code", bookingCode)
       .single();
 
     if (fetchErr || !rawBooking) {
@@ -103,34 +104,40 @@ export async function POST(req: NextRequest) {
     } | null;
 
     const stripe = getStripe();
-    const origin = req.nextUrl.origin;
+    const origin = getStripeReturnOrigin(req.nextUrl.origin);
     const expiresAt = Math.floor(Date.now() / 1000) + PAYMENT_WINDOW_SECONDS;
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      customer_email: customer?.email ?? undefined,
-      client_reference_id: booking.id,
-      metadata: {
-        booking_id: booking.id,
-        booking_code: booking.booking_code,
-      },
-      line_items: [
-        {
-          price_data: {
-            currency: "eur",
-            unit_amount: amountCents,
-            product_data: {
-              name: `Transporte de equipaje — ${booking.booking_code}`,
-              description: `Reserva ${booking.booking_code} — Easy Brais Camino Portugués`,
-            },
-          },
-          quantity: 1,
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_email: customer?.email ?? undefined,
+        client_reference_id: booking.id,
+        metadata: {
+          booking_id: booking.id,
+          booking_code: booking.booking_code,
         },
-      ],
-      success_url: `${origin}/reserva/exito?session_id={CHECKOUT_SESSION_ID}&booking_id=${booking.id}`,
-      cancel_url: `${origin}/reserva/cancelado?booking_id=${booking.id}`,
-      expires_at: expiresAt,
-    });
+        line_items: [
+          {
+            price_data: {
+              currency: "eur",
+              unit_amount: amountCents,
+              product_data: {
+                name: `Transporte de equipaje — ${booking.booking_code}`,
+                description: `Reserva ${booking.booking_code} — Easy Brais Camino Portugués`,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        success_url: `${origin}/reserva/exito?session_id={CHECKOUT_SESSION_ID}&booking_id=${booking.id}`,
+        cancel_url: `${origin}/reserva/cancelado?booking_id=${booking.id}&booking_code=${encodeURIComponent(booking.booking_code)}`,
+        expires_at: expiresAt,
+      },
+      {
+        idempotencyKey: `checkout-${booking.id}-${booking.stripe_session_id ?? "initial"}`,
+      },
+    );
 
     /* ── 7. Update booking payment metadata ───────────────────────── */
 

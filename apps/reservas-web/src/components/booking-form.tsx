@@ -383,7 +383,7 @@ export function BookingForm({ allAccommodations }: Props) {
         const checkoutRes = await fetch("/api/stripe/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bookingId: res.bookingId }),
+          body: JSON.stringify({ bookingId: res.bookingId, bookingCode: res.bookingCode }),
         });
 
         const checkoutData = await checkoutRes.json();
