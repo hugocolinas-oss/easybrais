@@ -19,7 +19,19 @@ const FULL_CAMINO_LEGS = 8;
 
 type PaymentMethod = "online" | "cash";
 
-const LOCKER_CITIES = [
+interface LockerSpot {
+  name: string;
+  url: string;
+  price?: string;
+}
+
+interface LockerCity {
+  city: string;
+  payOnPickup: boolean;
+  spots: LockerSpot[];
+}
+
+const LOCKER_CITIES: LockerCity[] = [
   {
     city: "Vigo",
     payOnPickup: true,
@@ -704,24 +716,38 @@ function PriceBreakdown({ pricing }: { pricing: ReturnType<typeof calculatePrici
 
 function LockerHelp() {
   return (
-    <div className="rounded-2xl border border-sky-200/80 bg-white shadow-card">
-      <div className="border-b border-sky-100 bg-sky-50/70 px-4 py-3 sm:px-5">
-        <p className="text-sm font-bold text-brand-900">Consignas / lockers</p>
-        <p className="mt-1 text-sm text-brand-800/70">
-          Si no encuentras tu alojamiento, escoge la consigna o locker más cercana. Tienes opciones en todas estas ciudades.
-        </p>
+    <div className="overflow-hidden rounded-2xl border border-cream-300/80 bg-white shadow-card">
+      <div className="border-b border-cream-200/80 bg-cream-50 px-4 py-3 sm:px-5">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-900 text-white shadow-sm">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.11 1.5 2.089v7.5a2.25 2.25 0 01-2.25 2.25H6.75a2.25 2.25 0 01-2.25-2.25v-7.5c0-.98.616-1.805 1.5-2.089m14.25 0A2.25 2.25 0 0018 6.75h-1.286a2.25 2.25 0 00-1.591.659L12 10.532 8.877 7.409a2.25 2.25 0 00-1.591-.659H6a2.25 2.25 0 00-2.25 2.25m16.5-.489V6.75A2.25 2.25 0 0018 4.5H6A2.25 2.25 0 003.75 6.75v1.761" />
+            </svg>
+          </span>
+          <div>
+            <p className="text-sm font-bold text-brand-900">Consignas / lockers</p>
+            <p className="mt-1 text-sm leading-relaxed text-brand-800/70">
+              Si no encuentras tu alojamiento, escoge la consigna o locker más cercana. Tienes opciones en todas estas ciudades.
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="space-y-3 px-4 py-4 sm:px-5">
-        <div className="rounded-xl border border-amber-200/80 bg-amber-50 px-3.5 py-3 text-sm text-amber-900">
+        <div className="rounded-xl border border-gold-200/80 bg-gold-50/70 px-3.5 py-3 text-sm text-gold-900">
           El precio de la consigna se paga cuando vayas a recoger tu equipaje, salvo que el establecimiento indique otra cosa.
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {LOCKER_CITIES.map((city) => (
-            <details key={city.city} className="group overflow-hidden rounded-xl border border-cream-300/80 bg-cream-50/40">
+            <details key={city.city} className="group overflow-hidden rounded-xl border border-cream-300/80 bg-cream-50/50 transition-colors open:bg-white">
               <summary className="flex cursor-pointer items-center justify-between gap-3 px-3.5 py-3 text-sm font-semibold text-brand-900 marker:hidden">
-                <span>{city.city}</span>
+                <div className="flex items-center gap-2.5">
+                  <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-lg bg-sage-100 px-2 text-[10px] font-bold uppercase tracking-wide text-sage-700">
+                    {city.city.slice(0, 3)}
+                  </span>
+                  <span>{city.city}</span>
+                </div>
                 <svg className="h-4 w-4 shrink-0 text-brand-800/45 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                 </svg>
@@ -740,14 +766,18 @@ function LockerHelp() {
                     href={spot.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block rounded-lg border border-cream-200 px-3 py-2.5 transition-colors hover:border-sky-300 hover:bg-sky-50/50"
+                    className="block rounded-xl border border-cream-200 px-3.5 py-3 transition-colors hover:border-sage-300 hover:bg-sage-50/40"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold text-brand-900">{spot.name}</p>
-                        {spot.price && <p className="mt-0.5 text-xs text-brand-800/55">{spot.price}</p>}
+                        {spot.price && (
+                          <p className="mt-1 inline-flex rounded-full bg-gold-100 px-2 py-0.5 text-[11px] font-semibold text-gold-800">
+                            {spot.price}
+                          </p>
+                        )}
                       </div>
-                      <span className="shrink-0 text-xs font-semibold text-sky-700">Abrir mapa</span>
+                      <span className="shrink-0 text-xs font-semibold text-sage-700">Abrir mapa</span>
                     </div>
                   </a>
                 ))}
