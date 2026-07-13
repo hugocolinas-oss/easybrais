@@ -6,6 +6,7 @@ import type { BookingFormData } from "@/lib/types";
 import { isStripeConfigured } from "@/lib/stripe";
 import { sendReservationEmails } from "@/lib/email/reservations";
 import { normalizePhoneValue } from "@/lib/phone";
+import { getAccommodationSequence } from "@/lib/accommodation-order";
 import { SUPPORTED_LOCALES, type Locale } from "@/lib/i18n/translations";
 
 // ---------------------------------------------------------------------------
@@ -110,10 +111,10 @@ export async function createBooking(
 
     const { data: accRows } = await supabase
       .from("accommodations")
-      .select("id, external_code")
+      .select("id, external_code, sort_order")
       .in("id", uniqueAccIds);
 
-    type AccRow = { id: string; external_code: string | null };
+    type AccRow = { id: string; external_code: string | null; sort_order: number };
     const accLookup = new Map((accRows ?? []).map((a: AccRow) => [a.id, a]));
 
     function stageNumber(code: string | null): number | null {
@@ -130,8 +131,14 @@ export async function createBooking(
     }
 
     for (const [i, leg] of data.legs.entries()) {
+      const pickupSeq = getAccommodationSequence(
+        accLookup.get(leg.pickupAccommodationId) ?? { external_code: null, sort_order: 0 },
+      );
+      const dropoffSeq = getAccommodationSequence(
+        accLookup.get(leg.dropoffAccommodationId) ?? { external_code: null, sort_order: 0 },
+      );
       const { pickupPrefix, dropoffPrefix } = getLegPrefixes(leg.pickupAccommodationId, leg.dropoffAccommodationId);
-      if (pickupPrefix !== null && dropoffPrefix !== null && dropoffPrefix < pickupPrefix) {
+      if (pickupSeq !== null && dropoffSeq !== null && dropoffSeq < pickupSeq) {
         return fail(`Tramo ${i + 1}: la entrega (código ${dropoffPrefix}) no puede ser anterior a la recogida (código ${pickupPrefix}).`);
       }
     }

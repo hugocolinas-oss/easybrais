@@ -5,6 +5,7 @@ import type { Accommodation, BookingType, StageLeg, BookingFormData } from "@/li
 import { calculatePricing, formatEUR, fmtDateShort, PRICING_RULES, getRealEtapas } from "@easybrais/utils";
 import { createBooking, type BookingSuccess } from "@/app/actions";
 import { useT } from "@/lib/i18n/context";
+import { getAccommodationPricingPrefix, getAccommodationSequence } from "@/lib/accommodation-order";
 import { BookingTypeSelector } from "./booking-type-selector";
 import { LegForm } from "./leg-form";
 import { CustomerFields } from "./customer-fields";
@@ -39,19 +40,13 @@ const EMPTY_CUSTOMER = {
   notes: "",
 };
 
-function stageNumberFromCode(acc: Accommodation): number | null {
-  if (!acc.external_code) return null;
-  const n = parseInt(acc.external_code.split(".")[0] ?? "", 10);
-  return Number.isNaN(n) ? null : n;
-}
-
 function getStagesCount(
   pickupAcc: Accommodation | undefined,
   dropoffAcc: Accommodation | undefined,
 ): number {
   if (!pickupAcc || !dropoffAcc) return 1;
-  const p = stageNumberFromCode(pickupAcc);
-  const d = stageNumberFromCode(dropoffAcc);
+  const p = getAccommodationPricingPrefix(pickupAcc);
+  const d = getAccommodationPricingPrefix(dropoffAcc);
   if (p === null || d === null) return 1;
   return getRealEtapas(p, d);
 }
@@ -60,7 +55,7 @@ export function BookingForm({ allAccommodations }: Props) {
   const { t, locale } = useT();
   const [bookingType, setBookingType] = useState<BookingType>("single_stage");
   const [legs, setLegs] = useState<StageLeg[]>([createLeg()]);
-  const [customer, setCustomer] = useState({ ...EMPTY_CUSTOMER, language: "es" });
+  const [customer, setCustomer] = useState({ ...EMPTY_CUSTOMER, language: locale });
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -70,15 +65,18 @@ export function BookingForm({ allAccommodations }: Props) {
 
   const idempotencyKeyRef = useRef(crypto.randomUUID());
 
-  // Sync customer language with detected browser locale on first render
-  const langSynced = useRef(false);
   const autoLanguageRef = useRef(customer.language);
+  const customerLanguageTouchedRef = useRef(false);
+
   useEffect(() => {
     setCustomer((prev) => {
-      if (langSynced.current && prev.language && prev.language !== autoLanguageRef.current) {
+      if (customerLanguageTouchedRef.current) {
         return prev;
       }
-      langSynced.current = true;
+      if (prev.language === locale) {
+        autoLanguageRef.current = locale;
+        return prev;
+      }
       autoLanguageRef.current = locale;
       return { ...prev, language: locale };
     });
@@ -95,8 +93,8 @@ export function BookingForm({ allAccommodations }: Props) {
         legs.map((l) => {
           const pickup = accMap.get(l.pickupAccommodationId);
           const dropoff = accMap.get(l.dropoffAccommodationId);
-          const p = pickup ? stageNumberFromCode(pickup) : null;
-          const d = dropoff ? stageNumberFromCode(dropoff) : null;
+          const p = pickup ? getAccommodationPricingPrefix(pickup) : null;
+          const d = dropoff ? getAccommodationPricingPrefix(dropoff) : null;
           const stages = p !== null && d !== null ? getRealEtapas(p, d) : 1;
           return {
             bagsCount: l.bagsCount,
@@ -156,13 +154,13 @@ export function BookingForm({ allAccommodations }: Props) {
       const pickupChanged = prev[index]?.pickupAccommodationId !== updated.pickupAccommodationId;
       if (pickupChanged && updated.pickupAccommodationId) {
         const newPickupAcc = accMap.get(updated.pickupAccommodationId);
-        const newPickupCode = newPickupAcc ? stageNumberFromCode(newPickupAcc) : null;
+        const newPickupSeq = newPickupAcc ? getAccommodationSequence(newPickupAcc) : null;
         const at = next[index];
         if (at) next[index] = { ...at, departureTown: newPickupAcc?.town ?? at.departureTown };
-        if (newPickupCode !== null && updated.dropoffAccommodationId) {
+        if (newPickupSeq !== null && updated.dropoffAccommodationId) {
           const dropoffAcc = accMap.get(updated.dropoffAccommodationId);
-          const dropoffCode = dropoffAcc ? stageNumberFromCode(dropoffAcc) : null;
-          if (dropoffCode !== null && dropoffCode < newPickupCode) {
+          const dropoffSeq = dropoffAcc ? getAccommodationSequence(dropoffAcc) : null;
+          if (dropoffSeq !== null && dropoffSeq < newPickupSeq) {
             const at = next[index];
             if (at) next[index] = { ...at, dropoffAccommodationId: "", arrivalTown: "" };
           }
@@ -249,9 +247,9 @@ export function BookingForm({ allAccommodations }: Props) {
       if (leg.pickupAccommodationId && leg.dropoffAccommodationId) {
         const pAcc = accMap.get(leg.pickupAccommodationId);
         const dAcc = accMap.get(leg.dropoffAccommodationId);
-        const pCode = pAcc ? stageNumberFromCode(pAcc) : null;
-        const dCode = dAcc ? stageNumberFromCode(dAcc) : null;
-        if (pCode !== null && dCode !== null && dCode < pCode) {
+        const pSeq = pAcc ? getAccommodationSequence(pAcc) : null;
+        const dSeq = dAcc ? getAccommodationSequence(dAcc) : null;
+        if (pSeq !== null && dSeq !== null && dSeq < pSeq) {
           errs[`${p}_dropoff`] = t("val.reverseDirection");
         }
       }
@@ -313,6 +311,7 @@ export function BookingForm({ allAccommodations }: Props) {
   function handleNewBooking() {
     setResult(null);
     setLegs([createLeg()]);
+    customerLanguageTouchedRef.current = false;
     autoLanguageRef.current = locale;
     setCustomer({ ...EMPTY_CUSTOMER, language: locale });
     setBookingType("single_stage");
@@ -379,7 +378,12 @@ export function BookingForm({ allAccommodations }: Props) {
             <div className="rounded-2xl border border-cream-300/80 bg-white p-4 shadow-card sm:p-6">
               <CustomerFields
                 value={customer}
-                onChange={setCustomer}
+                onChange={(nextCustomer) => {
+                  if (nextCustomer.language !== autoLanguageRef.current) {
+                    customerLanguageTouchedRef.current = true;
+                  }
+                  setCustomer(nextCustomer);
+                }}
                 errors={errors}
               />
             </div>

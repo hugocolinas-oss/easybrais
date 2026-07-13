@@ -3,13 +3,8 @@
 import { useMemo } from "react";
 import type { StageLeg, Accommodation } from "@/lib/types";
 import { useT } from "@/lib/i18n/context";
+import { getAccommodationSequence } from "@/lib/accommodation-order";
 import { AccommodationCombobox } from "./accommodation-combobox";
-
-function codePrefix(acc: Accommodation): number | null {
-  if (!acc.external_code) return null;
-  const n = parseInt(acc.external_code.split(".")[0] ?? "", 10);
-  return Number.isNaN(n) ? null : n;
-}
 
 interface Props {
   leg: StageLeg;
@@ -38,7 +33,7 @@ export function LegForm({
 
   const pickupCode = useMemo(() => {
     const pickupAcc = allAccommodations.find((a) => a.id === leg.pickupAccommodationId);
-    return pickupAcc ? codePrefix(pickupAcc) : null;
+    return pickupAcc ? getAccommodationSequence(pickupAcc) : null;
   }, [allAccommodations, leg.pickupAccommodationId]);
 
   const dropoffAccommodations = useMemo(() => {
@@ -46,7 +41,7 @@ export function LegForm({
 
     if (pickupCode !== null) {
       list = list.filter((a) => {
-        const c = codePrefix(a);
+        const c = getAccommodationSequence(a);
         return c === null || c >= pickupCode;
       });
     }
