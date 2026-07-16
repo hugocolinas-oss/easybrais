@@ -2,8 +2,12 @@
   "name": "easybrais",
   "private": true,
   "scripts": {
-    "dev": "turbo dev --filter=reservas-web",
-    "build": "turbo build --filter=reservas-web",
+    "dev": "turbo dev",
+    "dev:reservas": "turbo dev --filter=reservas-web",
+    "dev:gestion": "turbo dev --filter=gestion-web",
+    "build": "turbo build",
+    "build:reservas": "turbo build --filter=reservas-web",
+    "build:gestion": "turbo build --filter=gestion-web",
     "lint": "turbo lint",
     "type-check": "turbo type-check",
     "clean": "turbo clean && rm -rf node_modules",
@@ -16,6 +20,10 @@
     "node": ">=20"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "3.3.1",
+    "@eslint/js": "9.31.0",
+    "eslint": "9.31.0",
+    "eslint-config-next": "15.1.0",
     "tsx": "^4.21.0",
     "turbo": "^2.8.20"
   }

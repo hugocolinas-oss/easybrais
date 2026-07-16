@@ -1,5 +1,20 @@
 import type { Metadata, Viewport } from "next";
+import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
+
+const plexSans = IBM_Plex_Sans({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-easybrais-sans",
+  weight: ["400", "500", "600", "700"],
+});
+
+const plexMono = IBM_Plex_Mono({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-easybrais-mono",
+  weight: ["500", "600", "700"],
+});
 
 /** Límite alto para Server Actions (p. ej. createBooking + SMTP + PDF en Vercel). */
 export const maxDuration = 60;
@@ -23,7 +38,7 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </head>
-      <body className="min-h-screen antialiased">
+      <body className={`${plexSans.variable} ${plexMono.variable} min-h-screen font-sans antialiased`}>
         {children}
       </body>
     </html>

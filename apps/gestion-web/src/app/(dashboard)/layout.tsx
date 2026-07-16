@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/auth";
 import { Sidebar } from "@/components/sidebar";
 import { BottomNav } from "@/components/bottom-nav";
+import { BrandRoutePattern } from "@/components/brand-route-pattern";
 
 export default async function DashboardLayout({
   children,
@@ -26,12 +27,13 @@ export default async function DashboardLayout({
 
       <div className="flex flex-1 flex-col">
         {/* Topbar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white/95 px-4 py-3 backdrop-blur-sm lg:px-8">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-30 flex items-center justify-between overflow-hidden border-b border-gray-200 bg-white/95 px-4 py-3 backdrop-blur-sm lg:px-8">
+          <BrandRoutePattern className="absolute inset-y-0 right-0 hidden h-full w-[62%] opacity-45 sm:block" />
+          <div className="relative flex items-center gap-3">
             <span className="text-base font-bold text-brand-700 lg:hidden">EB</span>
             <p className="text-sm font-medium text-gray-900 capitalize">{today}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="relative flex items-center gap-3">
             <div className="hidden text-right text-xs text-gray-500 sm:block">
               <p className="font-medium text-gray-700">{profile.full_name || email}</p>
               <p>{profile.role}</p>

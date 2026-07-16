@@ -13,7 +13,7 @@ const LOCALES: Record<Locale, { short: string; label: string; flag: string }> = 
   it: { short: "IT", label: "Italiano", flag: "🇮🇹" },
 };
 
-export function LocaleSwitcher() {
+export function LocaleSwitcher({ tone = "dark" }: { tone?: "light" | "dark" }) {
   const { locale, setLocale } = useT();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -44,23 +44,16 @@ export function LocaleSwitcher() {
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="Idioma de la interfaz"
-        className="inline-flex min-w-[184px] items-center gap-3 rounded-2xl border border-white/80 bg-white/90 px-3 py-2 shadow-[0_16px_36px_rgba(16,52,41,0.12)] backdrop-blur transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_20px_44px_rgba(16,52,41,0.16)] focus:outline-none focus:ring-2 focus:ring-brand-700/20"
+        className={[
+          "inline-flex h-9 items-center gap-2 rounded-md border px-2.5 transition-colors focus:outline-none focus:ring-2 focus:ring-gold-500/40",
+          tone === "light"
+            ? "border-brand-900/20 bg-transparent text-brand-900 hover:bg-brand-900/[.04]"
+            : "border-white/[.12] bg-white/[.08] text-white hover:bg-white/[.13]",
+        ].join(" ")}
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-700 to-brand-900 text-base text-white">
-          {current.flag}
-        </span>
-        <span className="min-w-0 flex-1 text-left">
-          <span className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-brand-800/38">
-            Translate
-          </span>
-          <span className="mt-0.5 block truncate text-sm font-semibold text-brand-900">
-            {current.label}
-          </span>
-        </span>
-        <span className="rounded-full bg-cream-100 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-brand-800/55">
-          {current.short}
-        </span>
-        <svg className={["h-4 w-4 shrink-0 text-brand-800/42 transition-transform duration-200", open ? "rotate-180" : ""].join(" ")} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+        <span className="text-sm" aria-hidden="true">{current.flag}</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.12em]">{current.short}</span>
+        <svg className={["h-3.5 w-3.5 shrink-0 opacity-55 transition-transform duration-200", open ? "rotate-180" : ""].join(" ")} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
         </svg>
       </button>
@@ -69,14 +62,14 @@ export function LocaleSwitcher() {
         <div
           role="listbox"
           aria-label="Seleccionar idioma"
-          className="absolute right-0 top-[calc(100%+0.75rem)] z-30 w-[240px] overflow-hidden rounded-3xl border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(246,244,238,0.98))] p-2 shadow-[0_28px_60px_rgba(16,52,41,0.2)] backdrop-blur-xl"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-[220px] overflow-hidden rounded-xl border border-cream-300 bg-white p-1.5 shadow-soft"
         >
           <div className="mb-1 flex items-center justify-between px-2 py-1">
             <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-brand-800/38">
-              Language
+              Idioma
             </span>
             <span className="text-[10px] font-medium text-brand-800/45">
-              {SUPPORTED_LOCALES.length} options
+              {SUPPORTED_LOCALES.length} opciones
             </span>
           </div>
           <div className="space-y-1">
@@ -95,11 +88,11 @@ export function LocaleSwitcher() {
                     setOpen(false);
                   }}
                   className={[
-                    "flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-all duration-150",
-                    selected ? "bg-brand-900 text-white shadow-[0_10px_24px_rgba(16,52,41,0.22)]" : "text-brand-900 hover:bg-white/95",
+                    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-150",
+                    selected ? "bg-brand-900 text-white" : "text-brand-900 hover:bg-cream-100",
                   ].join(" ")}
                 >
-                  <span className={["flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg", selected ? "bg-white/14" : "bg-cream-100"].join(" ")}>
+                  <span className="text-lg" aria-hidden="true">
                     {entry.flag}
                   </span>
                   <span className="min-w-0 flex-1">

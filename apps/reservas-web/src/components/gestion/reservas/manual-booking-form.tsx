@@ -102,12 +102,9 @@ function createLeg(): LegState {
 }
 
 const TYPE_OPTIONS: { id: BookingType; label: string }[] = [
-  { id: "single_stage", label: "Un transporte" },
+  { id: "single_stage", label: "Una etapa" },
   { id: "multi_stage", label: "Varias etapas" },
-  { id: "full_camino", label: "Camino completo" },
 ];
-
-const FULL_CAMINO_LEGS = 8;
 
 export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) {
   const router = useRouter();
@@ -137,14 +134,12 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
     setBookingType(type);
     if (type === "single_stage") {
       setLegs([createLeg()]);
-    } else if (type === "multi_stage") {
+    } else {
       setLegs((prev) => {
         const filled = prev.slice(0, 2);
         while (filled.length < 2) filled.push(createLeg());
         return filled;
       });
-    } else if (type === "full_camino") {
-      setLegs(Array.from({ length: FULL_CAMINO_LEGS }, () => createLeg()));
     }
   }, []);
 
@@ -308,25 +303,27 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Nombre completo *</label>
-            <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600" />
+            <input type="text" name="fullName" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600" />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Email</label>
-            <input type="text" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Opcional" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600" />
+            <input type="email" name="email" autoComplete="email" inputMode="email" spellCheck={false} autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Opcional" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600" />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Teléfono</label>
             <PhoneInput
               id="manual-booking-phone"
+              name="phone"
               value={phone}
               onChange={setPhone}
               className="rounded-lg"
               mode="searchable"
+              autoComplete="tel"
             />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Notas</label>
-            <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600" />
+            <input type="text" name="notes" autoComplete="off" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600" />
           </div>
         </div>
       </div>
@@ -412,7 +409,7 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
                 <h3 className="text-sm font-semibold text-gray-700">
                   Etapa {i + 1}
                 </h3>
-                {legs.length > 1 && bookingType !== "full_camino" && (
+                {legs.length > 1 && (
                   <button type="button" onClick={() => removeLeg(i)} className="text-xs text-red-400 hover:text-red-600">
                     Eliminar
                   </button>

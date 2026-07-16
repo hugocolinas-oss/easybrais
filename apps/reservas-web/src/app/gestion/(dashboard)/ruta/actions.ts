@@ -225,7 +225,7 @@ export async function refreshRoute(routeId: string, routeDate: string) {
     return { error: "Parámetros inválidos." };
 
   try {
-    const { userId, profile } = await requireAuth();
+    const { profile } = await requireAuth();
     assertRoutesAccess(profile.role);
     const supabase = createAdminClient();
 

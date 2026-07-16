@@ -8,11 +8,17 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: [
-          "Inter",
+          "var(--font-easybrais-sans)",
           "ui-sans-serif",
           "system-ui",
           "-apple-system",
           "sans-serif",
+        ],
+        mono: [
+          "var(--font-easybrais-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "monospace",
         ],
       },
       colors: {

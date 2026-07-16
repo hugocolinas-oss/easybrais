@@ -2,6 +2,7 @@ import Image from "next/image";
 import { requireAuth } from "@/lib/gestion/auth";
 import { Sidebar } from "@/components/gestion/sidebar";
 import { BottomNav } from "@/components/gestion/bottom-nav";
+import { BrandRoutePattern } from "@/components/brand-route-pattern";
 import { BRAND_LOGO_SRC } from "@/lib/brand";
 
 export default async function DashboardLayout({
@@ -28,14 +29,15 @@ export default async function DashboardLayout({
 
       <div className="flex flex-1 flex-col">
         {/* Topbar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-brand-900/10 bg-white/95 px-4 py-3 backdrop-blur-sm md:px-6">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-30 flex items-center justify-between overflow-hidden border-b border-brand-900/10 bg-white/95 px-4 py-3 backdrop-blur-sm md:px-6">
+          <BrandRoutePattern className="absolute inset-y-0 right-0 hidden h-full w-[62%] opacity-45 sm:block" />
+          <div className="relative flex items-center gap-3">
             <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl shadow-sm ring-1 ring-brand-900/10 md:hidden">
               <Image src={BRAND_LOGO_SRC} alt="Easy Brais" fill className="object-contain" sizes="36px" />
             </div>
             <p className="text-sm font-medium capitalize text-brand-900">{today}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="relative flex items-center gap-3">
             <div className="hidden text-right text-xs text-brand-800/50 sm:block">
               <p className="font-medium text-brand-900">{profile.full_name || email}</p>
               <p>{profile.role}</p>

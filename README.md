@@ -32,6 +32,8 @@ pnpm dev
 | `pnpm dev:reservas`   | Solo app de reservas (puerto 3000)       |
 | `pnpm dev:gestion`    | Solo panel de gestión (puerto 3001)      |
 | `pnpm build`          | Build de producción de todo              |
+| `pnpm build:reservas` | Build solo de la app de reservas         |
+| `pnpm build:gestion`  | Build solo del panel de gestión          |
 | `pnpm lint`           | Lint de todo el monorepo                 |
 | `pnpm type-check`     | Verificación de tipos                    |
 | `pnpm clean`          | Limpia builds y node_modules             |

@@ -21,7 +21,7 @@ export interface Accommodation {
   route_stage: RouteStage | null;
 }
 
-export type BookingType = "single_stage" | "multi_stage" | "full_camino";
+export type BookingType = "single_stage" | "multi_stage";
 
 export interface StageLeg {
   id: string;

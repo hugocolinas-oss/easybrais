@@ -5,6 +5,7 @@ import type { Accommodation } from "@/lib/types";
 import { useT } from "@/lib/i18n/context";
 
 interface Props {
+  inputId: string;
   value: string;
   accommodations: Accommodation[];
   placeholder: string;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function AccommodationCombobox({
+  inputId,
   value,
   accommodations,
   placeholder,
@@ -29,20 +31,24 @@ export function AccommodationCombobox({
   const listRef = useRef<HTMLDivElement>(null);
 
   const selected = accommodations.find((a) => a.id === value);
+  const normalizedQuery = query.trim();
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return accommodations;
-    const q = query.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (!normalizedQuery) return [];
+    const q = normalizedQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return accommodations.filter((a) => {
       const strip = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       return (
         strip(a.display_name).includes(q) ||
         strip(a.name).includes(q) ||
         (a.town && strip(a.town).includes(q)) ||
-        (a.address && strip(a.address).includes(q))
+        (a.address && strip(a.address).includes(q)) ||
+        (a.external_code && a.external_code.toLowerCase().includes(q))
       );
     });
-  }, [accommodations, query]);
+  }, [accommodations, normalizedQuery]);
+
+  const visibleOptions = filtered.slice(0, 50);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -82,13 +88,13 @@ export function AccommodationCombobox({
   }
 
   const borderCls = error
-    ? "border-red-300 focus-within:border-red-500 focus-within:ring-red-500"
-    : "border-cream-300 focus-within:border-brand-700 focus-within:ring-brand-700";
+    ? "border-red-300 focus-within:border-red-500 focus-within:ring-red-500/20"
+    : "border-cream-300 focus-within:border-brand-700 focus-within:ring-brand-700/20";
 
   return (
     <div ref={containerRef} className="relative">
       <div
-        className={`flex items-center gap-2 rounded-xl border bg-white px-3 py-2.5 transition-all focus-within:ring-1 sm:py-3 ${borderCls} ${disabled ? "bg-cream-100/80" : ""}`}
+        className={`flex min-h-11 items-center gap-2 rounded-xl border bg-white px-3 py-2.5 transition-[border-color,box-shadow] focus-within:ring-2 ${borderCls} ${disabled ? "bg-cream-100/80" : ""}`}
       >
         <svg
           className="h-4 w-4 shrink-0 text-brand-800/25"
@@ -105,6 +111,7 @@ export function AccommodationCombobox({
           />
         </svg>
         <input
+          id={inputId}
           ref={inputRef}
           type="text"
           value={open ? query : selected?.display_name ?? ""}
@@ -115,13 +122,19 @@ export function AccommodationCombobox({
           onFocus={handleFocus}
           placeholder={disabled ? t("combo.selectFirst") : placeholder}
           disabled={disabled}
-          className="w-full border-0 bg-transparent text-sm text-brand-900 placeholder:text-brand-800/25 focus:outline-none disabled:text-brand-800/25"
+          autoComplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={`${inputId}-options`}
+          aria-invalid={error ? "true" : "false"}
+          className="w-full border-0 bg-transparent text-sm text-brand-900 placeholder:text-brand-800/50 focus:outline-none disabled:text-brand-800/35"
         />
         {value && !disabled && (
           <button
             type="button"
             onClick={handleClear}
-            className="shrink-0 rounded-full p-1 text-brand-800/25 transition-colors hover:bg-cream-200 hover:text-brand-800/50"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-brand-800/45 transition-colors hover:bg-cream-200 hover:text-brand-800"
             aria-label="Limpiar"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">
@@ -154,20 +167,29 @@ export function AccommodationCombobox({
 
       {open && !disabled && (
         <div
+          id={`${inputId}-options`}
           ref={listRef}
-          className="absolute z-50 mt-1.5 max-h-60 w-full overflow-auto rounded-xl border border-cream-300/80 bg-white shadow-lg"
+          role="listbox"
+          className="absolute z-50 mt-1.5 max-h-72 w-full overflow-auto overscroll-contain rounded-xl border border-cream-300 bg-white shadow-lg"
         >
-          {filtered.length === 0 ? (
+          {!normalizedQuery ? (
+            <div className="px-4 py-6 text-center text-sm text-brand-800/55">
+              {placeholder}
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-brand-800/30">
               {t("combo.noResults")}
             </div>
           ) : (
-            filtered.map((a) => {
+            <>
+            {visibleOptions.map((a) => {
               const isSelected = a.id === value;
               return (
                 <button
                   key={a.id}
                   type="button"
+                  role="option"
+                  aria-selected={isSelected}
                   onClick={() => handleSelect(a.id)}
                   className={`flex w-full items-start gap-3 px-3.5 py-3 text-left transition-colors hover:bg-cream-100 active:bg-cream-200 ${isSelected ? "bg-cream-100" : ""}`}
                 >
@@ -184,7 +206,9 @@ export function AccommodationCombobox({
                   </svg>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-brand-900">{a.display_name}</p>
-                    {a.town && <p className="truncate text-[11px] text-brand-800/35">{a.town}</p>}
+                    <p className="truncate text-[11px] text-brand-800/35">
+                      {[a.town, a.external_code].filter(Boolean).join(" · ")}
+                    </p>
                     {a.reservation_notes && (
                       <div className="mt-1 rounded-md border border-gold-200/60 bg-gold-50/50 px-2 py-1.5">
                         <p className="text-[10px] font-bold uppercase text-gold-700/70">{t("combo.importantInfo")}</p>
@@ -199,7 +223,13 @@ export function AccommodationCombobox({
                   )}
                 </button>
               );
-            })
+            })}
+            {filtered.length > visibleOptions.length && (
+              <div className="sticky bottom-0 border-t border-cream-200 bg-cream-50 px-4 py-2.5 text-center text-xs font-medium text-brand-800/60">
+                {placeholder}
+              </div>
+            )}
+            </>
           )}
         </div>
       )}

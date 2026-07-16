@@ -5,6 +5,7 @@ import type { StageLeg, Accommodation } from "@/lib/types";
 import { useT } from "@/lib/i18n/context";
 import { isValidAccommodationLeg } from "@/lib/accommodation-order";
 import { AccommodationCombobox } from "./accommodation-combobox";
+import { BrandIconTile } from "./brand-icon";
 
 interface Props {
   leg: StageLeg;
@@ -67,6 +68,7 @@ export function LegForm({
 
   const { t } = useT();
   const prefix = `leg_${index}`;
+  const fieldIdPrefix = `leg-${index}`;
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const yy = tomorrow.getFullYear();
@@ -75,18 +77,18 @@ export function LegForm({
   const minDate = `${yy}-${mm}-${dd}`;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-cream-300/80 bg-white shadow-card transition-shadow hover:shadow-card-hover">
+    <div className="overflow-hidden rounded-2xl border border-cream-300 bg-white">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-cream-200/60 bg-cream-50 px-4 py-3 sm:px-5">
+      <div className="flex items-center justify-between border-b border-brand-100 bg-brand-50/65 px-4 py-3 sm:px-5">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-brand-900 text-[10px] font-bold text-white">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-900 text-[11px] font-bold text-white">
             {index + 1}
           </span>
           <h4 className="text-sm font-semibold text-brand-900">
             {t("leg.transport")} {index + 1}
           </h4>
           {stagesCount > 1 && (
-            <span className="rounded bg-gold-100 px-1.5 py-0.5 text-[9px] font-bold text-gold-700">
+            <span className="rounded-full bg-gold-100 px-2 py-1 text-[10px] font-bold text-gold-800">
               {stagesCount} {t("leg.stages")}
             </span>
           )}
@@ -95,46 +97,47 @@ export function LegForm({
           <button
             type="button"
             onClick={onRemove}
-            className="rounded-lg px-2.5 py-1 text-xs font-medium text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
+            className="min-h-10 rounded-lg px-3 py-2 text-xs font-semibold text-red-500 transition-colors hover:bg-red-50 hover:text-red-700"
           >
             {t("leg.delete")}
           </button>
         )}
       </div>
 
-      <div className="space-y-4 p-4 sm:space-y-5 sm:p-5">
+      <div className="space-y-5 p-4 sm:p-5">
         {/* Fecha */}
-        <Field label={t("leg.date")} required error={errors[`${prefix}_date`]}>
+        <Field htmlFor={`${fieldIdPrefix}-date`} label={t("leg.date")} required error={errors[`${prefix}_date`]}>
           <input
+            id={`${fieldIdPrefix}-date`}
+            name={`leg-${index}-date`}
             type="date"
             value={leg.serviceDate}
             min={minDate}
             onChange={(e) => update("serviceDate", e.target.value)}
+            aria-invalid={errors[`${prefix}_date`] ? "true" : "false"}
+            autoComplete="off"
             className={selectClass(errors[`${prefix}_date`])}
           />
         </Field>
 
         {/* Route block — recogida → entrega con conector visual */}
-        <div className="relative">
-          {/* Connector line */}
-          <div className="absolute left-[19px] top-[52px] bottom-[52px] hidden w-px border-l-2 border-dashed border-brand-900/10 sm:block" aria-hidden="true" />
+        <div className="relative rounded-xl bg-cream-50/75 px-3.5 py-4 sm:px-4">
+          <div className="absolute bottom-[4.25rem] left-[27px] top-[2.25rem] w-px bg-brand-200" aria-hidden="true" />
 
-          <div className="space-y-3 sm:space-y-0">
+          <div className="space-y-5">
             {/* Recogida */}
-            <div className="relative rounded-xl border border-sage-200/50 bg-gradient-to-br from-sage-50/40 to-white p-3.5 sm:rounded-b-none sm:p-4">
+            <div className="relative">
               <div className="flex items-start gap-3">
-                <div className="mt-0.5 hidden shrink-0 sm:block">
-                  <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-sage-400 bg-white">
-                    <span className="h-2 w-2 rounded-full bg-sage-500" />
-                  </span>
+                <div className="z-10 mt-0.5 shrink-0">
+                  <BrandIconTile name="location" size="sm" />
                 </div>
-                <div className="w-full space-y-3">
-                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sage-700/80">
-                    <span className="h-2 w-2 rounded-full bg-sage-500 sm:hidden" />
+                <div className="min-w-0 w-full space-y-2.5">
+                  <p className="text-xs font-bold text-sage-800">
                     {t("leg.pickup")}
                   </p>
-                  <Field label={t("leg.accommodation")} required error={errors[`${prefix}_pickup`]}>
+                  <Field htmlFor={`${fieldIdPrefix}-pickup`} label={t("leg.accommodation")} required error={errors[`${prefix}_pickup`]}>
                     <AccommodationCombobox
+                      inputId={`${fieldIdPrefix}-pickup`}
                       value={leg.pickupAccommodationId}
                       accommodations={pickupAccommodations}
                       placeholder={t("leg.searchAccommodation")}
@@ -154,28 +157,19 @@ export function LegForm({
               </div>
             </div>
 
-            {/* Arrow divider (mobile) */}
-            <div className="flex justify-center py-0.5 sm:hidden" aria-hidden="true">
-              <svg className="h-5 w-5 text-brand-900/15" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" />
-              </svg>
-            </div>
-
             {/* Entrega */}
-            <div className="relative rounded-xl border border-gold-200/50 bg-gradient-to-br from-gold-50/30 to-white p-3.5 sm:rounded-t-none sm:border-t-0 sm:p-4">
+            <div className="relative">
               <div className="flex items-start gap-3">
-                <div className="mt-0.5 hidden shrink-0 sm:block">
-                  <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-gold-400 bg-white">
-                    <span className="h-2 w-2 rounded-full bg-gold-500" />
-                  </span>
+                <div className="z-10 mt-0.5 shrink-0">
+                  <BrandIconTile name="delivery" size="sm" />
                 </div>
-                <div className="w-full space-y-3">
-                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gold-700/80">
-                    <span className="h-2 w-2 rounded-full bg-gold-500 sm:hidden" />
+                <div className="min-w-0 w-full space-y-2.5">
+                  <p className="text-xs font-bold text-gold-800">
                     {t("leg.dropoff")}
                   </p>
-                  <Field label={t("leg.accommodation")} required error={errors[`${prefix}_dropoff`]}>
+                  <Field htmlFor={`${fieldIdPrefix}-dropoff`} label={t("leg.accommodation")} required error={errors[`${prefix}_dropoff`]}>
                     <AccommodationCombobox
+                      inputId={`${fieldIdPrefix}-dropoff`}
                       value={leg.dropoffAccommodationId}
                       accommodations={dropoffAccommodations}
                       placeholder={t("leg.searchAccommodation")}
@@ -191,8 +185,10 @@ export function LegForm({
 
         {/* Mochilas */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          <Field label={t("leg.bags")} required error={errors[`${prefix}_bags`]}>
+          <Field htmlFor={`${fieldIdPrefix}-bags`} label={t("leg.bags")} required error={errors[`${prefix}_bags`]}>
             <Stepper
+              inputId={`${fieldIdPrefix}-bags`}
+              label={t("leg.bags")}
               value={leg.bagsCount}
               min={1}
               max={50}
@@ -200,8 +196,10 @@ export function LegForm({
             />
           </Field>
 
-          <Field label={t("leg.overweight")}>
+          <Field htmlFor={`${fieldIdPrefix}-overweight`} label={t("leg.overweight")}>
             <Stepper
+              inputId={`${fieldIdPrefix}-overweight`}
+              label={t("leg.overweight")}
               value={leg.overweightBagsCount}
               min={0}
               max={leg.bagsCount}
@@ -217,40 +215,49 @@ export function LegForm({
 /* ── Shared sub-components ───────────────────────────────────────────── */
 
 function Stepper({
+  inputId,
+  label,
   value,
   min,
   max,
   onChange,
 }: {
+  inputId: string;
+  label: string;
   value: number;
   min: number;
   max: number;
   onChange: (v: number) => void;
 }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-2">
       <button
         type="button"
         onClick={() => onChange(Math.max(min, value - 1))}
         disabled={value <= min}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cream-300 text-lg text-brand-800/40 transition-colors hover:bg-cream-100 active:bg-cream-200 disabled:opacity-25 sm:h-11 sm:w-11"
+        aria-label={`${label}: -`}
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cream-300 bg-white text-lg font-medium text-brand-800/60 transition-colors hover:border-brand-300 hover:bg-brand-50 active:bg-brand-100 disabled:opacity-30"
       >
         -
       </button>
       <input
+        id={inputId}
+        name={inputId}
         type="number"
+        inputMode="numeric"
         min={min}
         max={max}
         value={value}
         onFocus={(e) => e.target.select()}
         onChange={(e) => onChange(Math.max(min, Math.min(max, parseInt(e.target.value) || min)))}
-        className="h-10 w-full rounded-xl border border-cream-300 text-center text-sm font-bold text-brand-900 focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700 sm:h-11"
+        className="h-11 min-w-0 w-full rounded-xl border border-cream-300 bg-white text-center text-sm font-bold text-brand-900 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/20"
       />
       <button
         type="button"
         onClick={() => onChange(Math.min(max, value + 1))}
         disabled={value >= max}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cream-300 text-lg text-brand-800/40 transition-colors hover:bg-cream-100 active:bg-cream-200 disabled:opacity-25 sm:h-11 sm:w-11"
+        aria-label={`${label}: +`}
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cream-300 bg-white text-lg font-medium text-brand-800/60 transition-colors hover:border-brand-300 hover:bg-brand-50 active:bg-brand-100 disabled:opacity-30"
       >
         +
       </button>
@@ -259,11 +266,13 @@ function Stepper({
 }
 
 function Field({
+  htmlFor,
   label,
   required,
   error,
   children,
 }: {
+  htmlFor?: string;
   label: string;
   required?: boolean;
   error?: string;
@@ -271,13 +280,13 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-brand-800/40">
+      <label htmlFor={htmlFor} className="mb-1.5 block text-xs font-semibold text-brand-800/65">
         {label}
         {required && <span className="ml-0.5 text-gold-500">*</span>}
       </label>
       {children}
       {error && (
-        <p className="mt-1 text-[11px] font-medium text-red-500">{error}</p>
+        <p className="mt-1.5 text-xs font-medium text-red-600">{error}</p>
       )}
     </div>
   );
@@ -285,12 +294,12 @@ function Field({
 
 function selectClass(error?: string) {
   return [
-    "block w-full rounded-xl border bg-white px-3 py-2.5 text-sm transition-all sm:py-3",
-    "text-brand-900 placeholder:text-brand-800/25",
-    "focus:outline-none focus:ring-1",
+    "block min-h-11 w-full rounded-xl border bg-white px-3 py-2.5 text-sm transition-[border-color,box-shadow]",
+    "text-brand-900 placeholder:text-brand-800/50",
+    "focus:outline-none focus:ring-2",
     "disabled:bg-cream-100 disabled:text-brand-800/25",
     error
-      ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-      : "border-cream-300 focus:border-brand-700 focus:ring-brand-700",
+      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+      : "border-cream-300 focus:border-brand-700 focus:ring-brand-700/20",
   ].join(" ");
 }

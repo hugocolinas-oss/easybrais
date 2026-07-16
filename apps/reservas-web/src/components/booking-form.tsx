@@ -10,15 +10,12 @@ import { BookingTypeSelector } from "./booking-type-selector";
 import { LegForm } from "./leg-form";
 import { CustomerFields } from "./customer-fields";
 import { BookingConfirmation } from "./booking-confirmation";
+import { BrandIcon, BrandIconTile, type BrandIconName } from "./brand-icon";
 import { isPhoneValueValid } from "@/lib/phone";
 
 interface Props {
   allAccommodations: Accommodation[];
 }
-
-const FULL_CAMINO_LEGS = 8;
-
-type PaymentMethod = "online" | "cash";
 
 interface LockerSpot {
   id: string;
@@ -119,7 +116,6 @@ export function BookingForm({ allAccommodations }: Props) {
   const [bookingType, setBookingType] = useState<BookingType>("single_stage");
   const [legs, setLegs] = useState<StageLeg[]>([createLeg()]);
   const [customer, setCustomer] = useState({ ...EMPTY_CUSTOMER, language: locale });
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [submitting, setSubmitting] = useState(false);
@@ -215,7 +211,7 @@ export function BookingForm({ allAccommodations }: Props) {
 
       if (type === "single_stage") {
         setLegs([createLeg()]);
-      } else if (type === "multi_stage") {
+      } else {
         setLegs((prev) => {
           if (prev.length <= 2) {
             const filled = prev.slice(0, 2);
@@ -224,8 +220,6 @@ export function BookingForm({ allAccommodations }: Props) {
           }
           return [prev[0] ?? createLeg(), prev[1] ?? createLeg()];
         });
-      } else if (type === "full_camino") {
-        setLegs(Array.from({ length: FULL_CAMINO_LEGS }, () => createLeg()));
       }
     },
     [],
@@ -355,13 +349,41 @@ export function BookingForm({ allAccommodations }: Props) {
     return errs;
   }
 
+  function focusField(fieldId: string) {
+    requestAnimationFrame(() => {
+      const element = document.getElementById(fieldId) as HTMLElement | null;
+      if (!element) return;
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.focus();
+    });
+  }
+
+  function getFirstInvalidFieldId(validationErrors: Record<string, string>): string | null {
+    if (validationErrors.fullName) return "customer-fullName";
+    if (validationErrors.email) return "customer-email";
+    if (validationErrors.phone) return "customer-phone";
+
+    for (let index = 0; index < legs.length; index += 1) {
+      if (validationErrors[`leg_${index}_date`]) return `leg-${index}-date`;
+      if (validationErrors[`leg_${index}_pickup`]) return `leg-${index}-pickup`;
+      if (validationErrors[`leg_${index}_dropoff`]) return `leg-${index}-dropoff`;
+      if (validationErrors[`leg_${index}_bags`]) return `leg-${index}-bags`;
+    }
+
+    return null;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setServerError(null);
 
     const validationErrors = validate();
     setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) return;
+    if (Object.keys(validationErrors).length > 0) {
+      const fieldId = getFirstInvalidFieldId(validationErrors);
+      if (fieldId) focusField(fieldId);
+      return;
+    }
 
     setSubmitting(true);
 
@@ -370,30 +392,12 @@ export function BookingForm({ allAccommodations }: Props) {
         bookingType,
         legs,
         customer,
-        paymentMethod: paymentMethod === "cash" ? "cash" : "online",
+        paymentMethod: "cash",
       };
       const res = await createBooking(data, idempotencyKeyRef.current);
 
       if (!res.ok) {
         setServerError(res.error);
-        return;
-      }
-
-      if (res.stripeEnabled && paymentMethod === "online") {
-        const checkoutRes = await fetch("/api/stripe/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bookingId: res.bookingId, bookingCode: res.bookingCode }),
-        });
-
-        const checkoutData = await checkoutRes.json();
-
-        if (checkoutData.url) {
-          window.location.href = checkoutData.url;
-          return;
-        }
-
-        setServerError(checkoutData.error ?? "Error al iniciar el pago. Tu reserva ha sido creada con código " + res.bookingCode);
         return;
       }
 
@@ -412,7 +416,6 @@ export function BookingForm({ allAccommodations }: Props) {
     autoLanguageRef.current = locale;
     setCustomer({ ...EMPTY_CUSTOMER, language: locale });
     setBookingType("single_stage");
-    setPaymentMethod("cash");
     setErrors({});
     setServerError(null);
     idempotencyKeyRef.current = crypto.randomUUID();
@@ -423,10 +426,12 @@ export function BookingForm({ allAccommodations }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:gap-8">
+    <form onSubmit={handleSubmit} noValidate>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10">
         {/* Left column — Form */}
-        <div className="min-w-0 space-y-6 sm:space-y-8">
+        <div className="min-w-0 space-y-8 sm:space-y-10">
+          <BookingIntroCard />
+
           {/* Section 1: Booking Type */}
           <FormSection step={1} title={t("section.type")} subtitle={t("section.type.sub")}>
             <BookingTypeSelector value={bookingType} onChange={handleTypeChange} />
@@ -435,6 +440,12 @@ export function BookingForm({ allAccommodations }: Props) {
           {/* Section 2: Transport Legs */}
           <FormSection step={2} title={t("section.details")} subtitle={t("section.details.sub")}>
             <div className="space-y-4">
+              {bookingType === "multi_stage" && (
+                <div className="rounded-xl bg-sage-50 px-4 py-3.5 text-sm text-brand-900 ring-1 ring-inset ring-sage-200/70">
+                  <p className="font-semibold text-brand-900">{t("multi.help.title")}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-brand-800/70">{t("multi.help.body")}</p>
+                </div>
+              )}
               {legs.map((leg, i) => {
                 const pickup = accMap.get(leg.pickupAccommodationId);
                 const dropoff = accMap.get(leg.dropoffAccommodationId);
@@ -455,11 +466,11 @@ export function BookingForm({ allAccommodations }: Props) {
                 );
               })}
 
-              {(bookingType === "multi_stage" || bookingType === "full_camino") && (
+              {bookingType === "multi_stage" && (
                 <button
                   type="button"
                   onClick={addLeg}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-cream-300 bg-cream-50/50 px-4 py-4 text-sm font-semibold text-brand-700/60 transition-all hover:border-sage-400 hover:bg-sage-50 hover:text-brand-800"
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 bg-transparent px-4 py-3 text-sm font-semibold text-brand-700 transition-[border-color,background-color,color] hover:border-brand-500 hover:bg-brand-50 hover:text-brand-900"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -472,7 +483,7 @@ export function BookingForm({ allAccommodations }: Props) {
 
           {/* Section 3: Customer */}
           <FormSection step={3} title={t("section.customer")} subtitle={t("section.customer.sub")}>
-            <div className="rounded-2xl border border-cream-300/80 bg-white p-4 shadow-card sm:p-6">
+            <div className="rounded-2xl border border-cream-300 bg-white p-4 sm:p-6">
               <CustomerFields
                 value={customer}
                 onChange={(nextCustomer) => {
@@ -486,14 +497,11 @@ export function BookingForm({ allAccommodations }: Props) {
             </div>
           </FormSection>
 
-          {/* Section 4: Payment Method */}
-          <FormSection step={4} title={t("section.payment")} subtitle={t("section.payment.sub")}>
-            <PaymentMethodSelector value={paymentMethod} onChange={setPaymentMethod} />
-          </FormSection>
+          <BookingPolicyCard />
 
           {/* Validation errors */}
           {Object.keys(errors).length > 0 && (
-            <div className="flex items-start gap-3 rounded-xl border border-red-200/80 bg-red-50 p-4">
+            <div role="alert" aria-live="polite" className="flex items-start gap-3 rounded-xl border border-red-200/80 bg-red-50 p-4">
               <svg className="mt-0.5 h-5 w-5 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
               </svg>
@@ -504,7 +512,7 @@ export function BookingForm({ allAccommodations }: Props) {
           )}
 
           {serverError && (
-            <div className="flex items-start gap-3 rounded-xl border border-red-200/80 bg-red-50 p-4">
+            <div role="alert" aria-live="polite" className="flex items-start gap-3 rounded-xl border border-red-200/80 bg-red-50 p-4">
               <svg className="mt-0.5 h-5 w-5 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
               </svg>
@@ -516,10 +524,8 @@ export function BookingForm({ allAccommodations }: Props) {
           <div className="lg:hidden">
             <MobileSummary
               legs={legs}
-              accMap={accMap}
               pricing={pricing}
               submitting={submitting}
-              paymentMethod={paymentMethod}
             />
           </div>
         </div>
@@ -527,11 +533,14 @@ export function BookingForm({ allAccommodations }: Props) {
         {/* Right column — Sticky Summary (desktop) */}
         <div className="hidden lg:block">
           <div className="sticky top-24">
-            <div className="overflow-hidden rounded-2xl border border-cream-300/80 bg-white shadow-soft">
+            <div className="overflow-hidden rounded-2xl bg-white shadow-soft">
               {/* Summary header */}
-              <div className="bg-brand-900 px-6 py-4">
-                <h3 className="text-sm font-bold tracking-wide text-white">{t("summary.title")}</h3>
-                <p className="mt-0.5 text-[11px] text-white/50">{t("summary.review")}</p>
+              <div className="flex items-center gap-3 bg-brand-900 px-6 py-5">
+                <BrandIconTile name="backpack" size="sm" tone="dark" />
+                <div>
+                  <h3 className="text-base font-bold text-white">{t("summary.title")}</h3>
+                  <p className="mt-1 text-xs text-white/60">{t("summary.review")}</p>
+                </div>
               </div>
 
               {/* Legs list */}
@@ -590,7 +599,7 @@ export function BookingForm({ allAccommodations }: Props) {
 
                 <div className="mt-4 flex items-baseline justify-between border-t border-cream-300/60 pt-4">
                   <span className="text-sm font-bold text-brand-900">{t("summary.total")}</span>
-                  <span className="text-2xl font-extrabold tracking-tight text-gold-600">
+                  <span className="tabular-nums text-3xl font-extrabold tracking-tight text-gold-700">
                     {formatEUR(pricing.totalAmount)}
                   </span>
                 </div>
@@ -598,6 +607,11 @@ export function BookingForm({ allAccommodations }: Props) {
                 {pricing.totalBags === 0 && (
                   <p className="mt-2 text-center text-[10px] text-brand-800/30">
                     {t("summary.priceCalc")}
+                  </p>
+                )}
+                {pricing.totalTransportUnits > pricing.totalBags && (
+                  <p className="mt-2 text-[11px] leading-relaxed text-brand-800/45">
+                    {t("summary.unitsHelp")}
                   </p>
                 )}
 
@@ -614,15 +628,13 @@ export function BookingForm({ allAccommodations }: Props) {
 
               {/* Submit button */}
               <div className="px-6 pb-5 pt-1">
-                <SubmitButton submitting={submitting} total={pricing.totalAmount} paymentMethod={paymentMethod} />
+                <SubmitButton submitting={submitting} total={pricing.totalAmount} />
               </div>
 
               {/* Guarantee */}
               <div className="border-t border-cream-200 px-6 py-3">
                 <div className="flex items-center gap-2 text-[11px] text-brand-800/35">
-                  <svg className="h-3.5 w-3.5 shrink-0 text-sage-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-                  </svg>
+                  <BrandIcon name="confirmation" className="h-4 w-4 shrink-0 text-brand-700" />
                   <span>{t("summary.guarantee")}</span>
                 </div>
               </div>
@@ -640,82 +652,46 @@ export function BookingForm({ allAccommodations }: Props) {
 
 /* ── Sub-components ────────────────────────────────────────────────────── */
 
-function PaymentMethodSelector({ value, onChange }: { value: PaymentMethod; onChange: (v: PaymentMethod) => void }) {
+function BookingIntroCard() {
   const { t } = useT();
-  const options: { id: PaymentMethod; label: string; desc: string; disabled?: boolean; icon: React.ReactNode }[] = [
-    {
-      id: "online",
-      label: t("pay.online.disabled"),
-      desc: t("pay.online.disabled.desc"),
-      disabled: true,
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-        </svg>
-      ),
-    },
-    {
-      id: "cash",
-      label: t("pay.cash"),
-      desc: t("pay.cash.desc"),
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-        </svg>
-      ),
-    },
-  ];
-
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {options.map((opt) => {
-        const disabled = opt.disabled ?? false;
-        const selected = value === opt.id;
-        return (
-          <button
-            key={opt.id}
-            type="button"
-            disabled={disabled}
-            onClick={() => !disabled && onChange(opt.id)}
-            className={[
-              "group relative flex items-center gap-3 rounded-2xl border-2 px-4 py-4 text-left transition-all",
-              disabled
-                ? "cursor-not-allowed border-cream-200 bg-cream-100/50 opacity-60"
-                : selected
-                  ? "border-brand-900 bg-white shadow-card ring-1 ring-brand-900/10"
-                  : "border-cream-300/80 bg-white/60 hover:border-cream-400 hover:bg-white hover:shadow-card",
-            ].join(" ")}
-          >
-            {selected && (
-              <span className="absolute -top-2 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-brand-900 shadow-sm">
-                <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
-              </span>
-            )}
-            <span
-              className={[
-                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors",
-                disabled
-                  ? "bg-cream-200/40 text-brand-800/20"
-                  : selected
-                    ? "bg-gold-500/15 text-gold-700"
-                    : "bg-cream-200/60 text-brand-800/30 group-hover:bg-cream-200 group-hover:text-brand-800/50",
-              ].join(" ")}
-            >
-              {opt.icon}
-            </span>
-            <div className="min-w-0">
-              <span className={["block text-sm font-bold", selected ? "text-brand-900" : "text-brand-900/70"].join(" ")}>
-                {opt.label}
-              </span>
-              <span className="mt-0.5 block text-[11px] leading-relaxed text-brand-800/40">
-                {opt.desc}
-              </span>
-            </div>
-          </button>
-        );
-      })}
+    <section className="border-y border-brand-900/10 py-5 sm:py-6">
+      <div className="mb-4">
+        <h3 className="text-base font-bold text-brand-900">{t("intro.title")}</h3>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-brand-800/65">{t("intro.subtitle")}</p>
+      </div>
+      <div className="divide-y divide-brand-900/10">
+        <InfoPill title={t("intro.route.title")} body={t("intro.route.body")} icon="route" />
+        <InfoPill title={t("intro.price.title")} body={t("intro.price.body")} icon="euro" />
+        <InfoPill title={t("intro.payment.title")} body={t("intro.payment.body")} icon="confirmation" />
+      </div>
+    </section>
+  );
+}
+
+function BookingPolicyCard() {
+  const { t } = useT();
+  return (
+    <section className="flex items-start gap-3 border-y border-sage-200 bg-sage-50/65 px-1 py-5 sm:px-4">
+      <BrandIconTile name="confirmation" size="md" tone="solid" />
+      <div>
+        <p className="text-sm font-bold text-brand-900">{t("pay.cash")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-brand-800/70">{t("pay.cash.desc")}</p>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-brand-800/65">
+          <p className="flex items-center gap-1.5"><BrandIcon name="mail" className="h-4 w-4" />{t("trust.email")}</p>
+          <p className="flex items-center gap-1.5"><BrandIcon name="confirmation" className="h-4 w-4" />{t("summary.guarantee")}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function InfoPill({ title, body, icon }: { title: string; body: string; icon: BrandIconName }) {
+  return (
+    <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3 gap-y-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[2.5rem_5.5rem_minmax(0,1fr)] sm:items-center sm:gap-x-4">
+      <BrandIconTile name={icon} size="md" className="row-span-2 sm:row-span-1" />
+      <p className="text-sm font-bold text-brand-900">{title}</p>
+      <p className="col-start-2 text-sm leading-relaxed text-brand-800/65 sm:col-start-auto">{body}</p>
     </div>
   );
 }
@@ -751,24 +727,23 @@ function LockerHelp({ cities }: { cities: LockerCity[] }) {
   if (cities.length === 0) return null;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-cream-300/80 bg-white shadow-card">
-      <div className="border-b border-cream-200/80 bg-cream-50 px-4 py-3 sm:px-5">
+    <details className="group overflow-hidden rounded-2xl border border-cream-300 bg-white">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 bg-cream-50 px-4 py-4 marker:hidden sm:px-5">
         <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-900 text-white shadow-sm">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.11 1.5 2.089v7.5a2.25 2.25 0 01-2.25 2.25H6.75a2.25 2.25 0 01-2.25-2.25v-7.5c0-.98.616-1.805 1.5-2.089m14.25 0A2.25 2.25 0 0018 6.75h-1.286a2.25 2.25 0 00-1.591.659L12 10.532 8.877 7.409a2.25 2.25 0 00-1.591-.659H6a2.25 2.25 0 00-2.25 2.25m16.5-.489V6.75A2.25 2.25 0 0018 4.5H6A2.25 2.25 0 003.75 6.75v1.761" />
-            </svg>
-          </span>
-          <div>
+          <BrandIconTile name="accommodation" size="md" tone="solid" className="mt-0.5" />
+          <div className="min-w-0">
             <p className="text-sm font-bold text-brand-900">Consignas / lockers</p>
             <p className="mt-1 text-sm leading-relaxed text-brand-800/70">
               Si no encuentras tu alojamiento, escoge la consigna o locker más cercana. Tienes opciones en todas estas ciudades.
             </p>
           </div>
         </div>
-      </div>
+        <svg className="h-5 w-5 shrink-0 text-brand-700 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25 12 15.75 4.5 8.25" />
+        </svg>
+      </summary>
 
-      <div className="space-y-3 px-4 py-4 sm:px-5">
+      <div className="space-y-3 border-t border-cream-200 px-4 py-4 sm:px-5">
         <div className="rounded-xl border border-gold-200/80 bg-gold-50/70 px-3.5 py-3 text-sm text-gold-900">
           El precio de la consigna se paga cuando vayas a recoger tu equipaje, salvo que el establecimiento indique otra cosa.
         </div>
@@ -820,7 +795,7 @@ function LockerHelp({ cities }: { cities: LockerCity[] }) {
           ))}
         </div>
       </div>
-    </div>
+    </details>
   );
 }
 
@@ -836,15 +811,15 @@ function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section>
-      <div className="mb-4 sm:mb-5">
+    <section className="scroll-mt-24">
+      <div className="mb-5 sm:mb-6">
         <div className="flex items-center gap-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-900 text-xs font-bold text-white shadow-sm sm:h-8 sm:w-8">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-900 text-xs font-bold text-white sm:h-9 sm:w-9">
             {step}
           </span>
           <div>
-            <h3 className="text-base font-bold text-brand-900 sm:text-lg">{title}</h3>
-            <p className="text-[11px] text-brand-800/40 sm:text-xs">{subtitle}</p>
+            <h3 className="text-lg font-bold tracking-tight text-brand-900 sm:text-xl">{title}</h3>
+            <p className="mt-0.5 text-xs leading-relaxed text-brand-800/60 sm:text-sm">{subtitle}</p>
           </div>
         </div>
       </div>
@@ -853,17 +828,15 @@ function FormSection({
   );
 }
 
-function SubmitButton({ submitting, total, paymentMethod }: { submitting: boolean; total: number; paymentMethod: PaymentMethod }) {
+function SubmitButton({ submitting, total }: { submitting: boolean; total: number }) {
   const { t } = useT();
-  const label = paymentMethod === "cash"
-    ? `${t("submit.confirm")}${total > 0 ? ` — ${formatEUR(total)}` : ""}`
-    : `${t("submit.pay")}${total > 0 ? ` — ${formatEUR(total)}` : ""}`;
+  const label = `${t("submit.confirm")}${total > 0 ? ` — ${formatEUR(total)}` : ""}`;
 
   return (
     <button
       type="submit"
       disabled={submitting}
-      className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-brand-900 px-5 py-3.5 text-sm font-bold text-white shadow-md transition-all hover:bg-brand-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]"
+      className="flex min-h-12 w-full items-center justify-center gap-2.5 rounded-xl bg-brand-900 px-5 py-3.5 text-sm font-bold text-white shadow-md transition-[background-color,box-shadow,transform] hover:bg-brand-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]"
     >
       {submitting ? (
         <>
@@ -887,21 +860,18 @@ function SubmitButton({ submitting, total, paymentMethod }: { submitting: boolea
 
 function MobileSummary({
   legs,
-  accMap,
   pricing,
   submitting,
-  paymentMethod,
 }: {
   legs: StageLeg[];
-  accMap: Map<string, Accommodation>;
   pricing: ReturnType<typeof calculatePricing>;
   submitting: boolean;
-  paymentMethod: PaymentMethod;
 }) {
   const { t } = useT();
   return (
-    <div className="overflow-hidden rounded-2xl border border-cream-300/80 bg-white shadow-soft">
-      <div className="bg-brand-900 px-5 py-3.5">
+    <div className="overflow-hidden rounded-2xl bg-white shadow-soft">
+      <div className="flex items-center gap-2.5 bg-brand-900 px-5 py-3.5">
+        <BrandIconTile name="backpack" size="sm" tone="dark" />
         <h3 className="text-sm font-bold text-white">{t("summary.resumen")}</h3>
       </div>
       <div className="space-y-2.5 px-5 py-4">
@@ -920,19 +890,20 @@ function MobileSummary({
           </div>
         )}
         <PriceBreakdown pricing={pricing} />
+        {pricing.totalTransportUnits > pricing.totalBags && (
+          <p className="text-[11px] leading-relaxed text-brand-800/45">{t("summary.unitsHelp")}</p>
+        )}
         <div className="flex items-baseline justify-between border-t border-cream-200 pt-3">
           <span className="text-sm font-bold text-brand-900">{t("summary.total")}</span>
-          <span className="text-2xl font-extrabold tracking-tight text-gold-600">{formatEUR(pricing.totalAmount)}</span>
+          <span className="tabular-nums text-3xl font-extrabold tracking-tight text-gold-700">{formatEUR(pricing.totalAmount)}</span>
         </div>
       </div>
       <div className="px-5 pb-5">
-        <SubmitButton submitting={submitting} total={pricing.totalAmount} paymentMethod={paymentMethod} />
+        <SubmitButton submitting={submitting} total={pricing.totalAmount} />
       </div>
       <div className="border-t border-cream-200 px-5 py-3">
         <div className="flex items-center justify-center gap-2 text-[11px] text-brand-800/35">
-          <svg className="h-3.5 w-3.5 shrink-0 text-sage-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-          </svg>
+          <BrandIcon name="confirmation" className="h-4 w-4 shrink-0 text-brand-700" />
           <span>{t("summary.guarantee")}</span>
         </div>
       </div>
@@ -941,19 +912,11 @@ function MobileSummary({
 }
 
 function SummaryRow({ icon, label }: { icon: "pickup" | "dropoff" | "date"; label: string }) {
-  const iconEl = {
-    pickup: <span className="h-1.5 w-1.5 rounded-full bg-sage-500" />,
-    dropoff: <span className="h-1.5 w-1.5 rounded-full bg-gold-500" />,
-    date: (
-      <svg className="h-3 w-3 text-brand-800/30" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-      </svg>
-    ),
-  };
+  const iconName: BrandIconName = icon === "pickup" ? "location" : icon === "dropoff" ? "delivery" : "calendar";
 
   return (
     <div className="flex items-center gap-2 text-[11px] text-brand-800/60">
-      {iconEl[icon]}
+      <BrandIcon name={iconName} className="h-3.5 w-3.5 shrink-0 text-brand-700" />
       <span className="truncate">{label}</span>
     </div>
   );

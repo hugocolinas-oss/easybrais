@@ -17,5 +17,6 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-easybrais-sans), system-ui, sans-serif;
+  font-kerning: normal;
 }

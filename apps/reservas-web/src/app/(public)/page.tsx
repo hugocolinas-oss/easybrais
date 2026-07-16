@@ -1,9 +1,7 @@
-import Image from "next/image";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { BookingForm } from "@/components/booking-form";
 import { HeroSection } from "@/components/hero-section";
 import type { Accommodation } from "@/lib/types";
-import { BRAND_LOGO_SRC } from "@/lib/brand";
 
 export default async function HomePage() {
   const supabase = await getServerSupabase();
@@ -45,14 +43,6 @@ export default async function HomePage() {
 
   return (
     <div className="relative mx-auto max-w-4xl">
-      <div
-        className="pointer-events-none absolute -right-6 top-24 z-0 hidden select-none opacity-[0.14] sm:block lg:-right-10 lg:top-32"
-        aria-hidden
-      >
-        <div className="relative h-40 w-40 lg:h-48 lg:w-48">
-          <Image src={BRAND_LOGO_SRC} alt="" fill className="object-contain" sizes="(max-width: 1024px) 160px, 192px" />
-        </div>
-      </div>
       <div className="relative z-10">
         <HeroSection />
         <BookingForm allAccommodations={accommodations} />

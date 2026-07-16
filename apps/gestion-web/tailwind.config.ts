@@ -7,6 +7,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-easybrais-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["var(--font-easybrais-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+      },
       colors: {
         brand: {
           50: "#eff6ff",

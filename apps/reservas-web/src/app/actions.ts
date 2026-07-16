@@ -205,11 +205,12 @@ export async function createBooking(
 
     const email = data.customer.email.trim().toLowerCase();
 
-    let { data: customer, error: custFindErr } = await supabase
+    const { data: existingCustomer, error: custFindErr } = await supabase
       .from("customers")
       .select("id")
       .eq("email", email)
       .maybeSingle();
+    let customer = existingCustomer;
 
     if (custFindErr) {
       console.error("[createBooking] customer lookup failed:", custFindErr.message);

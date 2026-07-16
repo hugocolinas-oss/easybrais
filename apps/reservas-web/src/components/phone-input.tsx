@@ -14,6 +14,7 @@ import {
 
 interface Props {
   id: string;
+  name?: string;
   value: string;
   onChange: (value: string) => void;
   error?: string;
@@ -21,10 +22,12 @@ interface Props {
   disabled?: boolean;
   className?: string;
   mode?: "simple" | "searchable";
+  autoComplete?: string;
 }
 
 export function PhoneInput({
   id,
+  name,
   value,
   onChange,
   error,
@@ -32,6 +35,7 @@ export function PhoneInput({
   disabled = false,
   className,
   mode = "simple",
+  autoComplete,
 }: Props) {
   const initial = splitPhoneNumber(value);
   const [countryCode, setCountryCode] = useState(initial.country.code);
@@ -62,14 +66,14 @@ export function PhoneInput({
   }
 
   const borderClass = error
-    ? "border-red-300 focus-within:border-red-500 focus-within:ring-red-500"
-    : "border-cream-300 focus-within:border-brand-700 focus-within:ring-brand-700";
+    ? "border-red-300 focus-within:border-red-500 focus-within:ring-red-500/20"
+    : "border-cream-300 focus-within:border-brand-700 focus-within:ring-brand-700/20";
 
   return (
     <div className={className}>
       <div
         className={[
-          "grid grid-cols-[8.5rem_minmax(0,1fr)] overflow-hidden rounded-xl border bg-white transition-all focus-within:ring-1 sm:grid-cols-[10.5rem_minmax(0,1fr)]",
+          "grid min-h-11 grid-cols-[8.5rem_minmax(0,1fr)] overflow-hidden rounded-xl border bg-white transition-[border-color,box-shadow] focus-within:ring-2 sm:grid-cols-[10.5rem_minmax(0,1fr)]",
           borderClass,
         ].join(" ")}
       >
@@ -92,6 +96,8 @@ export function PhoneInput({
         </div>
 
         <input
+          id={id}
+          name={name}
           aria-label="Número de teléfono"
           type="tel"
           value={nationalNumber}
@@ -99,7 +105,9 @@ export function PhoneInput({
           placeholder={placeholder}
           disabled={disabled}
           maxLength={24}
-          className="block min-w-0 w-full px-3 py-2.5 text-sm tabular-nums text-brand-900 outline-none placeholder:text-brand-800/25 sm:py-3"
+          autoComplete={autoComplete}
+          inputMode="tel"
+          className="block min-w-0 w-full px-3 py-2.5 text-sm tabular-nums text-brand-900 outline-none placeholder:text-brand-800/50"
         />
       </div>
     </div>
@@ -275,7 +283,8 @@ function SearchableCountryPicker({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar país o prefijo"
-                className="w-full rounded-xl border border-cream-300 px-3 py-2 text-sm text-brand-900 outline-none transition-all placeholder:text-brand-800/25 focus:border-brand-700 focus:ring-1 focus:ring-brand-700"
+                autoComplete="off"
+                className="w-full rounded-xl border border-cream-300 px-3 py-2 text-sm text-brand-900 outline-none transition-[border-color,box-shadow] placeholder:text-brand-800/50 focus:border-brand-700 focus:ring-2 focus:ring-brand-700/20"
               />
             </div>
 

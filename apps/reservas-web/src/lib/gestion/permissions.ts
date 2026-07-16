@@ -9,6 +9,7 @@ export class PermissionError extends Error {
 }
 
 export function canViewFinancialInfo(role: StaffRole): boolean {
+  void role;
   return true;
 }
 
@@ -21,14 +22,17 @@ export function canManageAccommodations(role: StaffRole): boolean {
 }
 
 export function canDeleteBookings(role: StaffRole): boolean {
+  void role;
   return true;
 }
 
 export function canResendReservationEmails(role: StaffRole): boolean {
+  void role;
   return true;
 }
 
 export function canEditBookingPricing(role: StaffRole): boolean {
+  void role;
   return true;
 }
 
@@ -37,6 +41,7 @@ export function canOpenDashboard(role: StaffRole): boolean {
 }
 
 export function canAccessBookings(role: StaffRole): boolean {
+  void role;
   return true;
 }
 

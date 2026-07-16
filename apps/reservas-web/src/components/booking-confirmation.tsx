@@ -3,6 +3,7 @@
 import { formatEUR, fmtDateShort, PRICING_RULES } from "@easybrais/utils";
 import type { BookingSuccess } from "@/app/actions";
 import { BrandLogo } from "@/components/brand-logo";
+import { BrandIconTile } from "@/components/brand-icon";
 import { useT } from "@/lib/i18n/context";
 
 interface Props {
@@ -25,11 +26,7 @@ export function BookingConfirmation({ result, onNewBooking }: Props) {
             <div className="mx-auto mb-3 flex justify-center">
               <BrandLogo size="md" className="bg-white/10 ring-1 ring-white/25 shadow-lg backdrop-blur-sm" imgClassName="p-1" />
             </div>
-            <div className="mx-auto mb-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/15">
-              <svg className="h-4 w-4 text-gold-300" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-              </svg>
-            </div>
+            <BrandIconTile name="confirmation" size="lg" tone="dark" className="mx-auto mb-4" />
             <h3 className="text-xl font-bold text-white sm:text-2xl">{t("conf.title")}</h3>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-white/60">
               {t("conf.subtitle")}
@@ -110,9 +107,7 @@ export function BookingConfirmation({ result, onNewBooking }: Props) {
 
         {/* Info notice */}
         <div className="mx-6 mt-4 flex items-start gap-2.5 rounded-xl border border-sage-200/50 bg-sage-50/60 p-3.5 sm:mx-8">
-          <svg className="mt-0.5 h-4 w-4 shrink-0 text-sage-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-          </svg>
+          <BrandIconTile name="mail" size="sm" />
           <p className="text-[11px] leading-relaxed text-brand-800/50">
             {t("conf.saveCode")} <strong className="font-semibold text-brand-900">{result.bookingCode}</strong>.
             {t("conf.emailConfirmation")} <strong className="font-semibold text-brand-900">{result.email}</strong>.
