@@ -70,6 +70,8 @@ function ServiceTicket() {
       <div className="grid grid-cols-[1fr_4.75rem_1fr] items-center px-5 py-5 sm:px-6">
         <TicketStop
           align="left"
+          icon="accommodation"
+          placeLabel={t("leg.accommodation")}
           label={t("service.pickup.label")}
           time="08:00"
           detail={t("service.pickup.value")}
@@ -85,6 +87,8 @@ function ServiceTicket() {
 
         <TicketStop
           align="right"
+          icon="location"
+          placeLabel={t("service.destination.label")}
           label={t("service.delivery.label")}
           time="15:30"
           detail={t("service.delivery.value")}
@@ -104,22 +108,35 @@ function ServiceTicket() {
 
 function TicketStop({
   align,
+  icon,
+  placeLabel,
   label,
   time,
   detail,
 }: {
   align: "left" | "right";
+  icon: "accommodation" | "location";
+  placeLabel: string;
   label: string;
   time: string;
   detail: string;
 }) {
   return (
-    <div className={align === "right" ? "text-right" : "text-left"} aria-label={`${label}: ${detail}`}>
-      <p className="text-[0.6875rem] font-medium text-brand-800/55">{label}</p>
-      <p className="mt-0.5 font-mono text-[1.375rem] font-semibold leading-none tracking-[-0.04em] text-brand-900 tabular-nums sm:text-2xl">
+    <div
+      className={align === "right" ? "text-right" : "text-left"}
+      aria-label={`${placeLabel}. ${label}: ${detail}`}
+    >
+      <div className={align === "right" ? "flex items-center justify-end gap-1.5" : "flex items-center gap-1.5"}>
+        <BrandIcon name={icon} className="h-3.5 w-3.5 text-gold-700" />
+        <p className="text-[0.6875rem] font-semibold text-brand-900">{placeLabel}</p>
+      </div>
+      <p className="mt-1 font-mono text-[1.375rem] font-semibold leading-none tracking-[-0.04em] text-brand-900 tabular-nums sm:text-2xl">
         {time}
       </p>
-      <p className="mt-1 hidden text-[0.625rem] leading-4 text-brand-800/45 sm:block">{detail}</p>
+      <p className="mt-1 text-[0.625rem] leading-4 text-brand-800/48">
+        <span>{label}</span>
+        <span className="hidden sm:inline"> · {detail}</span>
+      </p>
     </div>
   );
 }

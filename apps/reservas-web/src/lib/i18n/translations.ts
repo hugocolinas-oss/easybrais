@@ -70,6 +70,14 @@ const t = {
     de: "Serviceinformationen",
     it: "Informazioni sul servizio",
   },
+  "service.destination.label": {
+    es: "Destino",
+    en: "Destination",
+    pt: "Destino",
+    fr: "Destination",
+    de: "Ziel",
+    it: "Destinazione",
+  },
   "service.pickup.value": {
     es: "A partir de las 8:00",
     en: "From 8:00 AM",
