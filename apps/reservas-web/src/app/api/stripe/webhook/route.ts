@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
+import { getStripeWebhookSecret } from "@/lib/stripe-webhook-secret";
 import { createAdminClient } from "@easybrais/utils";
 import { sendPaymentConfirmedEmail } from "@/lib/email/reservations";
 import type Stripe from "stripe";
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = await getStripeWebhookSecret();
 
   if (!sig || !webhookSecret) {
     console.error("[stripe/webhook] missing signature or webhook secret");

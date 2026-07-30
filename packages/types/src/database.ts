@@ -612,7 +612,14 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      get_runtime_secret: {
+        Args: {
+          secret_name: string;
+        };
+        Returns: string | null;
+      };
+    };
     Enums: {
       booking_type: BookingType;
       booking_status: BookingStatus;
