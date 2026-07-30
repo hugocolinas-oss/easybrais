@@ -1,28 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStripe, isStripeConfigured } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { getStripeWebhookSecret } from "@/lib/stripe-webhook-secret";
 import { createAdminClient } from "@easybrais/utils";
 import { sendPaymentConfirmedEmail } from "@/lib/email/reservations";
 import type Stripe from "stripe";
 
 export async function POST(req: NextRequest) {
-  if (!isStripeConfigured()) {
-    return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
-  }
-
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
   const webhookSecret = await getStripeWebhookSecret();
 
-  if (!sig || !webhookSecret) {
-    console.error("[stripe/webhook] missing signature or webhook secret");
+  if (!webhookSecret) {
+    console.error("[stripe/webhook] missing webhook secret");
+    return NextResponse.json({ error: "Stripe webhook not configured" }, { status: 503 });
+  }
+
+  if (!sig) {
+    console.error("[stripe/webhook] missing signature");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   let event: Stripe.Event;
+  let stripe: ReturnType<typeof getStripe>;
 
   try {
-    const stripe = getStripe();
+    stripe = getStripe();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[stripe/webhook] Stripe client is not configured:", msg);
+    return NextResponse.json({ error: "Stripe webhook not configured" }, { status: 503 });
+  }
+
+  try {
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
