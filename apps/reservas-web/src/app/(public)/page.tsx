@@ -2,9 +2,11 @@ import { getServerSupabase } from "@/lib/supabase/server";
 import { BookingForm } from "@/components/booking-form";
 import { HeroSection } from "@/components/hero-section";
 import type { Accommodation } from "@/lib/types";
+import { isStripeConfigured } from "@/lib/stripe";
 
 export default async function HomePage() {
   const supabase = await getServerSupabase();
+  const onlinePaymentAvailable = await isStripeConfigured();
 
   const { data: rows } = await supabase
     .from("accommodations")
@@ -45,7 +47,10 @@ export default async function HomePage() {
     <div className="relative mx-auto max-w-4xl">
       <div className="relative z-10">
         <HeroSection />
-        <BookingForm allAccommodations={accommodations} />
+        <BookingForm
+          allAccommodations={accommodations}
+          onlinePaymentAvailable={onlinePaymentAvailable}
+        />
       </div>
     </div>
   );

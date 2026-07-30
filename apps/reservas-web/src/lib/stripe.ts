@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { getRuntimeSecret } from "@/lib/runtime-secret";
 
 let _stripe: Stripe | null = null;
 
@@ -17,9 +18,12 @@ export function getStripe(): Stripe {
   return _stripe;
 }
 
-export function isStripeConfigured(): boolean {
-  return process.env.STRIPE_PAYMENTS_ENABLED === "true"
-    && !!process.env.STRIPE_SECRET_KEY;
+export async function isStripeConfigured(): Promise<boolean> {
+  if (!process.env.STRIPE_SECRET_KEY) return false;
+
+  const environmentFlag = process.env.STRIPE_PAYMENTS_ENABLED?.trim();
+  const enabled = environmentFlag || await getRuntimeSecret("stripe_payments_enabled");
+  return enabled === "true";
 }
 
 export function getStripeReturnOrigin(requestOrigin: string): string {

@@ -12,9 +12,11 @@ import { CustomerFields } from "./customer-fields";
 import { BookingConfirmation } from "./booking-confirmation";
 import { BrandIcon, BrandIconTile, type BrandIconName } from "./brand-icon";
 import { isPhoneValueValid } from "@/lib/phone";
+import { openStripeCheckout } from "@/lib/stripe-checkout-client";
 
 interface Props {
   allAccommodations: Accommodation[];
+  onlinePaymentAvailable: boolean;
 }
 
 interface LockerSpot {
@@ -111,14 +113,18 @@ function isLockerAccommodation(accommodation: Accommodation) {
   return haystack.includes("consigna") || haystack.includes("locker");
 }
 
-export function BookingForm({ allAccommodations }: Props) {
+export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props) {
   const { t, locale } = useT();
   const [bookingType, setBookingType] = useState<BookingType>("single_stage");
   const [legs, setLegs] = useState<StageLeg[]>([createLeg()]);
   const [customer, setCustomer] = useState({ ...EMPTY_CUSTOMER, language: locale });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">(
+    onlinePaymentAvailable ? "online" : "cash",
+  );
 
   const [submitting, setSubmitting] = useState(false);
+  const [submissionStage, setSubmissionStage] = useState<"saving" | "redirecting">("saving");
   const [serverError, setServerError] = useState<string | null>(null);
   const [result, setResult] = useState<BookingSuccess | null>(null);
 
@@ -386,19 +392,32 @@ export function BookingForm({ allAccommodations }: Props) {
     }
 
     setSubmitting(true);
+    setSubmissionStage("saving");
 
     try {
       const data: BookingFormData = {
         bookingType,
         legs,
         customer,
-        paymentMethod: "cash",
+        paymentMethod,
       };
       const res = await createBooking(data, idempotencyKeyRef.current);
 
       if (!res.ok) {
         setServerError(res.error);
         return;
+      }
+
+      if (paymentMethod === "online" && res.stripeEnabled) {
+        setSubmissionStage("redirecting");
+        try {
+          await openStripeCheckout(res.bookingId, res.bookingCode);
+          return;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : t("val.connectionError");
+          setResult({ ...res, paymentError: message });
+          return;
+        }
       }
 
       setResult(res);
@@ -416,6 +435,7 @@ export function BookingForm({ allAccommodations }: Props) {
     autoLanguageRef.current = locale;
     setCustomer({ ...EMPTY_CUSTOMER, language: locale });
     setBookingType("single_stage");
+    setPaymentMethod(onlinePaymentAvailable ? "online" : "cash");
     setErrors({});
     setServerError(null);
     idempotencyKeyRef.current = crypto.randomUUID();
@@ -497,7 +517,13 @@ export function BookingForm({ allAccommodations }: Props) {
             </div>
           </FormSection>
 
-          <BookingPolicyCard />
+          <FormSection step={4} title={t("section.payment")} subtitle={t("section.payment.sub")}>
+            <PaymentMethodSelector
+              value={paymentMethod}
+              onlinePaymentAvailable={onlinePaymentAvailable}
+              onChange={setPaymentMethod}
+            />
+          </FormSection>
 
           {/* Validation errors */}
           {Object.keys(errors).length > 0 && (
@@ -526,6 +552,8 @@ export function BookingForm({ allAccommodations }: Props) {
               legs={legs}
               pricing={pricing}
               submitting={submitting}
+              submissionStage={submissionStage}
+              paymentMethod={paymentMethod}
             />
           </div>
         </div>
@@ -628,7 +656,12 @@ export function BookingForm({ allAccommodations }: Props) {
 
               {/* Submit button */}
               <div className="px-6 pb-5 pt-1">
-                <SubmitButton submitting={submitting} total={pricing.totalAmount} />
+                <SubmitButton
+                  submitting={submitting}
+                  submissionStage={submissionStage}
+                  paymentMethod={paymentMethod}
+                  total={pricing.totalAmount}
+                />
               </div>
 
               {/* Guarantee */}
@@ -669,20 +702,99 @@ function BookingIntroCard() {
   );
 }
 
-function BookingPolicyCard() {
+function PaymentMethodSelector({
+  value,
+  onlinePaymentAvailable,
+  onChange,
+}: {
+  value: "online" | "cash";
+  onlinePaymentAvailable: boolean;
+  onChange: (value: "online" | "cash") => void;
+}) {
   const { t } = useT();
   return (
-    <section className="flex items-start gap-3 border-y border-sage-200 bg-sage-50/65 px-1 py-5 sm:px-4">
-      <BrandIconTile name="confirmation" size="md" tone="solid" />
-      <div>
-        <p className="text-sm font-bold text-brand-900">{t("pay.cash")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-brand-800/70">{t("pay.cash.desc")}</p>
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-brand-800/65">
-          <p className="flex items-center gap-1.5"><BrandIcon name="mail" className="h-4 w-4" />{t("trust.email")}</p>
-          <p className="flex items-center gap-1.5"><BrandIcon name="confirmation" className="h-4 w-4" />{t("summary.guarantee")}</p>
-        </div>
-      </div>
-    </section>
+    <fieldset className="space-y-3">
+      <legend className="sr-only">{t("section.payment")}</legend>
+      {onlinePaymentAvailable && (
+        <PaymentOption
+          checked={value === "online"}
+          value="online"
+          icon="euro"
+          label={t("pay.online")}
+          badge={t("pay.recommended")}
+          description={t("pay.online.desc")}
+          detail={t("pay.online.secure")}
+          onChange={() => onChange("online")}
+        />
+      )}
+      <PaymentOption
+        checked={value === "cash"}
+        value="cash"
+        icon="confirmation"
+        label={t("pay.cash")}
+        description={t("pay.cash.desc")}
+        detail={t("pay.cash.detail")}
+        onChange={() => onChange("cash")}
+      />
+      {!onlinePaymentAvailable && (
+        <p className="px-1 text-xs leading-relaxed text-brand-800/55">{t("pay.online.disabled.desc")}</p>
+      )}
+    </fieldset>
+  );
+}
+
+function PaymentOption({
+  checked,
+  value,
+  icon,
+  label,
+  badge,
+  description,
+  detail,
+  onChange,
+}: {
+  checked: boolean;
+  value: "online" | "cash";
+  icon: BrandIconName;
+  label: string;
+  badge?: string;
+  description: string;
+  detail: string;
+  onChange: () => void;
+}) {
+  return (
+    <label className={`relative flex min-h-24 cursor-pointer items-start gap-3 rounded-2xl border bg-white p-4 transition-[border-color,box-shadow,background-color] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-gold-500 has-[:focus-visible]:ring-offset-2 sm:p-5 ${
+      checked
+        ? "border-brand-700 bg-sage-50/45 shadow-[0_0_0_1px_rgba(11,73,56,0.12)]"
+        : "border-cream-300 hover:border-brand-300"
+    }`}>
+      <input
+        type="radio"
+        name="payment-method"
+        value={value}
+        checked={checked}
+        onChange={onChange}
+        className="peer sr-only"
+      />
+      <BrandIconTile name={icon} size="md" tone={checked ? "solid" : "light"} />
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-bold text-brand-900">{label}</span>
+          {badge && (
+            <span className="rounded-full bg-gold-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gold-800">
+              {badge}
+            </span>
+          )}
+        </span>
+        <span className="mt-1 block text-sm leading-relaxed text-brand-800/70">{description}</span>
+        <span className="mt-2 block text-xs leading-relaxed text-brand-800/45">{detail}</span>
+      </span>
+      <span className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+        checked ? "border-brand-800 bg-brand-900" : "border-brand-300 bg-white"
+      }`} aria-hidden="true">
+        {checked && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+      </span>
+    </label>
   );
 }
 
@@ -707,7 +819,7 @@ function PriceBreakdown({ pricing }: { pricing: ReturnType<typeof calculatePrici
           <span>{formatEUR(pricing.subtotalAmount)}</span>
         </div>
       )}
-      {pricing.discountedBags > 0 && (
+      {pricing.discountAmount > 0 && (
         <div className="flex justify-between text-sage-600">
           <span>{t("summary.discount")} ({pricing.discountedBags} × −{formatEUR(VOLUME_DISCOUNT)})</span>
           <span>−{formatEUR(pricing.discountAmount)}</span>
@@ -828,9 +940,20 @@ function FormSection({
   );
 }
 
-function SubmitButton({ submitting, total }: { submitting: boolean; total: number }) {
+function SubmitButton({
+  submitting,
+  submissionStage,
+  paymentMethod,
+  total,
+}: {
+  submitting: boolean;
+  submissionStage: "saving" | "redirecting";
+  paymentMethod: "online" | "cash";
+  total: number;
+}) {
   const { t } = useT();
-  const label = `${t("submit.confirm")}${total > 0 ? ` — ${formatEUR(total)}` : ""}`;
+  const actionLabel = paymentMethod === "online" ? t("submit.pay") : t("submit.confirm");
+  const label = `${actionLabel}${total > 0 ? ` · ${formatEUR(total)}` : ""}`;
 
   return (
     <button
@@ -844,7 +967,7 @@ function SubmitButton({ submitting, total }: { submitting: boolean; total: numbe
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
-          <span>{t("submit.processing")}</span>
+          <span>{submissionStage === "redirecting" ? t("submit.redirecting") : t("submit.processing")}</span>
         </>
       ) : (
         <>
@@ -862,10 +985,14 @@ function MobileSummary({
   legs,
   pricing,
   submitting,
+  submissionStage,
+  paymentMethod,
 }: {
   legs: StageLeg[];
   pricing: ReturnType<typeof calculatePricing>;
   submitting: boolean;
+  submissionStage: "saving" | "redirecting";
+  paymentMethod: "online" | "cash";
 }) {
   const { t } = useT();
   return (
@@ -899,7 +1026,12 @@ function MobileSummary({
         </div>
       </div>
       <div className="px-5 pb-5">
-        <SubmitButton submitting={submitting} total={pricing.totalAmount} />
+        <SubmitButton
+          submitting={submitting}
+          submissionStage={submissionStage}
+          paymentMethod={paymentMethod}
+          total={pricing.totalAmount}
+        />
       </div>
       <div className="border-t border-cream-200 px-5 py-3">
         <div className="flex items-center justify-center gap-2 text-[11px] text-brand-800/35">

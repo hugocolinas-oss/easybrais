@@ -5,6 +5,7 @@ import type { BookingSuccess } from "@/app/actions";
 import { BrandLogo } from "@/components/brand-logo";
 import { BrandIconTile } from "@/components/brand-icon";
 import { useT } from "@/lib/i18n/context";
+import { StripeCheckoutButton } from "@/components/stripe-checkout-button";
 
 interface Props {
   result: BookingSuccess;
@@ -14,6 +15,7 @@ interface Props {
 export function BookingConfirmation({ result, onNewBooking }: Props) {
   const { t } = useT();
   const { pricing } = result;
+  const isOnlinePayment = result.paymentMethod === "online";
   const { VOLUME_DISCOUNT, OVERWEIGHT_FEE } = PRICING_RULES;
 
   return (
@@ -27,9 +29,11 @@ export function BookingConfirmation({ result, onNewBooking }: Props) {
               <BrandLogo size="md" className="bg-white/10 ring-1 ring-white/25 shadow-lg backdrop-blur-sm" imgClassName="p-1" />
             </div>
             <BrandIconTile name="confirmation" size="lg" tone="dark" className="mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-white sm:text-2xl">{t("conf.title")}</h3>
+            <h3 className="text-xl font-bold text-white sm:text-2xl">
+              {isOnlinePayment ? t("conf.onlineTitle") : t("conf.title")}
+            </h3>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-white/60">
-              {t("conf.subtitle")}
+              {isOnlinePayment ? t("conf.onlineSubtitle") : t("conf.subtitle")}
             </p>
             {!result.customerEmailSent && (
               <div className="mx-auto mt-4 max-w-sm rounded-xl border border-amber-400/35 bg-amber-950/40 px-4 py-3 text-left text-[12px] leading-relaxed text-amber-100/95">
@@ -67,7 +71,11 @@ export function BookingConfirmation({ result, onNewBooking }: Props) {
                   : String(pricing.totalBags)
               }
             />
-            <DetailRow label={t("conf.status")} value={t("conf.pendingStatus")} accent />
+            <DetailRow
+              label={t("conf.status")}
+              value={isOnlinePayment ? t("conf.onlinePendingStatus") : t("conf.pendingStatus")}
+              accent
+            />
           </dl>
         </div>
 
@@ -83,7 +91,7 @@ export function BookingConfirmation({ result, onNewBooking }: Props) {
                 <span>{formatEUR(pricing.subtotalAmount)}</span>
               </div>
             )}
-            {pricing.discountedBags > 0 && (
+            {pricing.discountAmount > 0 && (
               <div className="flex justify-between text-sage-700">
                 <span className="flex items-center gap-1.5">
                   {t("summary.discount")} ({pricing.discountedBags} × −{formatEUR(VOLUME_DISCOUNT)})
@@ -105,6 +113,13 @@ export function BookingConfirmation({ result, onNewBooking }: Props) {
           </div>
         </div>
 
+        {result.paymentError && (
+          <div role="alert" className="mx-6 mt-4 rounded-xl border border-gold-200 bg-gold-50 px-4 py-3 text-xs leading-relaxed text-gold-900 sm:mx-8">
+            <p className="font-semibold">{t("conf.paymentNotOpened")}</p>
+            <p className="mt-1">{result.paymentError}</p>
+          </div>
+        )}
+
         {/* Info notice */}
         <div className="mx-6 mt-4 flex items-start gap-2.5 rounded-xl border border-sage-200/50 bg-sage-50/60 p-3.5 sm:mx-8">
           <BrandIconTile name="mail" size="sm" />
@@ -115,11 +130,18 @@ export function BookingConfirmation({ result, onNewBooking }: Props) {
         </div>
 
         {/* Action */}
-        <div className="p-6 sm:p-8">
+        <div className="space-y-3 p-6 sm:p-8">
+          {isOnlinePayment && (
+            <StripeCheckoutButton bookingId={result.bookingId} bookingCode={result.bookingCode} />
+          )}
           <button
             type="button"
             onClick={onNewBooking}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-900 px-6 py-3.5 text-sm font-bold text-white shadow-md transition-all hover:bg-brand-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 active:scale-[0.98]"
+            className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-bold transition-[background-color,border-color,color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 active:scale-[0.98] ${
+              isOnlinePayment
+                ? "border border-brand-200 bg-white text-brand-900 hover:bg-cream-50"
+                : "bg-brand-900 text-white shadow-md hover:bg-brand-800 hover:shadow-lg"
+            }`}
           >
             {t("conf.newBooking")}
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">

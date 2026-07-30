@@ -24,6 +24,8 @@ export interface BookingSuccess {
   firstServiceDate: string;
   pricing: PricingBreakdown;
   stripeEnabled: boolean;
+  paymentMethod: "online" | "cash";
+  paymentError?: string;
   /** Si el correo al cliente se entregó vía SMTP (reserva nueva). */
   customerEmailSent: boolean;
   customerEmailError?: string;
@@ -104,6 +106,12 @@ export async function createBooking(
   if (!idempotencyKey?.trim()) return fail("Solicitud inválida.");
 
   try {
+    const stripeEnabled = await isStripeConfigured();
+    const paymentMethod = data.paymentMethod === "cash" ? "cash" : "online";
+    if (paymentMethod === "online" && !stripeEnabled) {
+      return fail("El pago online no está disponible ahora mismo. Elige pago el día del servicio.");
+    }
+
     const supabase = createAdminClient();
 
     /* ── Resolve stage distances for pricing ─────────────────────────── */
@@ -177,7 +185,7 @@ export async function createBooking(
 
     const { data: existing, error: idemErr } = await supabase
       .from("bookings")
-      .select("id, booking_code")
+      .select("id, booking_code, payment_method")
       .eq("notes_internal", tag)
       .maybeSingle();
 
@@ -195,7 +203,8 @@ export async function createBooking(
         legsCount: data.legs.length,
         firstServiceDate: data.legs[0]?.serviceDate ?? "",
         pricing,
-        stripeEnabled: data.paymentMethod !== "cash" && isStripeConfigured(),
+        stripeEnabled: existing.payment_method === "online_stripe" && stripeEnabled,
+        paymentMethod: existing.payment_method === "online_stripe" ? "online" : "cash",
         customerEmailSent: false,
         customerEmailError: "Solicitud duplicada: esta reserva ya estaba registrada. Revisa tu correo (incl. spam) o contacta con nosotros.",
       };
@@ -289,7 +298,7 @@ export async function createBooking(
         discount_amount: pricing.discountAmount,
         extra_weight_amount: pricing.extraWeightAmount,
         total_amount: pricing.totalAmount,
-        payment_method: data.paymentMethod === "cash" ? "cash" : "online_stripe",
+        payment_method: paymentMethod === "cash" ? "cash" : "online_stripe",
       })
       .select("id")
       .single();
@@ -351,8 +360,7 @@ export async function createBooking(
 
     /* ── 6. Determine payment flow ─────────────────────────────────── */
 
-    const stripeEnabled = isStripeConfigured();
-    const wantsOnline = data.paymentMethod !== "cash" && stripeEnabled;
+    const wantsOnline = paymentMethod === "online";
 
     /* ── 7. Envío de correos (await: en serverless/Vercel las promesas “sueltas” se cortan al devolver la respuesta) */
 
@@ -383,6 +391,7 @@ export async function createBooking(
       firstServiceDate: firstDate,
       pricing,
       stripeEnabled: wantsOnline,
+      paymentMethod,
       customerEmailSent,
       customerEmailError,
     };

@@ -1,5 +1,6 @@
 import { createAdminClient } from "@easybrais/utils";
 import Link from "next/link";
+import { StripeCheckoutButton } from "@/components/stripe-checkout-button";
 
 interface Props {
   searchParams: Promise<{ booking_id?: string; booking_code?: string }>;
@@ -75,9 +76,16 @@ export default async function PaymentCancelledPage({ searchParams }: Props) {
 
         {/* Actions */}
         <div className="space-y-3 p-6 sm:p-8">
+          {bookingCode && bookingId && (
+            <StripeCheckoutButton bookingId={bookingId} bookingCode={bookingCode} />
+          )}
           <Link
             href="/"
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-900 px-6 py-3.5 text-sm font-bold text-white shadow-md transition-all hover:bg-brand-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 active:scale-[0.98]"
+            className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-bold transition-[background-color,border-color,color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 active:scale-[0.98] ${
+              bookingCode
+                ? "border border-brand-200 bg-white text-brand-900 hover:bg-cream-50"
+                : "bg-brand-900 text-white shadow-md hover:bg-brand-800 hover:shadow-lg"
+            }`}
           >
             Hacer una nueva reserva
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">

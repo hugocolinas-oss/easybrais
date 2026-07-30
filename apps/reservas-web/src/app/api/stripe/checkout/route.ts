@@ -5,7 +5,7 @@ import { createAdminClient } from "@easybrais/utils";
 const PAYMENT_WINDOW_SECONDS = 3600; // 1 hour
 
 export async function POST(req: NextRequest) {
-  if (!isStripeConfigured()) {
+  if (!await isStripeConfigured()) {
     return NextResponse.json(
       { error: "Stripe no está configurado. Contacta con soporte." },
       { status: 503 },
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const { data: rawBooking, error: fetchErr } = await supabase
       .from("bookings")
       .select(
-        "id, booking_code, total_amount, payment_status, status, stripe_session_id, customers(full_name, email)",
+        "id, booking_code, total_amount, payment_status, payment_method, status, stripe_session_id, customers(full_name, email)",
       )
       .eq("id", bookingId)
       .eq("booking_code", bookingCode)
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       booking_code: string;
       total_amount: number;
       payment_status: string;
+      payment_method: string | null;
       status: string;
       stripe_session_id: string | null;
       customers: { full_name: string; email: string } | null;
@@ -58,7 +59,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* ── 3. Guard: invalid booking status ──────────────────────────── */
+    /* ── 3. Guard: payment method and booking status ──────────────── */
+
+    if (booking.payment_method !== "online_stripe") {
+      return NextResponse.json(
+        { error: "Esta reserva está configurada para pagar el día del servicio." },
+        { status: 400 },
+      );
+    }
 
     const allowedStatuses = ["confirmed", "pending", "pending_payment", "payment_expired"];
     if (!allowedStatuses.includes(booking.status)) {
@@ -160,6 +168,11 @@ export async function POST(req: NextRequest) {
 
     if (updateErr) {
       console.error("[stripe/checkout] booking update error:", updateErr.message);
+      await stripe.checkout.sessions.expire(session.id).catch(() => undefined);
+      return NextResponse.json(
+        { error: "No se ha podido vincular el pago con la reserva. Inténtalo de nuevo." },
+        { status: 500 },
+      );
     }
 
     /* ── 8. Log event ──────────────────────────────────────────────── */
@@ -180,6 +193,14 @@ export async function POST(req: NextRequest) {
         expires_at: paymentExpiresAt,
       },
     });
+
+    if (!session.url) {
+      await stripe.checkout.sessions.expire(session.id).catch(() => undefined);
+      return NextResponse.json(
+        { error: "Stripe no ha devuelto una página de pago válida." },
+        { status: 502 },
+      );
+    }
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
