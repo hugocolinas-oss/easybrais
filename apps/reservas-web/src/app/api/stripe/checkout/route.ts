@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     if (booking.stripe_session_id) {
       try {
-        const stripe = getStripe();
+        const stripe = await getStripe();
         const existing = await stripe.checkout.sessions.retrieve(
           booking.stripe_session_id,
         );
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
       email: string;
     } | null;
 
-    const stripe = getStripe();
+    const stripe = await getStripe();
     const origin = getStripeReturnOrigin(req.nextUrl.origin);
     const expiresAt = Math.floor(Date.now() / 1000) + PAYMENT_WINDOW_SECONDS;
 

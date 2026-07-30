@@ -3,10 +3,11 @@ import { getRuntimeSecret } from "@/lib/runtime-secret";
 
 let _stripe: Stripe | null = null;
 
-export function getStripe(): Stripe {
+export async function getStripe(): Promise<Stripe> {
   if (_stripe) return _stripe;
 
-  const key = process.env.STRIPE_SECRET_KEY;
+  const key = await getRuntimeSecret("stripe_secret_key")
+    || process.env.STRIPE_SECRET_KEY?.trim();
   if (!key) {
     throw new Error("STRIPE_SECRET_KEY is not set");
   }
@@ -19,7 +20,9 @@ export function getStripe(): Stripe {
 }
 
 export async function isStripeConfigured(): Promise<boolean> {
-  if (!process.env.STRIPE_SECRET_KEY) return false;
+  const key = await getRuntimeSecret("stripe_secret_key")
+    || process.env.STRIPE_SECRET_KEY?.trim();
+  if (!key) return false;
 
   const environmentFlag = process.env.STRIPE_PAYMENTS_ENABLED?.trim();
   const enabled = environmentFlag || await getRuntimeSecret("stripe_payments_enabled");

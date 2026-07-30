@@ -26,7 +26,8 @@ export default async function PaymentSuccessPage({ searchParams }: Props) {
   }
 
   try {
-    const session = await getStripe().checkout.sessions.retrieve(sessionId);
+    const stripe = await getStripe();
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
     if (
       session.metadata?.booking_id !== bookingId
       || session.client_reference_id !== bookingId

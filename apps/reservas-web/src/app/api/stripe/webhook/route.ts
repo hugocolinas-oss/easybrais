@@ -21,10 +21,10 @@ export async function POST(req: NextRequest) {
   }
 
   let event: Stripe.Event;
-  let stripe: ReturnType<typeof getStripe>;
+  let stripe: Awaited<ReturnType<typeof getStripe>>;
 
   try {
-    stripe = getStripe();
+    stripe = await getStripe();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[stripe/webhook] Stripe client is not configured:", msg);
