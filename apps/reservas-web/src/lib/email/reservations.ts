@@ -13,7 +13,7 @@ const ADMIN_TEMPLATE = "admin_new_reservation";
 const CUSTOMER_TEMPLATE = "customer_reservation_confirmation";
 const CUSTOMER_PAYMENT_TEMPLATE = "customer_payment_confirmed";
 const CUSTOMER_INCIDENT_TEMPLATE = "customer_incident_reported";
-const EASYBRAIS_WHATSAPP = "+34 603 327 780";
+const EASYBRAIS_WHATSAPP = "+34 603 327 708";
 
 interface ReservationEmailContext {
   bookingId: string;

@@ -88,6 +88,8 @@ export async function createBooking(
     return fail("El teléfono es demasiado largo.");
   if (data.customer.notes && data.customer.notes.length > 500)
     return fail("Las observaciones son demasiado largas.");
+  if ((data.sourceChannel ?? "web") === "web" && data.accommodationPolicyAccepted !== true)
+    return fail("Debes confirmar que tienes una reserva a tu nombre o que has elegido una consigna.");
   if (!data.legs.length) return fail("Debes añadir al menos un tramo.");
 
   for (const [i, leg] of data.legs.entries()) {
@@ -353,6 +355,7 @@ export async function createBooking(
         total: pricing.totalAmount,
         payment_method: paymentMethod === "online" ? "online_stripe" : "cash",
         initial_status: paymentMethod === "online" ? "pending_payment" : "confirmed",
+        accommodation_policy_accepted: data.accommodationPolicyAccepted === true,
       },
     });
 

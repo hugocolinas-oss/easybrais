@@ -685,6 +685,40 @@ const t = {
     it: "Apertura del pagamento sicuro…",
   },
 
+  // ── Accommodation policy ──
+  "accommodation.policy.title": {
+    es: "Importante: comprueba tus alojamientos",
+    en: "Important: check your accommodations",
+    pt: "Importante: confirme os seus alojamentos",
+    fr: "Important : vérifiez vos hébergements",
+    de: "Wichtig: Prüfen Sie Ihre Unterkünfte",
+    it: "Importante: controlla i tuoi alloggi",
+  },
+  "accommodation.policy.body": {
+    es: "Solo puedes reservar la recogida o entrega en un alojamiento si tienes una reserva a tu nombre. Si no la tienes, debes elegir una de las consignas disponibles.",
+    en: "You may only book pickup or drop-off at an accommodation if you have a reservation there in your name. Otherwise, you must choose one of the available lockers.",
+    pt: "Só pode reservar a recolha ou entrega num alojamento se tiver uma reserva em seu nome. Caso contrário, deve escolher um dos depósitos disponíveis.",
+    fr: "Vous ne pouvez réserver un ramassage ou une livraison dans un hébergement que si vous y avez une réservation à votre nom. Sinon, vous devez choisir une consigne disponible.",
+    de: "Sie dürfen die Abholung oder Lieferung in einer Unterkunft nur buchen, wenn dort eine Reservierung auf Ihren Namen besteht. Andernfalls müssen Sie eine der verfügbaren Gepäckaufbewahrungen wählen.",
+    it: "Puoi prenotare il ritiro o la consegna presso un alloggio solo se hai una prenotazione a tuo nome. In caso contrario, devi scegliere uno dei depositi disponibili.",
+  },
+  "accommodation.policy.lockers": {
+    es: "Ver consignas",
+    en: "View lockers",
+    pt: "Ver depósitos",
+    fr: "Voir les consignes",
+    de: "Gepäckaufbewahrungen anzeigen",
+    it: "Vedi depositi",
+  },
+  "accommodation.policy.confirm": {
+    es: "Confirmo que tengo una reserva a mi nombre en los alojamientos seleccionados o que he elegido una consigna.",
+    en: "I confirm that I have a reservation in my name at the selected accommodations or that I have chosen a locker.",
+    pt: "Confirmo que tenho uma reserva em meu nome nos alojamentos selecionados ou que escolhi um depósito.",
+    fr: "Je confirme avoir une réservation à mon nom dans les hébergements sélectionnés ou avoir choisi une consigne.",
+    de: "Ich bestätige, dass die ausgewählten Unterkünfte auf meinen Namen gebucht sind oder dass ich eine Gepäckaufbewahrung gewählt habe.",
+    it: "Confermo di avere una prenotazione a mio nome presso gli alloggi selezionati o di aver scelto un deposito.",
+  },
+
   // ── Validation ──
   "val.required": {
     es: "Obligatorio",
@@ -709,6 +743,14 @@ const t = {
     fr: "Numéro de téléphone invalide",
     de: "Ungültige Telefonnummer",
     it: "Numero di telefono non valido",
+  },
+  "val.accommodationPolicy": {
+    es: "Debes confirmar este requisito para continuar.",
+    en: "You must confirm this requirement to continue.",
+    pt: "Deve confirmar este requisito para continuar.",
+    fr: "Vous devez confirmer cette condition pour continuer.",
+    de: "Sie müssen diese Voraussetzung bestätigen, um fortzufahren.",
+    it: "Devi confermare questo requisito per continuare.",
   },
   "val.selectDate": {
     es: "Selecciona fecha",

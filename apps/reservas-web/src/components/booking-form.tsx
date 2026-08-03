@@ -34,10 +34,17 @@ interface LockerCity {
 
 const LOCKER_MAP_URLS: Record<string, string> = {
   "6.26": "https://maps.app.goo.gl/uBgedmpFpSdSikVo9?g_st=ic",
+  "8.30": "https://maps.app.goo.gl/SxnMeaxuaCPi2vWi9?g_st=ic",
+  "8.33": "https://maps.app.goo.gl/oXXTamKnwN4PGoN88?g_st=ic",
   "13.02": "https://maps.app.goo.gl/igtjdgJfRJpzrutk7?g_st=ipc",
   "13.11": "https://maps.app.goo.gl/2fFoZeS95mu1HCBJ8?g_st=ic",
   "13.31": "https://maps.google.com?q=Albergue%20Santiago%20KM0,%20R%C3%BAa%20das%20Carretas,%2011,%2015705%20Santiago%20de%20Compostela,%20A%20Coru%C3%B1a&ftid=0xd2effe210d79ffd:0x14b9efccb0e5552c&hl=es-ES&gl=es&entry=gps&lucs=,47071704&g_st=ic",
   "13.39": "https://maps.app.goo.gl/DfXrJP8bLtqcXcCS7?g_st=ic",
+};
+
+const LOCKER_DISPLAY_NAMES: Record<string, string> = {
+  "8.30": "GBC Caldas",
+  "8.33": "Albergue Urraka",
 };
 
 function createLeg(): StageLeg {
@@ -122,6 +129,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">(
     onlinePaymentAvailable ? "online" : "cash",
   );
+  const [accommodationPolicyAccepted, setAccommodationPolicyAccepted] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [submissionStage, setSubmissionStage] = useState<"saving" | "redirecting">("saving");
@@ -173,7 +181,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
         }
         bucket.spots.push({
           id: accommodation.id,
-          name: accommodation.display_name,
+          name: LOCKER_DISPLAY_NAMES[accommodation.external_code ?? ""] ?? accommodation.display_name,
           address: accommodation.address ?? undefined,
           note: accommodation.reservation_notes ?? undefined,
           url: LOCKER_MAP_URLS[accommodation.external_code ?? ""] ?? buildMapsSearchUrl(accommodation),
@@ -327,6 +335,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
       errs.email = t("val.invalidEmail");
     if (!customer.phone.trim()) errs.phone = t("val.required");
     else if (!isPhoneValueValid(customer.phone)) errs.phone = t("val.invalidPhone");
+    if (!accommodationPolicyAccepted) errs.accommodationPolicy = t("val.accommodationPolicy");
 
     legs.forEach((leg, i) => {
       const p = `leg_${i}`;
@@ -365,6 +374,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
   }
 
   function getFirstInvalidFieldId(validationErrors: Record<string, string>): string | null {
+    if (validationErrors.accommodationPolicy) return "accommodation-policy";
     if (validationErrors.fullName) return "customer-fullName";
     if (validationErrors.email) return "customer-email";
     if (validationErrors.phone) return "customer-phone";
@@ -400,6 +410,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
         legs,
         customer,
         paymentMethod,
+        accommodationPolicyAccepted,
       };
       const res = await createBooking(data, idempotencyKeyRef.current);
 
@@ -436,6 +447,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
     setCustomer({ ...EMPTY_CUSTOMER, language: locale });
     setBookingType("single_stage");
     setPaymentMethod(onlinePaymentAvailable ? "online" : "cash");
+    setAccommodationPolicyAccepted(false);
     setErrors({});
     setServerError(null);
     idempotencyKeyRef.current = crypto.randomUUID();
@@ -460,6 +472,20 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
           {/* Section 2: Transport Legs */}
           <FormSection step={2} title={t("section.details")} subtitle={t("section.details.sub")}>
             <div className="space-y-4">
+              <AccommodationPolicy
+                checked={accommodationPolicyAccepted}
+                error={errors.accommodationPolicy}
+                onChange={(checked) => {
+                  setAccommodationPolicyAccepted(checked);
+                  if (checked) {
+                    setErrors((current) => {
+                      const next = { ...current };
+                      delete next.accommodationPolicy;
+                      return next;
+                    });
+                  }
+                }}
+              />
               {bookingType === "multi_stage" && (
                 <div className="rounded-xl bg-sage-50 px-4 py-3.5 text-sm text-brand-900 ring-1 ring-inset ring-sage-200/70">
                   <p className="font-semibold text-brand-900">{t("multi.help.title")}</p>
@@ -702,6 +728,49 @@ function BookingIntroCard() {
   );
 }
 
+function AccommodationPolicy({
+  checked,
+  error,
+  onChange,
+}: {
+  checked: boolean;
+  error?: string;
+  onChange: (checked: boolean) => void;
+}) {
+  const { t } = useT();
+
+  return (
+    <div className={`rounded-xl border px-4 py-4 ${error ? "border-red-300 bg-red-50" : "border-gold-300 bg-gold-50/70"}`}>
+      <p className="text-sm font-bold text-brand-900">{t("accommodation.policy.title")}</p>
+      <p className="mt-1 text-sm leading-relaxed text-brand-800/75">
+        {t("accommodation.policy.body")} {" "}
+        <a href="#consignas" className="font-semibold text-sage-700 underline decoration-sage-300 underline-offset-2">
+          {t("accommodation.policy.lockers")}
+        </a>
+      </p>
+      <label htmlFor="accommodation-policy" className="mt-3 flex cursor-pointer items-start gap-3 rounded-lg bg-white/80 px-3 py-3 ring-1 ring-inset ring-brand-900/10">
+        <input
+          id="accommodation-policy"
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? "accommodation-policy-error" : undefined}
+          className="mt-0.5 h-5 w-5 shrink-0 rounded border-brand-300 text-sage-600 focus:ring-sage-500"
+        />
+        <span className="text-sm font-semibold leading-relaxed text-brand-900">
+          {t("accommodation.policy.confirm")}
+        </span>
+      </label>
+      {error && (
+        <p id="accommodation-policy-error" className="mt-2 text-sm font-medium text-red-700">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function PaymentMethodSelector({
   value,
   onlinePaymentAvailable,
@@ -839,7 +908,7 @@ function LockerHelp({ cities }: { cities: LockerCity[] }) {
   if (cities.length === 0) return null;
 
   return (
-    <details className="group overflow-hidden rounded-2xl border border-cream-300 bg-white">
+    <details id="consignas" className="group scroll-mt-24 overflow-hidden rounded-2xl border border-cream-300 bg-white">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 bg-cream-50 px-4 py-4 marker:hidden sm:px-5">
         <div className="flex items-start gap-3">
           <BrandIconTile name="accommodation" size="md" tone="solid" className="mt-0.5" />

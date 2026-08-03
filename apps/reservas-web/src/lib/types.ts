@@ -46,4 +46,5 @@ export interface BookingFormData {
   };
   paymentMethod?: "online" | "cash";
   sourceChannel?: "web" | "phone" | "walk_in" | "other";
+  accommodationPolicyAccepted?: boolean;
 }
