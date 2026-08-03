@@ -464,6 +464,22 @@ const t = {
     de: "Sichere Zahlung über Stripe. Easy Brais speichert Ihre Kartendaten nicht.",
     it: "Pagamento sicuro gestito da Stripe. Easy Brais non memorizza i dati della carta.",
   },
+  "pay.cardsAccepted": {
+    es: "Tarjetas aceptadas",
+    en: "Cards accepted",
+    pt: "Cartões aceites",
+    fr: "Cartes acceptées",
+    de: "Akzeptierte Karten",
+    it: "Carte accettate",
+  },
+  "pay.encryptedCheckout": {
+    es: "Checkout cifrado · Tus datos bancarios no pasan por Easy Brais",
+    en: "Encrypted checkout · Your card details never pass through Easy Brais",
+    pt: "Checkout encriptado · Os dados do cartão não passam pela Easy Brais",
+    fr: "Paiement chiffré · Vos données bancaires ne transitent pas par Easy Brais",
+    de: "Verschlüsselter Checkout · Ihre Kartendaten laufen nicht über Easy Brais",
+    it: "Checkout crittografato · I dati della carta non passano da Easy Brais",
+  },
   "pay.recommended": {
     es: "Recomendado",
     en: "Recommended",

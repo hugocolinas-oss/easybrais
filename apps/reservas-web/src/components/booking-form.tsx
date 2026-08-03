@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import Image from "next/image";
 import type { Accommodation, BookingType, StageLeg, BookingFormData } from "@/lib/types";
 import { calculatePricing, formatEUR, fmtDateShort, PRICING_RULES, getRealEtapas, getRealEtapasForStages } from "@easybrais/utils";
 import { createBooking, type BookingSuccess } from "@/app/actions";
@@ -793,6 +794,7 @@ function PaymentMethodSelector({
           badge={t("pay.recommended")}
           description={t("pay.online.desc")}
           detail={t("pay.online.secure")}
+          trustContent={<OnlinePaymentTrust />}
           onChange={() => onChange("online")}
         />
       )}
@@ -820,6 +822,7 @@ function PaymentOption({
   badge,
   description,
   detail,
+  trustContent,
   onChange,
 }: {
   checked: boolean;
@@ -829,6 +832,7 @@ function PaymentOption({
   badge?: string;
   description: string;
   detail: string;
+  trustContent?: React.ReactNode;
   onChange: () => void;
 }) {
   return (
@@ -857,6 +861,7 @@ function PaymentOption({
         </span>
         <span className="mt-1 block text-sm leading-relaxed text-brand-800/70">{description}</span>
         <span className="mt-2 block text-xs leading-relaxed text-brand-800/45">{detail}</span>
+        {trustContent}
       </span>
       <span className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
         checked ? "border-brand-800 bg-brand-900" : "border-brand-300 bg-white"
@@ -864,6 +869,49 @@ function PaymentOption({
         {checked && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
       </span>
     </label>
+  );
+}
+
+function OnlinePaymentTrust() {
+  const { t } = useT();
+
+  return (
+    <span className="mt-4 block border-t border-brand-900/10 pt-3.5">
+      <span className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <span className="flex items-center gap-2">
+          <span className="flex h-7 items-center rounded-md border border-brand-900/10 bg-white px-2 shadow-[0_1px_2px_rgba(11,61,46,0.05)]" aria-label="Visa">
+            <svg className="h-4 w-8" viewBox="0 0 24 24" role="img" aria-hidden="true">
+              <path fill="#1434CB" d="M9.112 8.262 5.97 15.758H3.92L2.374 9.775c-.094-.368-.175-.503-.461-.658C1.447 8.864.677 8.627 0 8.479l.046-.217h3.3a.904.904 0 0 1 .894.764l.817 4.338 2.018-5.102zm8.033 5.049c.008-1.979-2.736-2.088-2.717-2.972.006-.269.262-.555.822-.628a3.66 3.66 0 0 1 1.913.336l.34-1.59a5.207 5.207 0 0 0-1.814-.333c-1.917 0-3.266 1.02-3.278 2.479-.012 1.079.963 1.68 1.698 2.04.756.367 1.01.603 1.006.931-.005.504-.602.725-1.16.734-.975.015-1.54-.263-1.992-.473l-.351 1.642c.453.208 1.289.39 2.156.398 2.037 0 3.37-1.006 3.377-2.564m5.061 2.447H24l-1.565-7.496h-1.656a.883.883 0 0 0-.826.55l-2.909 6.946h2.036l.405-1.12h2.488zm-2.163-2.656 1.02-2.815.588 2.815zm-8.16-4.84-1.603 7.496H8.34l1.605-7.496z" />
+            </svg>
+          </span>
+          <span className="flex h-7 items-center rounded-md border border-brand-900/10 bg-white px-2 shadow-[0_1px_2px_rgba(11,61,46,0.05)]" aria-label="Mastercard">
+            <svg className="h-5 w-8" viewBox="0 0 38 24" role="img" aria-hidden="true">
+              <circle cx="13" cy="12" r="9" fill="#EB001B" />
+              <circle cx="25" cy="12" r="9" fill="#F79E1B" />
+              <path fill="#FF5F00" d="M19 5.13A9 9 0 0 1 22 12a9 9 0 0 1-3 6.87A9 9 0 0 1 16 12a9 9 0 0 1 3-6.87Z" />
+            </svg>
+          </span>
+          <span className="text-[11px] font-medium text-brand-800/55">{t("pay.cardsAccepted")}</span>
+        </span>
+
+        <span className="inline-flex">
+          <Image
+            src="/payment-marks/powered-by-stripe.svg"
+            alt="Powered by Stripe"
+            width={150}
+            height={34}
+            className="h-[27px] w-auto"
+          />
+        </span>
+      </span>
+
+      <span className="mt-3 flex items-center gap-2 text-[11px] font-semibold text-brand-800/65">
+        <svg className="h-3.5 w-3.5 shrink-0 text-sage-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fillRule="evenodd" d="M5.5 8V6.5a4.5 4.5 0 0 1 9 0V8h.5a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h.5Zm2-1.5V8h5V6.5a2.5 2.5 0 0 0-5 0Zm2.5 5a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0v-1a1 1 0 0 1 1-1Z" clipRule="evenodd" />
+        </svg>
+        {t("pay.encryptedCheckout")}
+      </span>
+    </span>
   );
 }
 
