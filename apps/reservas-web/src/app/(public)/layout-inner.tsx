@@ -1,8 +1,12 @@
 "use client";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { BrandIcon } from "@/components/brand-icon";
 import { BrandRoutePattern } from "@/components/brand-route-pattern";
 import { useT } from "@/lib/i18n/context";
+
+const WHATSAPP_URL =
+  "https://wa.me/34603327708?text=Hola%20Easy%20Brais%2C%20necesito%20ayuda%20con%20mi%20reserva";
 
 export function PublicLayoutInner({ children }: { children: React.ReactNode }) {
   const { t } = useT();
@@ -14,6 +18,24 @@ export function PublicLayoutInner({ children }: { children: React.ReactNode }) {
         className="fixed left-4 top-3 z-[60] -translate-y-20 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-900 shadow-md transition-transform focus:translate-y-0"
       >
         Ir al contenido
+      </a>
+      <a
+        href={WHATSAPP_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={t("whatsapp.help")}
+        title={t("whatsapp.help")}
+        className="group fixed z-50 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_12px_32px_rgba(11,61,46,0.28)] ring-4 ring-white/80 transition hover:-translate-y-1 hover:bg-[#20BD5A] hover:shadow-[0_16px_38px_rgba(11,61,46,0.34)] focus-visible:-translate-y-1 sm:h-16 sm:w-16"
+        style={{
+          bottom: "max(1rem, env(safe-area-inset-bottom))",
+          right: "max(1rem, env(safe-area-inset-right))",
+        }}
+      >
+        <span className="pointer-events-none absolute right-[calc(100%+0.75rem)] hidden whitespace-nowrap rounded-lg bg-brand-950 px-3 py-2 text-xs font-semibold text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 sm:block">
+          {t("whatsapp.help")}
+        </span>
+        <BrandIcon name="whatsapp" className="h-7 w-7 sm:h-8 sm:w-8" />
+        <span className="sr-only">{t("whatsapp.help")}</span>
       </a>
       {/* Main */}
       <main id="main-content" className="mx-auto w-full max-w-6xl flex-1 px-4 py-3 sm:px-6 sm:py-5">{children}</main>

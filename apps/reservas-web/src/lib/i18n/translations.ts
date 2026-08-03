@@ -36,6 +36,14 @@ const t = {
     de: "Lieferung vor 15:30",
     it: "Consegna entro le 15:30",
   },
+  "whatsapp.help": {
+    es: "¿Necesitas ayuda? Escríbenos por WhatsApp",
+    en: "Need help? Message us on WhatsApp",
+    pt: "Precisa de ajuda? Fale connosco pelo WhatsApp",
+    fr: "Besoin d’aide ? Écrivez-nous sur WhatsApp",
+    de: "Brauchen Sie Hilfe? Schreiben Sie uns auf WhatsApp",
+    it: "Hai bisogno di aiuto? Scrivici su WhatsApp",
+  },
 
   // ── Hero ──
   "hero.title": {
