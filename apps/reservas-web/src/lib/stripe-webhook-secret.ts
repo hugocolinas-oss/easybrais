@@ -8,7 +8,9 @@ export async function getStripeWebhookSecret(): Promise<string | null> {
     return environmentSecret;
   }
 
-  const secret = await getRuntimeSecret(STRIPE_WEBHOOK_SECRET_NAME);
+  // Signing secrets can be rotated while a Vercel function instance is warm.
+  // Always read this value from Vault so a rotation takes effect immediately.
+  const secret = await getRuntimeSecret(STRIPE_WEBHOOK_SECRET_NAME, { cache: false });
   if (!secret?.startsWith("whsec_")) {
     console.error("[stripe/webhook] signing secret is missing or invalid");
     return null;

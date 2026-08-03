@@ -69,6 +69,7 @@ export async function getOperativeData(date: string): Promise<{
        )`,
     )
     .eq("service_date", date)
+    .not("bookings.status", "in", "(cancelled,pending_payment,payment_expired)")
     .order("operational_status", { ascending: true });
 
   const rows = (data ?? []) as unknown as RawOperativeItem[];

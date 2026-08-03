@@ -2,8 +2,12 @@ import { createAdminClient } from "@easybrais/utils";
 
 const cache = new Map<string, string>();
 
-export async function getRuntimeSecret(name: string): Promise<string | null> {
-  const cached = cache.get(name);
+export async function getRuntimeSecret(
+  name: string,
+  options: { cache?: boolean } = {},
+): Promise<string | null> {
+  const shouldCache = options.cache !== false;
+  const cached = shouldCache ? cache.get(name) : undefined;
   if (cached) return cached;
 
   const supabase = createAdminClient();
@@ -21,6 +25,6 @@ export async function getRuntimeSecret(name: string): Promise<string | null> {
   }
 
   const value = data.trim();
-  cache.set(name, value);
+  if (shouldCache) cache.set(name, value);
   return value;
 }

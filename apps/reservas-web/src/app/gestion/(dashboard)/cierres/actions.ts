@@ -68,7 +68,8 @@ export async function generateClosure(date: string) {
 
     const rows = (items ?? []) as unknown as RawItem[];
 
-    const activeItems = rows.filter((i) => i.bookings.status !== "cancelled");
+    const inactiveStatuses = new Set(["cancelled", "pending_payment", "payment_expired"]);
+    const activeItems = rows.filter((i) => !inactiveStatuses.has(i.bookings.status));
     const cancelledBookingIds = new Set(
       rows.filter((i) => i.bookings.status === "cancelled").map((i) => i.bookings.id),
     );

@@ -289,7 +289,7 @@ export async function createBooking(
         customer_id: customer.id,
         booking_type: "luggage_transfer" as const,
         service_date: firstDate,
-        status: "confirmed" as const,
+        status: paymentMethod === "online" ? "pending_payment" as const : "confirmed" as const,
         source_channel: (data.sourceChannel ?? "web") as never,
         language: normalizedLanguage,
         notes_customer: data.customer.notes.trim() || null,
@@ -351,6 +351,8 @@ export async function createBooking(
         discount: pricing.discountAmount,
         extra_weight: pricing.extraWeightAmount,
         total: pricing.totalAmount,
+        payment_method: paymentMethod === "online" ? "online_stripe" : "cash",
+        initial_status: paymentMethod === "online" ? "pending_payment" : "confirmed",
       },
     });
 
@@ -366,14 +368,16 @@ export async function createBooking(
 
     let customerEmailSent = false;
     let customerEmailError: string | undefined;
-    try {
-      const emailOutcome = await sendReservationEmails(booking.id, supabase);
-      customerEmailSent = emailOutcome.customer.sent;
-      customerEmailError = emailOutcome.customer.error;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error("[createBooking] reservation emails failed:", message);
-      customerEmailError = message;
+    if (!wantsOnline) {
+      try {
+        const emailOutcome = await sendReservationEmails(booking.id, supabase);
+        customerEmailSent = emailOutcome.customer.sent;
+        customerEmailError = emailOutcome.customer.error;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error("[createBooking] reservation emails failed:", message);
+        customerEmailError = message;
+      }
     }
 
     revalidatePath("/gestion/reservas");

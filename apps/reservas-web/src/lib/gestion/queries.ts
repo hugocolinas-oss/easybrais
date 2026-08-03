@@ -74,7 +74,6 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       .gte("service_date", today)
       .in("status", [
         "pending",
-        "pending_payment",
         "confirmed",
         "in_pickup",
         "in_transit",
@@ -99,7 +98,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   }
 
   const rawItems = (itemsResult.data ?? []) as unknown as TodayItemRow[];
-  const activeItems = rawItems.filter((i) => i.bookings.status !== "cancelled");
+  const inactiveStatuses = new Set(["cancelled", "pending_payment", "payment_expired"]);
+  const activeItems = rawItems.filter((i) => !inactiveStatuses.has(i.bookings.status));
   const todayBookingIds = new Set(activeItems.map((i) => i.booking_id));
   const todayBookings = todayBookingIds.size;
   const todayBags = activeItems.reduce((s, i) => s + (i.bags_count || 0), 0);

@@ -152,14 +152,11 @@ export async function POST(req: NextRequest) {
     const paymentExpiresAt = new Date(expiresAt * 1000).toISOString();
 
     const updates: Record<string, string> = {
+      status: "pending_payment",
       stripe_session_id: session.id,
       payment_method: "online_stripe",
       payment_expires_at: paymentExpiresAt,
     };
-
-    if (booking.status !== "confirmed") {
-      updates.status = "confirmed";
-    }
 
     const { error: updateErr } = await supabase
       .from("bookings")
@@ -177,16 +174,13 @@ export async function POST(req: NextRequest) {
 
     /* ── 8. Log event ──────────────────────────────────────────────── */
 
-    const eventType: "updated" | "status_changed" =
-      booking.status === "confirmed" ? "updated" : "status_changed";
-
     await supabase.from("booking_events").insert({
       booking_id: booking.id,
-      event_type: eventType,
+      event_type: booking.status === "pending_payment" ? "updated" : "status_changed",
       actor_type: "system" as const,
       payload_json: {
         from: booking.status,
-        to: "confirmed",
+        to: "pending_payment",
         reason: "stripe_checkout_created",
         stripe_session_id: session.id,
         amount_cents: amountCents,

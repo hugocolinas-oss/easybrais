@@ -89,7 +89,7 @@ export async function generateRoute(date: string) {
          bookings!inner(booking_code, status, customers(full_name, phone))`,
       )
       .eq("service_date", date)
-      .not("bookings.status", "in", "(cancelled,payment_expired)");
+      .not("bookings.status", "in", "(cancelled,pending_payment,payment_expired)");
 
     if (fetchErr) {
       console.error("[generateRoute] fetch items failed:", fetchErr.message);
@@ -251,7 +251,7 @@ export async function refreshRoute(routeId: string, routeDate: string) {
          bookings!inner(booking_code, status, customers(full_name, phone))`,
       )
       .eq("service_date", routeDate)
-      .not("bookings.status", "in", "(cancelled,payment_expired)");
+      .not("bookings.status", "in", "(cancelled,pending_payment,payment_expired)");
 
     if (fetchErr) {
       console.error("[refreshRoute] fetch items failed:", fetchErr.message);

@@ -112,12 +112,12 @@ export default async function PaymentSuccessPage({ searchParams }: Props) {
               )}
             </div>
             <h3 className="text-xl font-bold text-white sm:text-2xl">
-              {isPaid ? "Pago confirmado" : "Reserva confirmada"}
+              {isPaid ? "Pago confirmado" : "Pago en verificación"}
             </h3>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-white/60">
               {isPaid
                 ? "Tu reserva está confirmada y el pago se ha procesado correctamente."
-                : "Tu reserva ya está confirmada. El pago se actualizará en cuanto Stripe lo valide."}
+                : "Stripe está validando el pago. La reserva se confirmará automáticamente cuando recibamos la validación."}
             </p>
           </div>
         </div>

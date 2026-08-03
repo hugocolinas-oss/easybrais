@@ -35,7 +35,7 @@ export function BookingConfirmation({ result, onNewBooking }: Props) {
             <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-white/60">
               {isOnlinePayment ? t("conf.onlineSubtitle") : t("conf.subtitle")}
             </p>
-            {!result.customerEmailSent && (
+            {!isOnlinePayment && !result.customerEmailSent && (
               <div className="mx-auto mt-4 max-w-sm rounded-xl border border-amber-400/35 bg-amber-950/40 px-4 py-3 text-left text-[12px] leading-relaxed text-amber-100/95">
                 <p className="font-semibold text-amber-50">{t("conf.emailIssue")}</p>
                 <p className="mt-1 text-amber-100/80">{t("conf.emailIssueHint")}</p>

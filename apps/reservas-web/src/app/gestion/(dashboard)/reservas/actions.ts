@@ -595,7 +595,8 @@ async function regenerateClosureForDate(
   const rows = (items ?? []) as unknown as ClosureItem[];
   if (rows.length === 0) return;
 
-  const active = rows.filter((i) => i.bookings.status !== "cancelled");
+  const inactiveStatuses = new Set(["cancelled", "pending_payment", "payment_expired"]);
+  const active = rows.filter((i) => !inactiveStatuses.has(i.bookings.status));
   const cancelledIds = new Set(
     rows.filter((i) => i.bookings.status === "cancelled").map((i) => i.bookings.id),
   );

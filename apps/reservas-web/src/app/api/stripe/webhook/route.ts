@@ -2,13 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { getStripeWebhookSecret } from "@/lib/stripe-webhook-secret";
 import { createAdminClient } from "@easybrais/utils";
-import { sendPaymentConfirmedEmail } from "@/lib/email/reservations";
+import { sendAdminNewReservationEmail, sendPaymentConfirmedEmail } from "@/lib/email/reservations";
 import type Stripe from "stripe";
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
   const webhookSecret = await getStripeWebhookSecret();
+  const requestId = req.headers.get("x-vercel-id");
+
+  console.log(JSON.stringify({
+    level: "info",
+    message: "Stripe webhook received",
+    route: "/api/stripe/webhook",
+    requestId,
+    hasSignature: Boolean(sig),
+  }));
 
   if (!webhookSecret) {
     console.error("[stripe/webhook] missing webhook secret");
@@ -195,6 +204,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[stripe/webhook] payment email error:", msg);
   }
+
+  try {
+    const adminEmailResult = await sendAdminNewReservationEmail(bookingId, supabase);
+    if (!adminEmailResult.sent) {
+      console.warn("[stripe/webhook] admin reservation email not sent:", adminEmailResult.error ?? "unknown");
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[stripe/webhook] admin reservation email error:", msg);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -231,25 +250,28 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
   }
 
   const status = current.status as string;
-  if (status === "cancelled") {
-    console.log("[stripe/webhook] expired: booking is cancelled — skipping");
+  if (status !== "pending_payment" && status !== "pending") {
+    console.log("[stripe/webhook] expired: status is", status, "— skipping");
     return;
   }
 
-  /* ── Keep booking confirmed and record expiry in metadata/events ─ */
+  /* ── Mark the unpaid booking as expired ───────────────────────── */
 
   const { error: updateErr } = await supabase
     .from("bookings")
     .update({
-      status: "confirmed",
+      status: "payment_expired",
     })
-    .eq("id", bookingId);
+    .eq("id", bookingId)
+    .eq("stripe_session_id", session.id)
+    .neq("payment_status", "paid")
+    .in("status", ["pending", "pending_payment"]);
 
   if (updateErr) {
     throw new Error(`Expired booking update failed: ${updateErr.message}`);
   }
 
-  console.log("[stripe/webhook] expired: booking", bookingId, "kept confirmed with expired payment session");
+  console.log("[stripe/webhook] expired: booking", bookingId, "marked as payment_expired");
 
   /* ── Event ───────────────────────────────────────────────────── */
 
