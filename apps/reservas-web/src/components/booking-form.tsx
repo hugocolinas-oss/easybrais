@@ -127,9 +127,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
   const [legs, setLegs] = useState<StageLeg[]>([createLeg()]);
   const [customer, setCustomer] = useState({ ...EMPTY_CUSTOMER, language: locale });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">(
-    onlinePaymentAvailable ? "online" : "cash",
-  );
+  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">("cash");
   const [accommodationPolicyAccepted, setAccommodationPolicyAccepted] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -447,7 +445,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
     autoLanguageRef.current = locale;
     setCustomer({ ...EMPTY_CUSTOMER, language: locale });
     setBookingType("single_stage");
-    setPaymentMethod(onlinePaymentAvailable ? "online" : "cash");
+    setPaymentMethod("cash");
     setAccommodationPolicyAccepted(false);
     setErrors({});
     setServerError(null);
