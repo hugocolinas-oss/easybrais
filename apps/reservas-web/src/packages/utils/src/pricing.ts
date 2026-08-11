@@ -112,6 +112,16 @@ const SPIRITUAL_PAIR_PRICES: Record<string, number> = {
   "23:11": 16,
 };
 
+/**
+ * Service counts that intentionally differ from price / base price.
+ * Pontevedra → Ribadumia and Pontevedra → Vilanova are two services,
+ * although their Variante Espiritual tariff is 16 € per bag.
+ */
+const SPIRITUAL_PAIR_STAGES: Record<string, number> = {
+  "6:22": 2,
+  "6:23": 2,
+};
+
 export type RouteStageLegIssue = "reverse_direction" | "excess_mileage";
 
 function involvesSpiritualRoute(pickup: RoutePricingStage, dropoff: RoutePricingStage): boolean {
@@ -222,6 +232,8 @@ export function getRealEtapasForStages(
   pickup: RoutePricingStage,
   dropoff: RoutePricingStage,
 ): number {
+  const spiritualStages = SPIRITUAL_PAIR_STAGES[`${pickup.code}:${dropoff.code}`];
+  if (spiritualStages != null) return spiritualStages;
   return Math.max(1, Math.round(resolveRouteStagePrice(pickup, dropoff) / PRICING_RULES.BASE_PRICE));
 }
 

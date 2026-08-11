@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getRealEtapasForStages,
   getRouteStageLegIssue,
   isRouteStageLegValid,
   resolveRouteStagePrice,
@@ -70,6 +71,13 @@ test("uses the confirmed Variante Espiritual tariffs", () => {
   assert.equal(resolveRouteStagePrice(ribadumia, padron), 24);
   assert.equal(resolveRouteStagePrice(vilanova, padron), 16);
   assert.equal(resolveRouteStagePrice(pontevedra, padron), 12);
+});
+
+test("counts Pontevedra to Ribadumia and Vilanova as two services", () => {
+  assert.equal(getRealEtapasForStages(pontevedra, ribadumia), 2);
+  assert.equal(getRealEtapasForStages(pontevedra, vilanova), 2);
+  assert.equal(resolveRouteStagePrice(pontevedra, ribadumia), 16);
+  assert.equal(resolveRouteStagePrice(pontevedra, vilanova), 16);
 });
 
 test("marks unpriced Variante Espiritual legs as excess mileage", () => {

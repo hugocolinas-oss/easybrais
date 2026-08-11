@@ -453,7 +453,7 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
               </div>
               {usesSpiritualRoute && (
                 <p className="mt-3 text-sm font-medium text-amber-700">
-                  Exceso de kilometraje — Variante Espiritual
+                  Extra por Variante Espiritual del Camino
                 </p>
               )}
             </div>

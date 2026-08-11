@@ -833,12 +833,12 @@ const t = {
     it: "Chilometraggio eccessivo: questo tragitto non è disponibile",
   },
   "notice.spiritualMileage": {
-    es: "Exceso de kilometraje — Variante Espiritual",
-    en: "Additional mileage — Spiritual Variant",
-    pt: "Excesso de quilometragem — Variante Espiritual",
-    fr: "Kilométrage supplémentaire — Variante Spirituelle",
-    de: "Zusätzliche Kilometer — Spirituelle Variante",
-    it: "Chilometraggio aggiuntivo — Variante Spirituale",
+    es: "Extra por Variante Espiritual del Camino",
+    en: "Spiritual Way Variant surcharge",
+    pt: "Extra pela Variante Espiritual do Caminho",
+    fr: "Supplément pour la Variante Spirituelle du Chemin",
+    de: "Aufpreis für die Spirituelle Variante des Jakobswegs",
+    it: "Supplemento per la Variante Spirituale del Cammino",
   },
   "val.checkFields": {
     es: "Revisa los campos marcados en rojo antes de continuar.",
