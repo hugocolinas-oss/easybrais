@@ -22,7 +22,7 @@ export const PRICING_RULES = {
   OVERWEIGHT_FEE: 5,
 } as const;
 
-export type RouteSection = "coastal" | "central" | "shared";
+export type RouteSection = "coastal" | "central" | "spiritual" | "shared";
 
 export interface RoutePricingStage {
   code: number;
@@ -91,6 +91,69 @@ const PAIR_PRICES: Record<string, number> = {
 };
 
 /**
+ * Explicit, directed tariffs for the Variante Espiritual.
+ *
+ * Codes 20–23 are kept outside the legacy 1–19 sequence because this route
+ * forks at Pontevedra (6) and rejoins at Padrón (11). Missing pairs are not
+ * inferred: they are outside the supported mileage and cannot be booked.
+ */
+const SPIRITUAL_STAGE_CODES = new Set([20, 21, 22, 23]);
+const SPIRITUAL_PAIR_PRICES: Record<string, number> = {
+  "5:20": 14,  // Redondela → Combarro
+  "5:21": 16,  // Redondela → Armenteira
+  "5:22": 22,  // Redondela → Ribadumia
+  "5:23": 22,  // Redondela → Vilanova
+  "6:20": 8,   // Pontevedra → Combarro
+  "6:21": 8,   // Pontevedra → Armenteira
+  "6:22": 16,  // Pontevedra → Ribadumia
+  "6:23": 16,  // Pontevedra → Vilanova
+  "20:21": 8,  // Combarro → Armenteira
+  "20:22": 16, // Combarro → Ribadumia
+  "20:23": 16, // Combarro → Vilanova
+  "20:11": 32, // Combarro → Padrón
+  "21:22": 8,  // Armenteira → Ribadumia
+  "21:23": 8,  // Armenteira → Vilanova
+  "22:23": 8,  // Ribadumia → Vilanova
+  "21:11": 24, // Armenteira → Padrón
+  "22:11": 24, // Ribadumia → Padrón
+  "23:11": 16, // Vilanova → Padrón
+};
+
+export type RouteStageLegIssue = "reverse_direction" | "excess_mileage";
+
+function involvesSpiritualRoute(pickup: RoutePricingStage, dropoff: RoutePricingStage): boolean {
+  return SPIRITUAL_STAGE_CODES.has(pickup.code) || SPIRITUAL_STAGE_CODES.has(dropoff.code);
+}
+
+export function getRouteStageLegIssue(
+  pickup: RoutePricingStage,
+  dropoff: RoutePricingStage,
+): RouteStageLegIssue | null {
+  if (pickup.code === dropoff.code) return null;
+
+  if (involvesSpiritualRoute(pickup, dropoff)) {
+    const directKey = `${pickup.code}:${dropoff.code}`;
+    if (SPIRITUAL_PAIR_PRICES[directKey] != null) return null;
+    const reverseKey = `${dropoff.code}:${pickup.code}`;
+    return SPIRITUAL_PAIR_PRICES[reverseKey] != null
+      ? "reverse_direction"
+      : "excess_mileage";
+  }
+
+  if (pickup.routeSection === "shared") {
+    return dropoff.routeSection === "shared" && dropoff.branchSequence >= pickup.branchSequence
+      ? null
+      : "reverse_direction";
+  }
+
+  if (dropoff.routeSection === "shared") return null;
+  return pickup.routeSection === dropoff.routeSection
+    && dropoff.branchSequence >= pickup.branchSequence
+    ? null
+    : "reverse_direction";
+}
+
+/**
  * Resolve the price per bag for a pair of external_code prefixes.
  *
  * - Same code: minimum 1 etapa = BASE_PRICE.
@@ -131,13 +194,7 @@ export function isRouteStageLegValid(
   pickup: RoutePricingStage,
   dropoff: RoutePricingStage,
 ): boolean {
-  if (pickup.routeSection === "shared") {
-    return dropoff.routeSection === "shared" && dropoff.branchSequence >= pickup.branchSequence;
-  }
-
-  if (dropoff.routeSection === "shared") return true;
-  return pickup.routeSection === dropoff.routeSection
-    && dropoff.branchSequence >= pickup.branchSequence;
+  return getRouteStageLegIssue(pickup, dropoff) === null;
 }
 
 export function resolveRouteStagePrice(
@@ -146,6 +203,11 @@ export function resolveRouteStagePrice(
 ): number {
   const { BASE_PRICE } = PRICING_RULES;
   if (!isRouteStageLegValid(pickup, dropoff)) return BASE_PRICE;
+
+  if (involvesSpiritualRoute(pickup, dropoff)) {
+    if (pickup.code === dropoff.code) return BASE_PRICE;
+    return SPIRITUAL_PAIR_PRICES[`${pickup.code}:${dropoff.code}`] ?? BASE_PRICE;
+  }
 
   if (pickup.routeSection === "shared" && dropoff.routeSection === "shared") {
     return getDirectPrice(pickup.code, dropoff.code);

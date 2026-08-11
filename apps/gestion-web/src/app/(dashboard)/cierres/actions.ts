@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAdminClient } from "@easybrais/utils";
 import { requireAuth } from "@/lib/auth";
+import { getServerSupabase } from "@/lib/supabase/server";
+import { assertClosuresAccess } from "@/lib/permissions";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -22,8 +23,9 @@ export async function generateClosure(date: string) {
   if (!DATE_RE.test(date)) return { error: "Fecha inválida." };
 
   try {
-    await requireAuth();
-    const supabase = createAdminClient();
+    const { profile } = await requireAuth();
+    assertClosuresAccess(profile.role);
+    const supabase = await getServerSupabase();
 
     const { data: existing, error: existErr } = await supabase
       .from("daily_cash_closures")
@@ -115,8 +117,9 @@ export async function deleteClosure(closureId: string) {
   if (!UUID_RE.test(closureId)) return { error: "ID inválido." };
 
   try {
-    await requireAuth();
-    const supabase = createAdminClient();
+    const { profile } = await requireAuth();
+    assertClosuresAccess(profile.role);
+    const supabase = await getServerSupabase();
 
     const { error } = await supabase
       .from("daily_cash_closures")

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe, getStripeReturnOrigin, isStripeConfigured } from "@/lib/stripe";
-import { createAdminClient } from "@easybrais/utils";
+import { createAdminClient } from "@easybrais/utils/supabase/admin";
 
 const PAYMENT_WINDOW_SECONDS = 3600; // 1 hour
+const MAX_REQUEST_BYTES = 2_048;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const BOOKING_CODE_RE = /^EB-\d{6}-[A-HJ-NP-Z2-9]{4,8}$/;
 
 export async function POST(req: NextRequest) {
   if (!await isStripeConfigured()) {
@@ -13,10 +16,34 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
-    const { bookingId, bookingCode } = body as { bookingId?: string; bookingCode?: string };
+    const contentLength = Number(req.headers.get("content-length") ?? 0);
+    if (contentLength > MAX_REQUEST_BYTES) {
+      return NextResponse.json({ error: "Solicitud demasiado grande" }, { status: 413 });
+    }
 
-    if (!bookingId || !bookingCode) {
+    const rawBody = await req.text();
+    if (rawBody.length > MAX_REQUEST_BYTES) {
+      return NextResponse.json({ error: "Solicitud demasiado grande" }, { status: 413 });
+    }
+
+    let body: unknown;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: "JSON no válido" }, { status: 400 });
+    }
+
+    const { bookingId, bookingCode } = (body && typeof body === "object" ? body : {}) as {
+      bookingId?: unknown;
+      bookingCode?: unknown;
+    };
+
+    if (
+      typeof bookingId !== "string"
+      || typeof bookingCode !== "string"
+      || !UUID_RE.test(bookingId)
+      || !BOOKING_CODE_RE.test(bookingCode)
+    ) {
       return NextResponse.json({ error: "Reserva no válida" }, { status: 400 });
     }
 

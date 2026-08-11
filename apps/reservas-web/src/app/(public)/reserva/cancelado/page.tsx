@@ -1,4 +1,4 @@
-import { createAdminClient } from "@easybrais/utils";
+import { createAdminClient } from "@easybrais/utils/supabase/admin";
 import Link from "next/link";
 import { StripeCheckoutButton } from "@/components/stripe-checkout-button";
 

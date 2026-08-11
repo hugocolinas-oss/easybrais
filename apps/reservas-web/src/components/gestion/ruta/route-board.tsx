@@ -181,6 +181,7 @@ export function RouteBoard({ route }: Props) {
           {filtered.map((stop, i) => {
             const previous = filtered[i - 1];
             const startsCentral = stop.route_section === "central" && previous?.route_section !== "central";
+            const startsSpiritual = stop.route_section === "spiritual" && previous?.route_section !== "spiritual";
             return (
               <div key={stop.id}>
                 {startsCentral && (
@@ -191,6 +192,16 @@ export function RouteBoard({ route }: Props) {
                       <p className="mt-0.5 text-[11px] font-medium text-brand-900/65">Valença · Tui · O Porriño</p>
                     </div>
                     <div className="h-px flex-1 bg-brand-200" />
+                  </div>
+                )}
+                {startsSpiritual && (
+                  <div className="my-4 flex items-center gap-3" aria-label="Inicio de la Variante Espiritual">
+                    <div className="h-px flex-1 bg-gold-200" />
+                    <div className="rounded-full border border-gold-200 bg-gold-50 px-4 py-2 text-center shadow-sm">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-700">Variante Espiritual</p>
+                      <p className="mt-0.5 text-[11px] font-medium text-brand-900/65">Combarro · Armenteira · Ribadumia · Vilanova</p>
+                    </div>
+                    <div className="h-px flex-1 bg-gold-200" />
                   </div>
                 )}
                 <div

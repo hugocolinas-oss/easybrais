@@ -6,7 +6,7 @@ import type { Accommodation, BookingType, StageLeg, BookingFormData } from "@/li
 import { calculatePricing, formatEUR, fmtDateShort, PRICING_RULES, getRealEtapas, getRealEtapasForStages } from "@easybrais/utils";
 import { createBooking, type BookingSuccess } from "@/app/actions";
 import { useT } from "@/lib/i18n/context";
-import { getAccommodationPricingPrefix, getAccommodationPricingStage, isValidAccommodationLeg } from "@/lib/accommodation-order";
+import { getAccommodationLegIssue, getAccommodationPricingPrefix, getAccommodationPricingStage } from "@/lib/accommodation-order";
 import { BookingTypeSelector } from "./booking-type-selector";
 import { LegForm } from "./leg-form";
 import { CustomerFields } from "./customer-fields";
@@ -216,6 +216,16 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
       ),
     [legs, accMap],
   );
+  const hasExcessMileage = useMemo(
+    () => legs.some((leg) => {
+      const pickup = accMap.get(leg.pickupAccommodationId);
+      const dropoff = accMap.get(leg.dropoffAccommodationId);
+      return pickup && dropoff
+        ? getAccommodationLegIssue(pickup, dropoff) === "excess_mileage"
+        : false;
+    }),
+    [legs, accMap],
+  );
 
   const handleTypeChange = useCallback(
     (type: BookingType) => {
@@ -265,7 +275,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
         if (at) next[index] = { ...at, departureTown: newPickupAcc?.town ?? at.departureTown };
         if (newPickupAcc && updated.dropoffAccommodationId) {
           const dropoffAcc = accMap.get(updated.dropoffAccommodationId);
-          if (dropoffAcc && !isValidAccommodationLeg(newPickupAcc, dropoffAcc)) {
+          if (dropoffAcc && getAccommodationLegIssue(newPickupAcc, dropoffAcc) === "reverse_direction") {
             const at = next[index];
             if (at) next[index] = { ...at, dropoffAccommodationId: "", arrivalTown: "" };
           }
@@ -354,8 +364,11 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
       if (leg.pickupAccommodationId && leg.dropoffAccommodationId) {
         const pAcc = accMap.get(leg.pickupAccommodationId);
         const dAcc = accMap.get(leg.dropoffAccommodationId);
-        if (pAcc && dAcc && !isValidAccommodationLeg(pAcc, dAcc)) {
-          errs[`${p}_dropoff`] = t("val.reverseDirection");
+        if (pAcc && dAcc) {
+          const issue = getAccommodationLegIssue(pAcc, dAcc);
+          if (issue) {
+            errs[`${p}_dropoff`] = t(issue === "excess_mileage" ? "val.excessMileage" : "val.reverseDirection");
+          }
         }
       }
     });
@@ -579,6 +592,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
               submitting={submitting}
               submissionStage={submissionStage}
               paymentMethod={paymentMethod}
+              unavailable={hasExcessMileage}
             />
           </div>
         </div>
@@ -653,7 +667,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
                 <div className="mt-4 flex items-baseline justify-between border-t border-cream-300/60 pt-4">
                   <span className="text-sm font-bold text-brand-900">{t("summary.total")}</span>
                   <span className="tabular-nums text-3xl font-extrabold tracking-tight text-gold-700">
-                    {formatEUR(pricing.totalAmount)}
+                    {hasExcessMileage ? "—" : formatEUR(pricing.totalAmount)}
                   </span>
                 </div>
 
@@ -668,7 +682,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
                   </p>
                 )}
 
-                <details className="mt-3 group">
+                {!hasExcessMileage && <details className="mt-3 group">
                   <summary className="flex cursor-pointer items-center justify-between rounded-lg px-1 py-1 text-[11px] font-medium text-brand-800/40 transition-colors hover:text-brand-800/60">
                     <span>{t("summary.breakdown")}</span>
                     <svg className="h-3.5 w-3.5 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
@@ -676,7 +690,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
                     </svg>
                   </summary>
                   <PriceBreakdown pricing={pricing} />
-                </details>
+                </details>}
               </div>
 
               {/* Submit button */}
@@ -686,6 +700,7 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
                   submissionStage={submissionStage}
                   paymentMethod={paymentMethod}
                   total={pricing.totalAmount}
+                  unavailable={hasExcessMileage}
                 />
               </div>
 
@@ -1060,20 +1075,24 @@ function SubmitButton({
   submissionStage,
   paymentMethod,
   total,
+  unavailable = false,
 }: {
   submitting: boolean;
   submissionStage: "saving" | "redirecting";
   paymentMethod: "online" | "cash";
   total: number;
+  unavailable?: boolean;
 }) {
   const { t } = useT();
   const actionLabel = paymentMethod === "online" ? t("submit.pay") : t("submit.confirm");
-  const label = `${actionLabel}${total > 0 ? ` · ${formatEUR(total)}` : ""}`;
+  const label = unavailable
+    ? t("val.excessMileage")
+    : `${actionLabel}${total > 0 ? ` · ${formatEUR(total)}` : ""}`;
 
   return (
     <button
       type="submit"
-      disabled={submitting}
+      disabled={submitting || unavailable}
       className="flex min-h-12 w-full items-center justify-center gap-2.5 rounded-xl bg-brand-900 px-5 py-3.5 text-sm font-bold text-white shadow-md transition-[background-color,box-shadow,transform] hover:bg-brand-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]"
     >
       {submitting ? (
@@ -1102,12 +1121,14 @@ function MobileSummary({
   submitting,
   submissionStage,
   paymentMethod,
+  unavailable,
 }: {
   legs: StageLeg[];
   pricing: ReturnType<typeof calculatePricing>;
   submitting: boolean;
   submissionStage: "saving" | "redirecting";
   paymentMethod: "online" | "cash";
+  unavailable: boolean;
 }) {
   const { t } = useT();
   return (
@@ -1131,13 +1152,13 @@ function MobileSummary({
             <span className="font-semibold text-gold-700">{pricing.totalTransportUnits}</span>
           </div>
         )}
-        <PriceBreakdown pricing={pricing} />
+        {!unavailable && <PriceBreakdown pricing={pricing} />}
         {pricing.totalTransportUnits > pricing.totalBags && (
           <p className="text-[11px] leading-relaxed text-brand-800/45">{t("summary.unitsHelp")}</p>
         )}
         <div className="flex items-baseline justify-between border-t border-cream-200 pt-3">
           <span className="text-sm font-bold text-brand-900">{t("summary.total")}</span>
-          <span className="tabular-nums text-3xl font-extrabold tracking-tight text-gold-700">{formatEUR(pricing.totalAmount)}</span>
+          <span className="tabular-nums text-3xl font-extrabold tracking-tight text-gold-700">{unavailable ? "—" : formatEUR(pricing.totalAmount)}</span>
         </div>
       </div>
       <div className="px-5 pb-5">
@@ -1146,6 +1167,7 @@ function MobileSummary({
           submissionStage={submissionStage}
           paymentMethod={paymentMethod}
           total={pricing.totalAmount}
+          unavailable={unavailable}
         />
       </div>
       <div className="border-t border-cream-200 px-5 py-3">

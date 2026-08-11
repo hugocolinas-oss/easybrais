@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAdminClient } from "@easybrais/utils";
+import { createAdminClient } from "@easybrais/utils/supabase/admin";
 import { requireAuth } from "@/lib/auth";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -84,6 +84,15 @@ export async function reportIncident(
   try {
     const { userId } = await requireAuth();
     const supabase = createAdminClient();
+
+    const { data: currentItem, error: itemFetchError } = await supabase
+      .from("booking_items")
+      .select("booking_id")
+      .eq("id", itemId)
+      .single();
+    if (itemFetchError || !currentItem || currentItem.booking_id !== bookingId) {
+      return { error: "El item no pertenece a la reserva indicada." };
+    }
 
     const { error: itemErr } = await supabase
       .from("booking_items")

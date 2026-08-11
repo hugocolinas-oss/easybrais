@@ -7,18 +7,19 @@ export {
   resolvePerBagPrice,
   resolveRouteStagePrice,
   isRouteStageLegValid,
+  getRouteStageLegIssue,
   calculatePricing,
   formatEUR,
   type PricingInput,
   type PricingBreakdown,
   type RoutePricingStage,
   type RouteSection,
+  type RouteStageLegIssue,
 } from "./pricing";
 
 export {
   createBrowserClient,
   createServerClient,
-  createAdminClient,
   createMiddlewareClient,
 } from "./supabase";
 

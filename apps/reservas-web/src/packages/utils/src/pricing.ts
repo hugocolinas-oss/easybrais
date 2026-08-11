@@ -22,7 +22,7 @@ export const PRICING_RULES = {
   OVERWEIGHT_FEE: 5,
 } as const;
 
-export type RouteSection = "coastal" | "central" | "shared";
+export type RouteSection = "coastal" | "central" | "spiritual" | "shared";
 
 export interface RoutePricingStage {
   code: number;
@@ -90,6 +90,57 @@ const PAIR_PRICES: Record<string, number> = {
   "12:13": 6, // 1 etapa
 };
 
+const SPIRITUAL_STAGE_CODES = new Set([20, 21, 22, 23]);
+const SPIRITUAL_PAIR_PRICES: Record<string, number> = {
+  "5:20": 14,
+  "5:21": 16,
+  "5:22": 22,
+  "5:23": 22,
+  "6:20": 8,
+  "6:21": 8,
+  "6:22": 16,
+  "6:23": 16,
+  "20:21": 8,
+  "20:22": 16,
+  "20:23": 16,
+  "20:11": 32,
+  "21:22": 8,
+  "21:23": 8,
+  "22:23": 8,
+  "21:11": 24,
+  "22:11": 24,
+  "23:11": 16,
+};
+
+export type RouteStageLegIssue = "reverse_direction" | "excess_mileage";
+
+function involvesSpiritualRoute(pickup: RoutePricingStage, dropoff: RoutePricingStage): boolean {
+  return SPIRITUAL_STAGE_CODES.has(pickup.code) || SPIRITUAL_STAGE_CODES.has(dropoff.code);
+}
+
+export function getRouteStageLegIssue(
+  pickup: RoutePricingStage,
+  dropoff: RoutePricingStage,
+): RouteStageLegIssue | null {
+  if (pickup.code === dropoff.code) return null;
+  if (involvesSpiritualRoute(pickup, dropoff)) {
+    const directKey = `${pickup.code}:${dropoff.code}`;
+    if (SPIRITUAL_PAIR_PRICES[directKey] != null) return null;
+    const reverseKey = `${dropoff.code}:${pickup.code}`;
+    return SPIRITUAL_PAIR_PRICES[reverseKey] != null ? "reverse_direction" : "excess_mileage";
+  }
+  if (pickup.routeSection === "shared") {
+    return dropoff.routeSection === "shared" && dropoff.branchSequence >= pickup.branchSequence
+      ? null
+      : "reverse_direction";
+  }
+  if (dropoff.routeSection === "shared") return null;
+  return pickup.routeSection === dropoff.routeSection
+    && dropoff.branchSequence >= pickup.branchSequence
+    ? null
+    : "reverse_direction";
+}
+
 /**
  * Resolve the price per bag for a pair of external_code prefixes.
  *
@@ -131,13 +182,7 @@ export function isRouteStageLegValid(
   pickup: RoutePricingStage,
   dropoff: RoutePricingStage,
 ): boolean {
-  if (pickup.routeSection === "shared") {
-    return dropoff.routeSection === "shared" && dropoff.branchSequence >= pickup.branchSequence;
-  }
-
-  if (dropoff.routeSection === "shared") return true;
-  return pickup.routeSection === dropoff.routeSection
-    && dropoff.branchSequence >= pickup.branchSequence;
+  return getRouteStageLegIssue(pickup, dropoff) === null;
 }
 
 export function resolveRouteStagePrice(
@@ -146,6 +191,11 @@ export function resolveRouteStagePrice(
 ): number {
   const { BASE_PRICE } = PRICING_RULES;
   if (!isRouteStageLegValid(pickup, dropoff)) return BASE_PRICE;
+
+  if (involvesSpiritualRoute(pickup, dropoff)) {
+    if (pickup.code === dropoff.code) return BASE_PRICE;
+    return SPIRITUAL_PAIR_PRICES[`${pickup.code}:${dropoff.code}`] ?? BASE_PRICE;
+  }
 
   if (pickup.routeSection === "shared" && dropoff.routeSection === "shared") {
     return getDirectPrice(pickup.code, dropoff.code);

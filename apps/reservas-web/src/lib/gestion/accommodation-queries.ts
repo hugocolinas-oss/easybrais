@@ -22,7 +22,7 @@ export interface AccommodationRow {
   route_stage_id: string | null;
   route_stage: {
     code: number;
-    route_section: "coastal" | "central" | "shared";
+    route_section: "coastal" | "central" | "shared" | "spiritual";
     branch_sequence: number;
   } | null;
   created_at: string;
@@ -61,7 +61,7 @@ function parseCode(code: string | null): [number, number] {
 }
 
 function compareByCode(a: AccommodationRow, b: AccommodationRow): number {
-  const sectionOrder = { coastal: 0, central: 1, shared: 2 } as const;
+  const sectionOrder = { coastal: 0, central: 1, shared: 2, spiritual: 3 } as const;
   if (a.route_stage && b.route_stage) {
     const aSection = sectionOrder[a.route_stage.route_section];
     const bSection = sectionOrder[b.route_stage.route_section];
@@ -137,10 +137,16 @@ export async function getAccommodationById(id: string): Promise<AccommodationRow
 export async function getStagesInfo(): Promise<StageInfo[]> {
   const supabase = await getServerSupabase();
 
-  const { data } = await supabase
-    .from("accommodations")
-    .select("stage_name, external_code, active, visible_in_reservations, route_stage:route_stages!accommodations_route_stage_id_fkey(route_section, branch_sequence)")
-    .not("stage_name", "is", null);
+  const [{ data }, { data: activeRouteStages }] = await Promise.all([
+    supabase
+      .from("accommodations")
+      .select("stage_name, external_code, active, visible_in_reservations, route_stage:route_stages!accommodations_route_stage_id_fkey(route_section, branch_sequence)")
+      .not("stage_name", "is", null),
+    supabase
+      .from("route_stages")
+      .select("code, name, route_section, branch_sequence")
+      .eq("active", true),
+  ]);
 
   const map = new Map<string, StageInfo>();
 
@@ -149,9 +155,9 @@ export async function getStagesInfo(): Promise<StageInfo[]> {
     external_code: string | null;
     active: boolean;
     visible_in_reservations: boolean;
-    route_stage: { route_section: "coastal" | "central" | "shared"; branch_sequence: number } | null;
+    route_stage: { route_section: "coastal" | "central" | "shared" | "spiritual"; branch_sequence: number } | null;
   };
-  const sectionOrder = { coastal: 0, central: 1, shared: 2 } as const;
+  const sectionOrder = { coastal: 0, central: 1, shared: 2, spiritual: 3 } as const;
   for (const row of (data ?? []) as unknown as StageRow[]) {
     const name = row.stage_name;
     if (!name) continue;
@@ -168,6 +174,24 @@ export async function getStagesInfo(): Promise<StageInfo[]> {
     info.total++;
     if (row.active) info.active++;
     if (row.visible_in_reservations) info.visible++;
+  }
+
+  type ActiveRouteStage = {
+    code: number;
+    name: string;
+    route_section: "coastal" | "central" | "shared" | "spiritual";
+    branch_sequence: number;
+  };
+  for (const stage of (activeRouteStages ?? []) as ActiveRouteStage[]) {
+    if (map.has(stage.name)) continue;
+    map.set(stage.name, {
+      name: stage.name,
+      stageNumber: stage.code,
+      total: 0,
+      active: 0,
+      visible: 0,
+      routeOrder: sectionOrder[stage.route_section] * 100 + stage.branch_sequence,
+    });
   }
 
   return Array.from(map.values()).sort((a, b) => a.routeOrder - b.routeOrder || a.stageNumber - b.stageNumber);

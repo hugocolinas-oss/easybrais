@@ -824,6 +824,22 @@ const t = {
     de: "Die Lieferung darf nicht vor der Abholung liegen",
     it: "La consegna non può essere prima del ritiro",
   },
+  "val.excessMileage": {
+    es: "Exceso de kilometraje: este trayecto no está disponible",
+    en: "Mileage limit exceeded: this route is unavailable",
+    pt: "Excesso de quilometragem: este trajeto não está disponível",
+    fr: "Kilométrage dépassé : ce trajet n’est pas disponible",
+    de: "Kilometerlimit überschritten: Diese Strecke ist nicht verfügbar",
+    it: "Chilometraggio eccessivo: questo tragitto non è disponibile",
+  },
+  "notice.spiritualMileage": {
+    es: "Exceso de kilometraje — Variante Espiritual",
+    en: "Additional mileage — Spiritual Variant",
+    pt: "Excesso de quilometragem — Variante Espiritual",
+    fr: "Kilométrage supplémentaire — Variante Spirituelle",
+    de: "Zusätzliche Kilometer — Spirituelle Variante",
+    it: "Chilometraggio aggiuntivo — Variante Spirituale",
+  },
   "val.checkFields": {
     es: "Revisa los campos marcados en rojo antes de continuar.",
     en: "Please review the fields marked in red before continuing.",

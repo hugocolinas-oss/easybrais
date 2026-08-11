@@ -11,11 +11,10 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  const isPublicPath = GESTION_PUBLIC_PATHS.includes(pathname);
+
   try {
     const { supabase } = createMiddlewareClient(request, response);
-    const isPublicPath = GESTION_PUBLIC_PATHS.some((p) =>
-      pathname.startsWith(p)
-    );
 
     const {
       data: { user },
@@ -48,7 +47,12 @@ export async function middleware(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("Middleware auth check failed", error);
-    return response;
+    if (isPublicPath) return response;
+
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/gestion/login";
+    loginUrl.search = "?error=auth-unavailable";
+    return NextResponse.redirect(loginUrl);
   }
 }
 

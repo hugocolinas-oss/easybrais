@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAdminClient } from "@easybrais/utils";
+import { createAdminClient } from "@easybrais/utils/supabase/admin";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/gestion/auth";
 import { assertAccommodationsAccess, PermissionError } from "@/lib/gestion/permissions";

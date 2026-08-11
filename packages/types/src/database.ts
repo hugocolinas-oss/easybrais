@@ -613,6 +613,51 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      consume_booking_rate_limit: {
+        Args: {
+          rate_key: string;
+          max_attempts?: number;
+          window_seconds?: number;
+        };
+        Returns: boolean;
+      };
+      get_operational_items: {
+        Args: { target_date: string };
+        Returns: Array<{
+          id: string;
+          service_date: string;
+          bags_count: number;
+          overweight_bags_count: number;
+          operational_status: string;
+          pickup_name: string | null;
+          dropoff_name: string | null;
+          booking_id: string;
+          booking_code: string;
+          booking_status: string;
+          source_channel: string;
+          payment_status: string;
+          payment_method: string | null;
+          incident_reason: string | null;
+          customer_name: string;
+          customer_phone: string | null;
+          notes_customer: string | null;
+          notes_internal: string | null;
+        }>;
+      };
+      get_route_item_details: {
+        Args: { item_ids: string[] };
+        Returns: Array<{
+          item_id: string;
+          booking_id: string;
+          booking_status: string;
+          source_channel: string;
+          payment_status: string;
+          payment_method: string | null;
+          incident_reason: string | null;
+          customer_phone: string | null;
+          booking_total: number | null;
+        }>;
+      };
       get_runtime_secret: {
         Args: {
           secret_name: string;

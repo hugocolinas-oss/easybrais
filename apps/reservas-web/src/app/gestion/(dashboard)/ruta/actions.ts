@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAdminClient } from "@easybrais/utils";
+import { createAdminClient } from "@easybrais/utils/supabase/admin";
 import { requireAuth } from "@/lib/gestion/auth";
 import { assertRoutesAccess, PermissionError } from "@/lib/gestion/permissions";
 
@@ -18,7 +18,7 @@ interface RawBookingItem {
   bookings: { booking_code: string; status: string; customers: { full_name: string; phone: string | null } | null } | null;
 }
 
-type RouteSection = "coastal" | "central" | "shared";
+type RouteSection = "coastal" | "central" | "shared" | "spiritual";
 
 interface RawAccommodation {
   name: string;
@@ -38,7 +38,7 @@ function parseStageCode(code: string | null): [number, number] {
   return [Number.isNaN(a) ? 9999 : a, Number.isNaN(b) ? 9999 : b];
 }
 
-const SECTION_ORDER: Record<RouteSection, number> = { coastal: 0, central: 1, shared: 2 };
+const SECTION_ORDER: Record<RouteSection, number> = { coastal: 0, central: 1, shared: 2, spiritual: 3 };
 
 function getRouteSortKey(accommodation: RawAccommodation | null): [number, number, number] {
   const [, minor] = parseStageCode(accommodation?.external_code ?? null);

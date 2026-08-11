@@ -1,4 +1,5 @@
-import { createAdminClient, formatEUR, fmtDateShort } from "@easybrais/utils";
+import { formatEUR, fmtDateShort } from "@easybrais/utils";
+import { createAdminClient } from "@easybrais/utils/supabase/admin";
 import Image from "next/image";
 import Link from "next/link";
 import { BRAND_LOGO_SRC } from "@/lib/brand";
@@ -213,7 +214,7 @@ export default async function PaymentSuccessPage({ searchParams }: Props) {
           <p className="text-[11px] leading-relaxed text-brand-800/50">
             {isPaid
               ? <>Recibirás un email de confirmación con la factura en <strong className="font-semibold text-brand-900">{customer?.email}</strong>.</>
-              : <>Guarda tu código <strong className="font-semibold text-brand-900">{booking.booking_code}</strong>. Tu reserva ya está confirmada y el estado del pago se actualizará en <strong className="font-semibold text-brand-900">{customer?.email}</strong>.</>}
+              : <>Guarda tu código <strong className="font-semibold text-brand-900">{booking.booking_code}</strong>. El pago se está verificando y recibirás la confirmación en <strong className="font-semibold text-brand-900">{customer?.email}</strong>.</>}
           </p>
         </div>
 

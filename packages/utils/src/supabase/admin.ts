@@ -1,3 +1,4 @@
+import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@easybrais/types";
 import { getSupabaseServiceConfig } from "./config";

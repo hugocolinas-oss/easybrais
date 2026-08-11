@@ -1,5 +1,10 @@
 import type { Accommodation, RouteSection, RouteStage } from "@/lib/types";
-import { isRouteStageLegValid, type RoutePricingStage } from "@easybrais/utils";
+import {
+  getRouteStageLegIssue,
+  isRouteStageLegValid,
+  type RoutePricingStage,
+  type RouteStageLegIssue,
+} from "@easybrais/utils";
 
 function parseCodeParts(code: string | null): [number, number] | null {
   if (!code) return null;
@@ -23,6 +28,7 @@ const SECTION_ORDER: Record<RouteSection, number> = {
   coastal: 0,
   central: 1,
   shared: 2,
+  spiritual: 3,
 };
 
 export function getAccommodationRouteStage(
@@ -62,6 +68,27 @@ export function isValidAccommodationLeg(
   const to = getAccommodationRouteStage(dropoff);
   if (!from || !to) return false;
   return isRouteStageLegValid(toPricingStage(from), toPricingStage(to));
+}
+
+export function getAccommodationLegIssue(
+  pickup: Pick<Accommodation, "external_code" | "route_stage">,
+  dropoff: Pick<Accommodation, "external_code" | "route_stage">,
+): RouteStageLegIssue | null {
+  const from = getAccommodationRouteStage(pickup);
+  const to = getAccommodationRouteStage(dropoff);
+  if (!from || !to) return "excess_mileage";
+  return getRouteStageLegIssue(toPricingStage(from), toPricingStage(to));
+}
+
+export function isSpiritualAccommodationLeg(
+  pickup: Pick<Accommodation, "external_code" | "route_stage">,
+  dropoff: Pick<Accommodation, "external_code" | "route_stage">,
+): boolean {
+  const from = getAccommodationRouteStage(pickup);
+  const to = getAccommodationRouteStage(dropoff);
+  return from?.route_section === "spiritual"
+    || to?.route_section === "spiritual"
+    || (from?.code === 6 && to?.code === 11);
 }
 
 function toPricingStage(stage: RouteStage): RoutePricingStage {

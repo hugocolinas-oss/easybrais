@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import type { Database } from "@easybrais/types";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { requireAuth } from "@/lib/auth";
+import { assertAccommodationsAccess } from "@/lib/permissions";
 
 type AccommodationInsert = Database["public"]["Tables"]["accommodations"]["Insert"];
 type AccommodationUpdate = Database["public"]["Tables"]["accommodations"]["Update"];
@@ -28,6 +30,9 @@ export async function createAccommodation(fields: {
   reservation_notes?: string;
 }): Promise<{ ok: true; id: string } | { error: string }> {
   try {
+    const { profile } = await requireAuth();
+    assertAccommodationsAccess(profile.role);
+
     const name = fields.name.trim();
     if (!name || name.length < 2) return { error: "El nombre es obligatorio (mín. 2 caracteres)." };
     if (name.length > 200) return { error: "El nombre es demasiado largo." };
@@ -115,6 +120,8 @@ export async function updateAccommodation(
   },
 ): Promise<{ ok: true } | { error: string }> {
   try {
+    const { profile } = await requireAuth();
+    assertAccommodationsAccess(profile.role);
     const supabase = await getServerSupabase();
     const { error } = await supabase
       .from("accommodations")
@@ -140,6 +147,8 @@ export async function toggleActive(
   active: boolean,
 ): Promise<{ ok: true } | { error: string }> {
   try {
+    const { profile } = await requireAuth();
+    assertAccommodationsAccess(profile.role);
     const supabase = await getServerSupabase();
     const { error } = await supabase
       .from("accommodations")
@@ -164,6 +173,8 @@ export async function toggleVisibility(
   visible: boolean,
 ): Promise<{ ok: true } | { error: string }> {
   try {
+    const { profile } = await requireAuth();
+    assertAccommodationsAccess(profile.role);
     const supabase = await getServerSupabase();
     const { error } = await supabase
       .from("accommodations")

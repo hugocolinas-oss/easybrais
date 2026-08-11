@@ -4,7 +4,7 @@ export interface RouteStop {
   id: string;
   position: number;
   stop_type: "pickup" | "dropoff";
-  route_section: "coastal" | "central" | "shared";
+  route_section: "coastal" | "central" | "shared" | "spiritual";
   accommodation_id: string | null;
   accommodation_name: string;
   accommodation_town: string | null;
@@ -104,39 +104,25 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
       ? supabase.from("accommodations").select("id, address, internal_notes, contact_phone").in("id", accIds)
       : Promise.resolve({ data: [] }),
     itemIds.length > 0
-      ? supabase.from("booking_items").select("id, booking_id, bookings(id, status, source_channel, total_amount, payment_status, payment_method, incident_reason, customers(phone))").in("id", itemIds)
+      ? supabase.rpc("get_route_item_details", { item_ids: itemIds })
       : Promise.resolve({ data: [] }),
   ]);
 
   type AccInfo = { id: string; address: string | null; internal_notes: string | null; contact_phone: string | null };
   const accInfoMap = new Map((accs ?? []).map((a: AccInfo) => [a.id, a]));
 
-  interface ItemWithBooking {
-    id: string;
-    booking_id: string | null;
-    bookings: {
-      id: string;
-      status: string | null;
-      source_channel: string | null;
-      total_amount: number | null;
-      payment_status: string | null;
-      payment_method: string | null;
-      incident_reason: string | null;
-      customers: { phone: string | null } | null;
-    } | null;
-  }
   const itemMap = new Map(
-    ((items ?? []) as unknown as ItemWithBooking[]).map((i) => [
-      i.id,
+    (items ?? []).map((i) => [
+      i.item_id,
       {
-        booking_id: i.booking_id ?? i.bookings?.id ?? null,
-        booking_status: i.bookings?.status ?? null,
-        source_channel: i.bookings?.source_channel ?? null,
-        payment_status: i.bookings?.payment_status ?? null,
-        payment_method: i.bookings?.payment_method ?? null,
-        incident_reason: i.bookings?.incident_reason ?? null,
-        phone: i.bookings?.customers?.phone ?? null,
-        total: i.bookings?.total_amount != null ? Number(i.bookings.total_amount) : null,
+        booking_id: i.booking_id,
+        booking_status: i.booking_status,
+        source_channel: i.source_channel,
+        payment_status: i.payment_status,
+        payment_method: i.payment_method,
+        incident_reason: i.incident_reason,
+        phone: i.customer_phone,
+        total: i.booking_total != null ? Number(i.booking_total) : null,
       },
     ]),
   );
@@ -147,7 +133,7 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
       id: s.id,
       position: s.position,
       stop_type: s.stop_type as "pickup" | "dropoff",
-      route_section: s.route_section as "coastal" | "central" | "shared",
+      route_section: s.route_section as "coastal" | "central" | "shared" | "spiritual",
       accommodation_id: s.accommodation_id,
       accommodation_name: s.accommodation_name,
       accommodation_town: s.accommodation_town,

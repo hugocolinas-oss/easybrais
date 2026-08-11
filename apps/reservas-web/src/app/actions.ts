@@ -1,14 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAdminClient, calculatePricing, getRealEtapas, getRealEtapasForStages, resolvePerBagPrice, resolveRouteStagePrice, type PricingBreakdown } from "@easybrais/utils";
+import { headers } from "next/headers";
+import { createHash } from "node:crypto";
+import { calculatePricing, getRealEtapas, getRealEtapasForStages, resolvePerBagPrice, resolveRouteStagePrice, type PricingBreakdown } from "@easybrais/utils";
+import { createAdminClient } from "@easybrais/utils/supabase/admin";
 import type { BookingFormData } from "@/lib/types";
 import { isStripeConfigured } from "@/lib/stripe";
 import { sendReservationEmails } from "@/lib/email/reservations";
-import { isPhoneValueValid, normalizePhoneValue } from "@/lib/phone";
-import { getAccommodationPricingStage, getAccommodationSequence, isValidAccommodationLeg } from "@/lib/accommodation-order";
+import { normalizePhoneValue } from "@/lib/phone";
+import { getAccommodationLegIssue, getAccommodationPricingStage, getAccommodationSequence } from "@/lib/accommodation-order";
 import type { RouteStage } from "@/lib/types";
 import { SUPPORTED_LOCALES, type Locale } from "@/lib/i18n/translations";
+import { getServerSupabase } from "@/lib/supabase/server";
+import { validateBookingRequest, validatePublicBookingRequest } from "@/lib/booking-validation";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,6 +69,63 @@ function normalizeCustomerLanguage(value: string | null | undefined): Locale {
   return normalized && SUPPORTED_LOCALES.includes(normalized) ? normalized : "es";
 }
 
+async function resolveSubmissionSource(
+  requested: BookingFormData["sourceChannel"],
+): Promise<{ sourceChannel: NonNullable<BookingFormData["sourceChannel"]>; isStaff: boolean } | null> {
+  if (!requested || requested === "web") {
+    return { sourceChannel: "web", isStaff: false };
+  }
+
+  const supabase = await getServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("active, role")
+    .eq("auth_user_id", user.id)
+    .eq("active", true)
+    .maybeSingle();
+
+  return profile && profile.role !== "chofer"
+    ? { sourceChannel: requested, isStaff: true }
+    : null;
+}
+
+function rateLimitKey(kind: "ip" | "email", value: string): string {
+  return `${kind}:${createHash("sha256").update(value).digest("hex")}`;
+}
+
+async function consumePublicBookingRateLimit(
+  email: string,
+  supabase: ReturnType<typeof createAdminClient>,
+): Promise<boolean> {
+  const requestHeaders = await headers();
+  const forwardedFor = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const realIp = requestHeaders.get("x-real-ip")?.trim();
+  const ip = forwardedFor || realIp;
+
+  const checks = [
+    ...(ip ? [{ key: rateLimitKey("ip", ip), limit: 10 }] : []),
+    { key: rateLimitKey("email", email), limit: 6 },
+  ];
+
+  for (const check of checks) {
+    const { data, error } = await supabase.rpc("consume_booking_rate_limit", {
+      rate_key: check.key,
+      max_attempts: check.limit,
+      window_seconds: 15 * 60,
+    });
+    if (error) {
+      console.error("[createBooking] rate-limit check failed:", error.message);
+      return false;
+    }
+    if (data !== true) return false;
+  }
+
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Main action
 // ---------------------------------------------------------------------------
@@ -74,47 +136,30 @@ export async function createBooking(
 ): Promise<CreateBookingResult> {
   /* ── Server-side validation ──────────────────────────────────────────── */
 
-  if (!data.customer.fullName?.trim()) return fail("El nombre es obligatorio.");
-  if (data.customer.fullName.length > 120) return fail("El nombre es demasiado largo.");
-  if (!data.customer.email?.trim()) return fail("El email es obligatorio.");
-  if (data.customer.email.length > 254) return fail("El email es demasiado largo.");
-  if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(data.customer.email))
-    return fail("El email no es válido.");
+  const validationError = validateBookingRequest(data, idempotencyKey);
+  if (validationError) return fail(validationError);
   const normalizedPhone = normalizePhoneValue(data.customer.phone ?? "");
   const normalizedLanguage = normalizeCustomerLanguage(data.customer.language);
-  if (!normalizedPhone) return fail("El teléfono es obligatorio.");
-  if (!isPhoneValueValid(normalizedPhone)) return fail("El teléfono no es válido.");
-  if (normalizedPhone && normalizedPhone.length > 30)
-    return fail("El teléfono es demasiado largo.");
-  if (data.customer.notes && data.customer.notes.length > 500)
-    return fail("Las observaciones son demasiado largas.");
-  if ((data.sourceChannel ?? "web") === "web" && data.accommodationPolicyAccepted !== true)
-    return fail("Debes confirmar que tienes una reserva a tu nombre o que has elegido una consigna.");
-  if (!data.legs.length) return fail("Debes añadir al menos un tramo.");
-
-  for (const [i, leg] of data.legs.entries()) {
-    if (!leg.serviceDate)
-      return fail(`Tramo ${i + 1}: falta la fecha de servicio.`);
-    if (!leg.pickupAccommodationId)
-      return fail(`Tramo ${i + 1}: falta el alojamiento de recogida.`);
-    if (!leg.dropoffAccommodationId)
-      return fail(`Tramo ${i + 1}: falta el alojamiento de entrega.`);
-    if (leg.pickupAccommodationId === leg.dropoffAccommodationId)
-      return fail(`Tramo ${i + 1}: recogida y entrega deben ser distintos.`);
-    if (leg.bagsCount < 1)
-      return fail(`Tramo ${i + 1}: mínimo 1 mochila.`);
-  }
-
-  if (!idempotencyKey?.trim()) return fail("Solicitud inválida.");
 
   try {
+    const submission = await resolveSubmissionSource(data.sourceChannel);
+    if (!submission) return fail("Debes iniciar sesión para crear una reserva interna.");
+    if (!submission.isStaff) {
+      const publicValidationError = validatePublicBookingRequest(data);
+      if (publicValidationError) return fail(publicValidationError);
+    }
+
+    const email = data.customer.email.trim().toLowerCase();
+    const supabase = createAdminClient();
+    if (!submission.isStaff && !await consumePublicBookingRateLimit(email, supabase)) {
+      return fail("Demasiadas solicitudes. Espera 15 minutos antes de intentarlo de nuevo.");
+    }
+
     const stripeEnabled = await isStripeConfigured();
     const paymentMethod = data.paymentMethod === "cash" ? "cash" : "online";
     if (paymentMethod === "online" && !stripeEnabled) {
       return fail("El pago online no está disponible ahora mismo. Elige pago el día del servicio.");
     }
-
-    const supabase = createAdminClient();
 
     /* ── Resolve stage distances for pricing ─────────────────────────── */
 
@@ -128,6 +173,20 @@ export async function createBooking(
 
     type AccRow = { id: string; external_code: string | null; sort_order: number; route_stage: RouteStage | null };
     const accLookup = new Map(((accRows ?? []) as unknown as AccRow[]).map((a) => [a.id, a]));
+    if (accLookup.size !== uniqueAccIds.length) {
+      return fail("Uno de los alojamientos seleccionados no es válido.");
+    }
+
+    if (!submission.isStaff) {
+      const { count: unavailableCount, error: availabilityError } = await supabase
+        .from("accommodations")
+        .select("id", { count: "exact", head: true })
+        .in("id", uniqueAccIds)
+        .or("active.eq.false,visible_in_reservations.eq.false");
+      if (availabilityError || (unavailableCount ?? 0) > 0) {
+        return fail("Uno de los alojamientos seleccionados ya no está disponible.");
+      }
+    }
 
     function stageNumber(code: string | null): number | null {
       if (!code) return null;
@@ -158,10 +217,18 @@ export async function createBooking(
       const { pickupPrefix, dropoffPrefix } = getLegPrefixes(leg.pickupAccommodationId, leg.dropoffAccommodationId);
       const pickupAcc = accLookup.get(leg.pickupAccommodationId);
       const dropoffAcc = accLookup.get(leg.dropoffAccommodationId);
-      const invalidByStage = pickupAcc && dropoffAcc && pickupAcc.route_stage && dropoffAcc.route_stage
-        ? !isValidAccommodationLeg(pickupAcc, dropoffAcc)
-        : false;
-      if (invalidByStage || (pickupSeq !== null && dropoffSeq !== null && dropoffSeq < pickupSeq)) {
+      const hasStageMetadata = Boolean(pickupAcc?.route_stage && dropoffAcc?.route_stage);
+      const legIssue = hasStageMetadata && pickupAcc && dropoffAcc
+        ? getAccommodationLegIssue(pickupAcc, dropoffAcc)
+        : null;
+      if (legIssue === "excess_mileage") {
+        return fail(`Tramo ${i + 1}: exceso de kilometraje; este trayecto no está disponible.`);
+      }
+      const invalidLegacyOrder = !hasStageMetadata
+        && pickupSeq !== null
+        && dropoffSeq !== null
+        && dropoffSeq < pickupSeq;
+      if (legIssue === "reverse_direction" || invalidLegacyOrder) {
         return fail(`Tramo ${i + 1}: la entrega (código ${dropoffPrefix}) no puede ser anterior a la recogida (código ${pickupPrefix}).`);
       }
     }
@@ -214,13 +281,10 @@ export async function createBooking(
 
     /* ── 1. Find or create customer ────────────────────────────────── */
 
-    const email = data.customer.email.trim().toLowerCase();
-
-    const { data: existingCustomer, error: custFindErr } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
+    const customerLookup = submission.isStaff
+      ? await supabase.from("customers").select("id").eq("email", email).limit(1).maybeSingle()
+      : { data: null, error: null };
+    const { data: existingCustomer, error: custFindErr } = customerLookup;
     let customer = existingCustomer;
 
     if (custFindErr) {
@@ -245,7 +309,7 @@ export async function createBooking(
         return fail("Error al registrar tus datos. Inténtalo de nuevo.");
       }
       customer = created;
-    } else {
+    } else if (submission.isStaff) {
       const { error: updateErr } = await supabase
         .from("customers")
         .update({
@@ -292,7 +356,7 @@ export async function createBooking(
         booking_type: "luggage_transfer" as const,
         service_date: firstDate,
         status: paymentMethod === "online" ? "pending_payment" as const : "confirmed" as const,
-        source_channel: (data.sourceChannel ?? "web") as never,
+        source_channel: submission.sourceChannel as never,
         language: normalizedLanguage,
         notes_customer: data.customer.notes.trim() || null,
         notes_internal: tag,

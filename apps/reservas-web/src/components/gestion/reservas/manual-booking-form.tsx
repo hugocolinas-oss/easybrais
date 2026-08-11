@@ -6,7 +6,7 @@ import type { Accommodation, BookingType } from "@/lib/types";
 import { createBooking } from "@/app/actions";
 import { formatEUR, calculatePricing, getRealEtapas, getRealEtapasForStages } from "@easybrais/utils";
 import { PhoneInput } from "@/components/phone-input";
-import { compareAccommodationsBySequence, getAccommodationPricingPrefix, getAccommodationPricingStage, isValidAccommodationLeg } from "@/lib/accommodation-order";
+import { compareAccommodationsBySequence, getAccommodationLegIssue, getAccommodationPricingPrefix, getAccommodationPricingStage, isSpiritualAccommodationLeg, isValidAccommodationLeg } from "@/lib/accommodation-order";
 import { isPhoneValueValid, normalizePhoneValue } from "@/lib/phone";
 
 interface Props {
@@ -241,9 +241,14 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
       if (leg.pickupId === leg.dropoffId) { setError(`Etapa ${i + 1}: recogida y entrega deben ser diferentes`); return; }
       const pAcc = accMap.get(leg.pickupId);
       const dAcc = accMap.get(leg.dropoffId);
-      if (pAcc && dAcc && !isValidAccommodationLeg(pAcc, dAcc)) {
-        setError(`Etapa ${i + 1}: la entrega no puede ser anterior a la recogida en la dirección del Camino`);
-        return;
+      if (pAcc && dAcc) {
+        const issue = getAccommodationLegIssue(pAcc, dAcc);
+        if (issue) {
+          setError(issue === "excess_mileage"
+            ? `Etapa ${i + 1}: exceso de kilometraje; este trayecto no está disponible`
+            : `Etapa ${i + 1}: la entrega no puede ser anterior a la recogida en la dirección del Camino`);
+          return;
+        }
       }
     }
 
@@ -400,6 +405,10 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
         {legs.map((leg, i) => {
           const pickupLocked = i > 0 && legs[i - 1]?.dropoffId === leg.pickupId && !!leg.pickupId;
           const pickupAcc = accMap.get(leg.pickupId);
+          const dropoffAcc = accMap.get(leg.dropoffId);
+          const usesSpiritualRoute = pickupAcc && dropoffAcc
+            ? isSpiritualAccommodationLeg(pickupAcc, dropoffAcc)
+            : false;
           const dropoffFiltered = pickupAcc
             ? sortedAccommodations.filter((a) => isValidAccommodationLeg(pickupAcc, a))
             : sortedAccommodations;
@@ -442,6 +451,11 @@ export function ManualBookingForm({ accommodations, showFinancialInfo }: Props) 
                   />
                 </div>
               </div>
+              {usesSpiritualRoute && (
+                <p className="mt-3 text-sm font-medium text-amber-700">
+                  Exceso de kilometraje — Variante Espiritual
+                </p>
+              )}
             </div>
           );
         })}

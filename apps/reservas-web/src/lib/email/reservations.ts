@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createAdminClient } from "@easybrais/utils";
+import { createAdminClient } from "@easybrais/utils/supabase/admin";
 import { generateInvoicePdf, type InvoiceData } from "@easybrais/utils/pdf";
 import { getSmtpConfig, sendEmail, type EmailAttachment } from "@easybrais/utils/email";
 import { SUPPORTED_LOCALES, type Locale } from "@/lib/i18n/translations";

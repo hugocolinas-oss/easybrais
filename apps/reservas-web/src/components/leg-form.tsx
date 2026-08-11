@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import type { StageLeg, Accommodation } from "@/lib/types";
 import { useT } from "@/lib/i18n/context";
-import { isValidAccommodationLeg } from "@/lib/accommodation-order";
+import { getAccommodationLegIssue, isSpiritualAccommodationLeg } from "@/lib/accommodation-order";
 import { AccommodationCombobox } from "./accommodation-combobox";
 import { BrandIconTile } from "./brand-icon";
 
@@ -41,11 +41,22 @@ export function LegForm({
     let list = allAccommodations;
 
     if (pickupAccommodation) {
-      list = list.filter((a) => isValidAccommodationLeg(pickupAccommodation, a));
+      list = list.filter((a) => getAccommodationLegIssue(pickupAccommodation, a) !== "reverse_direction");
     }
 
     return list;
   }, [allAccommodations, pickupAccommodation]);
+
+  const selectedDropoff = useMemo(
+    () => allAccommodations.find((a) => a.id === leg.dropoffAccommodationId) ?? null,
+    [allAccommodations, leg.dropoffAccommodationId],
+  );
+  const routeIssue = pickupAccommodation && selectedDropoff
+    ? getAccommodationLegIssue(pickupAccommodation, selectedDropoff)
+    : null;
+  const usesSpiritualRoute = pickupAccommodation && selectedDropoff
+    ? isSpiritualAccommodationLeg(pickupAccommodation, selectedDropoff)
+    : false;
 
   function update(field: keyof StageLeg, value: string | number) {
     const next = { ...leg, [field]: value };
@@ -177,6 +188,14 @@ export function LegForm({
                       onChange={(v) => update("dropoffAccommodationId", v)}
                     />
                   </Field>
+                  {usesSpiritualRoute && !errors[`${prefix}_dropoff`] && (
+                    <p
+                      className={`text-sm font-medium ${routeIssue === "excess_mileage" ? "text-red-700" : "text-amber-700"}`}
+                      role="status"
+                    >
+                      {t(routeIssue === "excess_mileage" ? "val.excessMileage" : "notice.spiritualMileage")}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

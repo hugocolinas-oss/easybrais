@@ -1,4 +1,4 @@
-export type RouteSection = "coastal" | "central" | "shared";
+export type RouteSection = "coastal" | "central" | "shared" | "spiritual";
 
 export interface RouteStage {
   code: number;

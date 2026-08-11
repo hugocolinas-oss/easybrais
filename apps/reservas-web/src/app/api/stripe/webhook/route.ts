@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { getStripeWebhookSecret } from "@/lib/stripe-webhook-secret";
-import { createAdminClient } from "@easybrais/utils";
+import { createAdminClient } from "@easybrais/utils/supabase/admin";
 import { sendAdminNewReservationEmail, sendPaymentConfirmedEmail } from "@/lib/email/reservations";
 import type Stripe from "stripe";
 
+const MAX_WEBHOOK_BYTES = 1_000_000;
+
 export async function POST(req: NextRequest) {
+  const contentLength = Number(req.headers.get("content-length") ?? 0);
+  if (contentLength > MAX_WEBHOOK_BYTES) {
+    return NextResponse.json({ error: "Payload too large" }, { status: 413 });
+  }
+
   const body = await req.text();
+  if (body.length > MAX_WEBHOOK_BYTES) {
+    return NextResponse.json({ error: "Payload too large" }, { status: 413 });
+  }
   const sig = req.headers.get("stripe-signature");
   const webhookSecret = await getStripeWebhookSecret();
   const requestId = req.headers.get("x-vercel-id");

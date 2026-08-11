@@ -1,4 +1,4 @@
-import { createAdminClient } from "@easybrais/utils";
+import { createAdminClient } from "@easybrais/utils/supabase/admin";
 
 const cache = new Map<string, string>();
 

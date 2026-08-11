@@ -21,28 +21,6 @@ export interface OperativeItem {
   notes_internal: string | null;
 }
 
-interface RawOperativeItem {
-  id: string;
-  service_date: string;
-  bags_count: number;
-  overweight_bags_count: number;
-  operational_status: string;
-  pickup: { name: string } | null;
-  dropoff: { name: string } | null;
-  bookings: {
-    id: string;
-    booking_code: string;
-    status: string;
-    source_channel: string;
-    payment_status: string;
-    payment_method: string | null;
-    incident_reason: string | null;
-    notes_customer: string | null;
-    notes_internal: string | null;
-    customers: { full_name: string; phone: string | null } | null;
-  } | null;
-}
-
 export interface OperativeSummary {
   total: number;
   pending: number;
@@ -58,21 +36,11 @@ export async function getOperativeData(date: string): Promise<{
 }> {
   const supabase = await getServerSupabase();
 
-  const { data } = await supabase
-    .from("booking_items")
-    .select(
-      `id, service_date, bags_count, overweight_bags_count, operational_status,
-       pickup:pickup_accommodation_id(name),
-       dropoff:dropoff_accommodation_id(name),
-       bookings!inner(id, booking_code, status, source_channel, payment_status, payment_method, incident_reason, notes_customer, notes_internal,
-         customers(full_name, phone)
-       )`,
-    )
-    .eq("service_date", date)
-    .not("bookings.status", "in", "(cancelled,pending_payment,payment_expired)")
-    .order("operational_status", { ascending: true });
-
-  const rows = (data ?? []) as unknown as RawOperativeItem[];
+  const { data, error } = await supabase.rpc("get_operational_items", {
+    target_date: date,
+  });
+  if (error) console.error("[operative-queries] protected query failed:", error.message);
+  const rows = data ?? [];
 
   const items: OperativeItem[] = rows.map((r) => ({
     id: r.id,
@@ -80,19 +48,19 @@ export async function getOperativeData(date: string): Promise<{
     bags_count: r.bags_count,
     overweight_bags_count: r.overweight_bags_count,
     operational_status: r.operational_status,
-    pickup_name: r.pickup?.name ?? "—",
-    dropoff_name: r.dropoff?.name ?? "—",
-    booking_id: r.bookings?.id ?? "",
-    booking_code: r.bookings?.booking_code ?? "—",
-    booking_status: r.bookings?.status ?? "—",
-    source_channel: r.bookings?.source_channel ?? "web",
-    payment_status: r.bookings?.payment_status ?? "pending",
-    payment_method: r.bookings?.payment_method ?? null,
-    incident_reason: r.bookings?.incident_reason ?? null,
-    customer_name: r.bookings?.customers?.full_name ?? "—",
-    customer_phone: r.bookings?.customers?.phone ?? null,
-    notes_customer: r.bookings?.notes_customer ?? null,
-    notes_internal: r.bookings?.notes_internal ?? null,
+    pickup_name: r.pickup_name ?? "—",
+    dropoff_name: r.dropoff_name ?? "—",
+    booking_id: r.booking_id,
+    booking_code: r.booking_code,
+    booking_status: r.booking_status,
+    source_channel: r.source_channel,
+    payment_status: r.payment_status,
+    payment_method: r.payment_method,
+    incident_reason: r.incident_reason,
+    customer_name: r.customer_name,
+    customer_phone: r.customer_phone,
+    notes_customer: r.notes_customer,
+    notes_internal: r.notes_internal,
   }));
 
   const summary: OperativeSummary = {

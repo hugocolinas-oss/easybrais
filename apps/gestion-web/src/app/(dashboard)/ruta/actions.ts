@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAdminClient } from "@easybrais/utils";
 import { requireAuth } from "@/lib/auth";
+import { getServerSupabase } from "@/lib/supabase/server";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -22,7 +22,7 @@ export async function generateRoute(date: string) {
 
   try {
     const { userId } = await requireAuth();
-    const supabase = createAdminClient();
+    const supabase = await getServerSupabase();
 
     const { data: existing } = await supabase
       .from("daily_routes")
@@ -146,7 +146,7 @@ export async function deleteRoute(routeId: string) {
 
   try {
     await requireAuth();
-    const supabase = createAdminClient();
+    const supabase = await getServerSupabase();
 
     const { error } = await supabase
       .from("daily_routes")
@@ -176,7 +176,7 @@ export async function swapStopPositions(
 
   try {
     await requireAuth();
-    const supabase = createAdminClient();
+    const supabase = await getServerSupabase();
 
     const { data: stops, error: fetchErr } = await supabase
       .from("daily_route_stops")
@@ -245,7 +245,7 @@ export async function toggleStopCompleted(stopId: string, completed: boolean) {
 
   try {
     await requireAuth();
-    const supabase = createAdminClient();
+    const supabase = await getServerSupabase();
 
     const update: Record<string, unknown> = {
       completed,
@@ -277,7 +277,7 @@ export async function updateRouteStatus(routeId: string, status: string) {
 
   try {
     await requireAuth();
-    const supabase = createAdminClient();
+    const supabase = await getServerSupabase();
 
     const { error } = await supabase
       .from("daily_routes")

@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAdminClient } from "@easybrais/utils";
+import { createAdminClient } from "@easybrais/utils/supabase/admin";
 import { requireAuth } from "@/lib/auth";
+import { assertBookingsAccess } from "@/lib/permissions";
 import { OPERATIONAL_STATUSES } from "@/lib/booking-status";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -14,7 +15,8 @@ export async function changeBookingStatus(bookingId: string, newStatus: string) 
   if (!allowed.includes(newStatus)) return { error: "Estado no permitido." };
 
   try {
-    const { userId } = await requireAuth();
+    const { userId, profile } = await requireAuth();
+    assertBookingsAccess(profile.role);
     const supabase = createAdminClient();
 
     const { data: current, error: fetchErr } = await supabase
@@ -69,7 +71,8 @@ export async function updateInternalNotes(bookingId: string, notes: string) {
   if (notes.length > 1000) return { error: "Las notas son demasiado largas." };
 
   try {
-    const { userId } = await requireAuth();
+    const { userId, profile } = await requireAuth();
+    assertBookingsAccess(profile.role);
     const supabase = createAdminClient();
 
     const { error } = await supabase

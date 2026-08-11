@@ -9,8 +9,7 @@ export class PermissionError extends Error {
 }
 
 export function canViewFinancialInfo(role: StaffRole): boolean {
-  void role;
-  return true;
+  return role !== "chofer";
 }
 
 export function canAccessClosures(role: StaffRole): boolean {
@@ -22,8 +21,7 @@ export function canManageAccommodations(role: StaffRole): boolean {
 }
 
 export function canDeleteBookings(role: StaffRole): boolean {
-  void role;
-  return true;
+  return role === "admin";
 }
 
 export function canResendReservationEmails(role: StaffRole): boolean {
@@ -32,8 +30,11 @@ export function canResendReservationEmails(role: StaffRole): boolean {
 }
 
 export function canEditBookingPricing(role: StaffRole): boolean {
-  void role;
-  return true;
+  return role === "manager" || role === "admin";
+}
+
+export function canReconcilePayments(role: StaffRole): boolean {
+  return role === "manager" || role === "admin";
 }
 
 export function canOpenDashboard(role: StaffRole): boolean {
@@ -41,8 +42,7 @@ export function canOpenDashboard(role: StaffRole): boolean {
 }
 
 export function canAccessBookings(role: StaffRole): boolean {
-  void role;
-  return true;
+  return role !== "chofer";
 }
 
 export function canAccessOperative(role: StaffRole): boolean {
@@ -87,6 +87,18 @@ export function assertDashboardAccess(role: StaffRole): void {
 
 export function assertBookingsAccess(role: StaffRole): void {
   if (!canAccessBookings(role)) throw new PermissionError();
+}
+
+export function assertCanDeleteBookings(role: StaffRole): void {
+  if (!canDeleteBookings(role)) throw new PermissionError("Solo un administrador puede eliminar reservas.");
+}
+
+export function assertCanEditBookingPricing(role: StaffRole): void {
+  if (!canEditBookingPricing(role)) throw new PermissionError("No tienes permisos para modificar importes.");
+}
+
+export function assertCanReconcilePayments(role: StaffRole): void {
+  if (!canReconcilePayments(role)) throw new PermissionError("No tienes permisos para verificar pagos.");
 }
 
 export function assertOperativeAccess(role: StaffRole): void {

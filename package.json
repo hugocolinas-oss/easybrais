@@ -23,8 +23,20 @@
     "@eslint/eslintrc": "3.3.1",
     "@eslint/js": "9.31.0",
     "eslint": "9.31.0",
-    "eslint-config-next": "15.1.0",
-    "tsx": "^4.21.0",
-    "turbo": "^2.8.20"
+    "eslint-config-next": "15.5.22",
+    "tsx": "4.23.5",
+    "turbo": "2.9.14"
+  },
+  "pnpm": {
+    "overrides": {
+      "brace-expansion@<1.1.18": "1.1.18",
+      "brace-expansion@>=4.0.0 <5.0.9": "5.0.9",
+      "dompurify": "3.4.13",
+      "picomatch@<2.3.2": "2.3.2",
+      "picomatch@>=4.0.0 <4.0.4": "4.0.5",
+      "postcss": "8.5.23",
+      "sharp": "0.35.0",
+      "ws": "8.21.0"
+    }
   }
 }

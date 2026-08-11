@@ -5,16 +5,14 @@ const PUBLIC_PATHS = ["/login", "/auth/callback"];
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request });
+  const isPublicPath = PUBLIC_PATHS.includes(request.nextUrl.pathname);
+
   try {
     const { supabase } = createMiddlewareClient(request, response);
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
-
-    const isPublicPath = PUBLIC_PATHS.some((p) =>
-      request.nextUrl.pathname.startsWith(p)
-    );
 
     if (!user && !isPublicPath) {
       const loginUrl = request.nextUrl.clone();
@@ -31,7 +29,12 @@ export async function middleware(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("Middleware auth check failed", error);
-    return response;
+    if (isPublicPath) return response;
+
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.search = "?error=auth-unavailable";
+    return NextResponse.redirect(loginUrl);
   }
 }
 

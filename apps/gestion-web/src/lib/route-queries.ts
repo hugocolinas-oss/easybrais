@@ -94,17 +94,16 @@ export async function getRouteForDate(date: string): Promise<DailyRoute | null> 
       ? supabase.from("accommodations").select("id, address").in("id", accIds)
       : Promise.resolve({ data: [] }),
     itemIds.length > 0
-      ? supabase.from("booking_items").select("id, booking_id, bookings(id, customers(phone))").in("id", itemIds)
+      ? supabase.rpc("get_route_item_details", { item_ids: itemIds })
       : Promise.resolve({ data: [] }),
   ]);
 
   const addressMap = new Map((accs ?? []).map((a: { id: string; address: string | null }) => [a.id, a.address]));
 
-  interface ItemWithBooking { id: string; booking_id: string | null; bookings: { id: string; customers: { phone: string | null } | null } | null }
   const itemMap = new Map(
-    ((items ?? []) as unknown as ItemWithBooking[]).map((i) => [
-      i.id,
-      { booking_id: i.booking_id ?? i.bookings?.id ?? null, phone: i.bookings?.customers?.phone ?? null },
+    (items ?? []).map((i) => [
+      i.item_id,
+      { booking_id: i.booking_id, phone: i.customer_phone },
     ]),
   );
 

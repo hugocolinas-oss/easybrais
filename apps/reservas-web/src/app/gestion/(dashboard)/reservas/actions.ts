@@ -1,13 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAdminClient, PRICING_RULES } from "@easybrais/utils";
+import { PRICING_RULES } from "@easybrais/utils";
+import { createAdminClient } from "@easybrais/utils/supabase/admin";
 import { requireAuth } from "@/lib/gestion/auth";
 import { OPERATIONAL_STATUSES } from "@/lib/gestion/booking-status";
 import { assertBookingsAccess, PermissionError } from "@/lib/gestion/permissions";
 import { sendReservationEmails } from "@/lib/email/reservations";
 import { refreshRoute } from "@/app/gestion/(dashboard)/ruta/actions";
-import { isValidAccommodationLeg } from "@/lib/accommodation-order";
+import { getAccommodationLegIssue } from "@/lib/accommodation-order";
 import type { RouteStage } from "@/lib/types";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -361,8 +362,14 @@ export async function updateBookingItemAccommodation(
       const routeMap = new Map(((routeAccommodations ?? []) as unknown as RouteAccommodation[]).map((a) => [a.id, a]));
       const pickup = routeMap.get(pickupId);
       const dropoff = routeMap.get(dropoffId);
-      if (pickup?.route_stage && dropoff?.route_stage && !isValidAccommodationLeg(pickup, dropoff)) {
-        return { error: "La recogida y la entrega pertenecen a ramas incompatibles o están en sentido inverso." };
+      if (pickup?.route_stage && dropoff?.route_stage) {
+        const issue = getAccommodationLegIssue(pickup, dropoff);
+        if (issue === "excess_mileage") {
+          return { error: "Exceso de kilometraje: este trayecto no está disponible." };
+        }
+        if (issue === "reverse_direction") {
+          return { error: "La recogida y la entrega están en sentido inverso." };
+        }
       }
     }
 
