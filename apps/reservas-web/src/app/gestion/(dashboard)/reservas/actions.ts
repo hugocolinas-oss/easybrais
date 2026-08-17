@@ -5,10 +5,19 @@ import { PRICING_RULES } from "@easybrais/utils";
 import { createAdminClient } from "@easybrais/utils/supabase/admin";
 import { requireAuth } from "@/lib/gestion/auth";
 import { OPERATIONAL_STATUSES } from "@/lib/gestion/booking-status";
-import { assertBookingsAccess, PermissionError } from "@/lib/gestion/permissions";
+import {
+  assertBookingsAccess,
+  assertCanDeleteBookings,
+  assertCanEditBookingPricing,
+  PermissionError,
+} from "@/lib/gestion/permissions";
 import { sendReservationEmails } from "@/lib/email/reservations";
 import { refreshRoute } from "@/app/gestion/(dashboard)/ruta/actions";
 import { getAccommodationLegIssue } from "@/lib/accommodation-order";
+import {
+  validateBookingCustomerUpdate,
+  type BookingCustomerFields,
+} from "@/lib/gestion/booking-customer-validation";
 import type { RouteStage } from "@/lib/types";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -80,6 +89,7 @@ export async function updateBookingPrice(bookingId: string, newTotal: number) {
   try {
     const { userId, profile } = await requireAuth();
     assertBookingsAccess(profile.role);
+    assertCanEditBookingPricing(profile.role);
     const supabase = createAdminClient();
 
     const { data: current, error: fetchErr } = await supabase
@@ -121,6 +131,86 @@ export async function updateBookingPrice(bookingId: string, newTotal: number) {
     if (err instanceof PermissionError) return { error: err.message };
     console.error("[updateBookingPrice] unexpected:", err instanceof Error ? err.message : err);
     return { error: "Error inesperado." };
+  }
+}
+
+export async function updateBookingCustomer(
+  bookingId: string,
+  fields: BookingCustomerFields,
+) {
+  if (!UUID_RE.test(bookingId)) return { error: "ID de reserva inválido." };
+  const validation = validateBookingCustomerUpdate(fields);
+  if (!validation.data) return { error: validation.error };
+  const { fullName, email, phone, language, notes } = validation.data;
+
+  try {
+    const { userId, profile } = await requireAuth();
+    assertBookingsAccess(profile.role);
+    const supabase = createAdminClient();
+
+    const { data: booking, error: fetchErr } = await supabase
+      .from("bookings")
+      .select("customer_id, language, notes_customer, customers!inner(full_name, email, phone, language)")
+      .eq("id", bookingId)
+      .single();
+
+    if (fetchErr || !booking) return { error: "Reserva no encontrada." };
+
+    const currentCustomer = Array.isArray(booking.customers)
+      ? booking.customers[0]
+      : booking.customers;
+    const customerId = booking.customer_id as string;
+
+    const { error: customerErr } = await supabase
+      .from("customers")
+      .update({
+        full_name: fullName,
+        email,
+        phone,
+        language,
+        notes: notes || null,
+      })
+      .eq("id", customerId);
+
+    if (customerErr) {
+      console.error("[updateBookingCustomer] customer update failed:", customerErr.message);
+      return { error: "Error al actualizar los datos personales." };
+    }
+
+    const { error: bookingErr } = await supabase
+      .from("bookings")
+      .update({ language, notes_customer: notes || null } as never)
+      .eq("id", bookingId);
+
+    if (bookingErr) {
+      console.error("[updateBookingCustomer] booking update failed:", bookingErr.message);
+      return { error: "Error al actualizar los datos de la reserva." };
+    }
+
+    const changedFields = [
+      currentCustomer?.full_name !== fullName && "full_name",
+      currentCustomer?.email !== email && "email",
+      currentCustomer?.phone !== phone && "phone",
+      (currentCustomer?.language !== language || booking.language !== language) && "language",
+      booking.notes_customer !== (notes || null) && "notes_customer",
+    ].filter(Boolean);
+
+    await supabase.from("booking_events").insert({
+      booking_id: bookingId,
+      event_type: "updated" as const,
+      actor_type: "staff" as const,
+      actor_id: userId,
+      payload_json: { kind: "customer", changed_fields: changedFields },
+    });
+
+    revalidatePath(`/gestion/reservas/${bookingId}`);
+    revalidatePath("/gestion/reservas");
+    revalidatePath("/gestion");
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
+    console.error("[updateBookingCustomer] unexpected:", err instanceof Error ? err.message : err);
+    return { error: "Error inesperado al actualizar los datos personales." };
   }
 }
 
@@ -463,6 +553,7 @@ export async function deleteBooking(bookingId: string) {
   try {
     const { profile } = await requireAuth();
     assertBookingsAccess(profile.role);
+    assertCanDeleteBookings(profile.role);
     const supabase = createAdminClient();
 
     const { data: booking, error: fetchErr } = await supabase
