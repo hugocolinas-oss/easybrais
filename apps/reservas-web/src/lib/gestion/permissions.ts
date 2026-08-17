@@ -21,7 +21,7 @@ export function canManageAccommodations(role: StaffRole): boolean {
 }
 
 export function canDeleteBookings(role: StaffRole): boolean {
-  return role === "admin";
+  return role !== "chofer";
 }
 
 export function canResendReservationEmails(role: StaffRole): boolean {
@@ -30,7 +30,7 @@ export function canResendReservationEmails(role: StaffRole): boolean {
 }
 
 export function canEditBookingPricing(role: StaffRole): boolean {
-  return role === "manager" || role === "admin";
+  return role === "operator" || role === "manager" || role === "admin";
 }
 
 export function canReconcilePayments(role: StaffRole): boolean {
@@ -90,7 +90,7 @@ export function assertBookingsAccess(role: StaffRole): void {
 }
 
 export function assertCanDeleteBookings(role: StaffRole): void {
-  if (!canDeleteBookings(role)) throw new PermissionError("Solo un administrador puede eliminar reservas.");
+  if (!canDeleteBookings(role)) throw new PermissionError("No tienes permisos para eliminar reservas.");
 }
 
 export function assertCanEditBookingPricing(role: StaffRole): void {

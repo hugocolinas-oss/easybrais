@@ -14,8 +14,8 @@ import { ItemServiceDateEditor } from "@/components/gestion/reservas/item-servic
 import { DeleteBookingButton } from "@/components/gestion/reservas/delete-booking-button";
 import { BookingPdfButton } from "@/components/gestion/reservas/booking-pdf-button";
 import { ResendEmailsButton } from "@/components/gestion/reservas/resend-emails-button";
+import { CustomerEditor } from "@/components/gestion/reservas/customer-editor";
 import { getPaymentStatusConfig } from "@/lib/gestion/payment-status";
-import { formatPhoneForDisplay, formatPhoneHref } from "@/lib/phone";
 import { IncidentFlag } from "@/components/gestion/reservas/incident-flag";
 import { requireAuth } from "@/lib/gestion/auth";
 import {
@@ -72,8 +72,6 @@ export default async function BookingDetailPage({
   const totalBags = booking.items.reduce((s, i) => s + i.bags_count, 0);
   const totalOverweight = booking.items.reduce((s, i) => s + i.overweight_bags_count, 0);
   const pay = getPaymentStatusConfig(booking.payment_status, booking.payment_expires_at);
-  const customerPhoneDisplay = formatPhoneForDisplay(booking.customer.phone);
-  const customerPhoneHref = formatPhoneHref(booking.customer.phone);
 
   return (
     <div className="space-y-6">
@@ -94,40 +92,14 @@ export default async function BookingDetailPage({
         <div className="space-y-6">
           {/* Customer card */}
           <Card title="Cliente">
-            <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2 text-sm">
-              <Field label="Nombre" value={booking.customer.full_name} />
-              <Field label="Idioma" value={booking.customer.language.toUpperCase()} />
-              <div>
-                <span className="text-xs text-gray-400">Email</span>
-                {booking.customer.email ? (
-                  <p className="text-sm">
-                    <a href={`mailto:${booking.customer.email}`} className="text-brand-700 hover:underline">
-                      {booking.customer.email}
-                    </a>
-                  </p>
-                ) : (
-                  <p className="text-sm text-gray-900">—</p>
-                )}
-              </div>
-              <div>
-                <span className="text-xs text-gray-400">Teléfono</span>
-                {customerPhoneDisplay && customerPhoneHref ? (
-                  <p className="text-sm">
-                    <a href={`tel:${customerPhoneHref}`} className="text-brand-700 hover:underline">
-                      {customerPhoneDisplay}
-                    </a>
-                  </p>
-                ) : (
-                  <p className="text-sm text-gray-900">—</p>
-                )}
-              </div>
-            </div>
-            {booking.notes_customer && (
-              <div className="mt-3 rounded-md bg-amber-50 p-3">
-                <p className="text-xs font-medium text-amber-700">Observaciones del cliente</p>
-                <p className="mt-1 text-sm text-amber-900">{booking.notes_customer}</p>
-              </div>
-            )}
+            <CustomerEditor
+              bookingId={booking.id}
+              fullName={booking.customer.full_name}
+              email={booking.customer.email ?? ""}
+              phone={booking.customer.phone ?? ""}
+              language={booking.customer.language || booking.language}
+              notes={booking.notes_customer ?? ""}
+            />
           </Card>
 
           {/* Items / legs */}
