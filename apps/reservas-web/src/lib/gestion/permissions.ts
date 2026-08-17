@@ -20,6 +20,10 @@ export function canManageAccommodations(role: StaffRole): boolean {
   return role !== "chofer";
 }
 
+export function canManageSeasonClosures(role: StaffRole): boolean {
+  return role === "operator" || role === "manager" || role === "admin";
+}
+
 export function canDeleteBookings(role: StaffRole): boolean {
   return role !== "chofer";
 }
@@ -81,6 +85,10 @@ export function ensureAccommodationsAccess(role: StaffRole): void {
   if (!canManageAccommodations(role)) redirect(getDefaultGestionPath(role));
 }
 
+export function ensureSeasonClosuresAccess(role: StaffRole): void {
+  if (!canManageSeasonClosures(role)) redirect(getDefaultGestionPath(role));
+}
+
 export function assertDashboardAccess(role: StaffRole): void {
   if (!canOpenDashboard(role)) throw new PermissionError();
 }
@@ -115,4 +123,10 @@ export function assertClosuresAccess(role: StaffRole): void {
 
 export function assertAccommodationsAccess(role: StaffRole): void {
   if (!canManageAccommodations(role)) throw new PermissionError();
+}
+
+export function assertSeasonClosuresAccess(role: StaffRole): void {
+  if (!canManageSeasonClosures(role)) {
+    throw new PermissionError("No tienes permisos para cerrar fechas de servicio.");
+  }
 }

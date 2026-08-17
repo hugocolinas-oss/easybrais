@@ -4,7 +4,16 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@easybrais/utils/supabase/admin";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/gestion/auth";
-import { assertAccommodationsAccess, PermissionError } from "@/lib/gestion/permissions";
+import { assertAccommodationsAccess, assertSeasonClosuresAccess, PermissionError } from "@/lib/gestion/permissions";
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isValidDate(value: string): boolean {
+  if (!DATE_RE.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
 
 function getStageCode(externalCode: string | null): number | null {
   if (!externalCode) return null;
@@ -410,5 +419,87 @@ export async function toggleStageVisibility(
     if (err instanceof PermissionError) return { error: err.message };
     console.error("[alojamientos] toggleStageVisibility unexpected:", err);
     return { error: "Error inesperado." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Public booking season closures
+// ---------------------------------------------------------------------------
+
+export async function createServiceClosure(input: {
+  startsOn: string;
+  endsOn: string;
+  reason?: string;
+}): Promise<{ ok: true } | { error: string }> {
+  try {
+    const { profile } = await requireAuth();
+    assertSeasonClosuresAccess(profile.role);
+
+    if (!isValidDate(input.startsOn) || !isValidDate(input.endsOn)) {
+      return { error: "Selecciona un rango de fechas válido." };
+    }
+    if (input.startsOn > input.endsOn) {
+      return { error: "La fecha final no puede ser anterior a la inicial." };
+    }
+    const reason = input.reason?.trim() || null;
+    if (reason && reason.length > 200) return { error: "El motivo no puede superar 200 caracteres." };
+
+    const admin = createAdminClient();
+    const { data: overlap, error: overlapError } = await admin
+      .from("service_closures")
+      .select("id")
+      .lte("starts_on", input.endsOn)
+      .gte("ends_on", input.startsOn)
+      .limit(1);
+
+    if (overlapError) {
+      console.error("[alojamientos] service closure overlap check failed:", overlapError.message);
+      return { error: "No se pudo comprobar el calendario de temporada." };
+    }
+    if (overlap && overlap.length > 0) {
+      return { error: "Ese rango coincide con otro cierre. Elimina el anterior o elige otras fechas." };
+    }
+
+    const { error } = await admin.from("service_closures").insert({
+      starts_on: input.startsOn,
+      ends_on: input.endsOn,
+      reason,
+      created_by: profile.id,
+    });
+    if (error) {
+      console.error("[alojamientos] create service closure failed:", error.message);
+      return { error: "No se pudo cerrar el rango de fechas." };
+    }
+
+    revalidatePath("/gestion/alojamientos");
+    revalidatePath("/");
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
+    console.error("[alojamientos] create service closure unexpected:", err);
+    return { error: "Error inesperado al cerrar las fechas." };
+  }
+}
+
+export async function deleteServiceClosure(id: string): Promise<{ ok: true } | { error: string }> {
+  try {
+    const { profile } = await requireAuth();
+    assertSeasonClosuresAccess(profile.role);
+    if (!UUID_RE.test(id)) return { error: "Cierre no válido." };
+
+    const admin = createAdminClient();
+    const { error } = await admin.from("service_closures").delete().eq("id", id);
+    if (error) {
+      console.error("[alojamientos] delete service closure failed:", error.message);
+      return { error: "No se pudo reabrir el rango." };
+    }
+
+    revalidatePath("/gestion/alojamientos");
+    revalidatePath("/");
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof PermissionError) return { error: err.message };
+    console.error("[alojamientos] delete service closure unexpected:", err);
+    return { error: "Error inesperado al reabrir las fechas." };
   }
 }

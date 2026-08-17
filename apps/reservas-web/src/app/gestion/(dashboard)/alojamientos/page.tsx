@@ -5,6 +5,8 @@ import { StageManager } from "@/components/gestion/alojamientos/stage-manager";
 import { ToggleActiveButton, ToggleVisibleButton } from "@/components/gestion/alojamientos/toggle-buttons";
 import { requireAuth } from "@/lib/gestion/auth";
 import { ensureAccommodationsAccess } from "@/lib/gestion/permissions";
+import { getServerSupabase } from "@/lib/supabase/server";
+import { SeasonClosureCalendar, type ServiceClosure } from "@/components/gestion/alojamientos/season-closure-calendar";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,7 @@ export default async function AlojamientosPage({
 }) {
   const { profile } = await requireAuth();
   ensureAccommodationsAccess(profile.role);
+  const supabase = await getServerSupabase();
 
   const params = await searchParams;
   const filters: AccommodationFilters = {
@@ -26,10 +29,15 @@ export default async function AlojamientosPage({
     page: params.page ? Number(params.page) : 1,
   };
 
-  const [{ rows, total, page, totalPages }, stagesInfo] = await Promise.all([
+  const [{ rows, total, page, totalPages }, stagesInfo, closuresResult] = await Promise.all([
     getAccommodations(filters),
     getStagesInfo(),
+    supabase
+      .from("service_closures")
+      .select("id, starts_on, ends_on, reason")
+      .order("starts_on", { ascending: true }),
   ]);
+  const closures = (closuresResult.data ?? []) as ServiceClosure[];
 
   const stageNames = stagesInfo.map((s) => s.name);
 
@@ -68,6 +76,8 @@ export default async function AlojamientosPage({
           <span className="sm:hidden">Nuevo</span>
         </Link>
       </div>
+
+      <SeasonClosureCalendar closures={closures} />
 
       <StageManager stages={stagesInfo} />
 

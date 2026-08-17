@@ -151,6 +151,29 @@ export async function createBooking(
 
     const email = data.customer.email.trim().toLowerCase();
     const supabase = createAdminClient();
+    if (!submission.isStaff) {
+      const dates = data.legs.map((leg) => leg.serviceDate).sort();
+      const firstRequestedDate = dates[0]!;
+      const lastRequestedDate = dates[dates.length - 1]!;
+      const { data: closures, error: closureError } = await supabase
+        .from("service_closures")
+        .select("starts_on, ends_on")
+        .lte("starts_on", lastRequestedDate)
+        .gte("ends_on", firstRequestedDate);
+
+      if (closureError) {
+        console.error("[createBooking] service closure check failed:", closureError.message);
+        return fail("No se pudo comprobar la disponibilidad de las fechas. Inténtalo de nuevo.");
+      }
+
+      const unavailableDate = dates.find((date) =>
+        (closures ?? []).some((closure) => date >= closure.starts_on && date <= closure.ends_on),
+      );
+      if (unavailableDate) {
+        const [year, month, day] = unavailableDate.split("-");
+        return fail(`No hay servicio el ${day}/${month}/${year}. Elige otra fecha.`);
+      }
+    }
     if (!submission.isStaff && !await consumePublicBookingRateLimit(email, supabase)) {
       return fail("Demasiadas solicitudes. Espera 15 minutos antes de intentarlo de nuevo.");
     }

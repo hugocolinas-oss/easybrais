@@ -29,6 +29,30 @@ export type StaffRole = "chofer" | "operator" | "manager" | "admin";
 export interface Database {
   public: {
     Tables: {
+      service_closures: {
+        Row: {
+          id: string;
+          starts_on: string;
+          ends_on: string;
+          reason: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          starts_on: string;
+          ends_on: string;
+          reason?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          starts_on?: string;
+          ends_on?: string;
+          reason?: string | null;
+        };
+        Relationships: [];
+      };
       accommodation_internal_costs: {
         Row: {
           accommodation_id: string;
