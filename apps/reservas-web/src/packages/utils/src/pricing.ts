@@ -128,6 +128,16 @@ function involvesSpiritualRoute(pickup: RoutePricingStage, dropoff: RoutePricing
   return SPIRITUAL_STAGE_CODES.has(pickup.code) || SPIRITUAL_STAGE_CODES.has(dropoff.code);
 }
 
+function isSpiritualContinuationToSharedRoute(
+  pickup: RoutePricingStage,
+  dropoff: RoutePricingStage,
+): boolean {
+  return SPIRITUAL_STAGE_CODES.has(pickup.code)
+    && dropoff.routeSection === "shared"
+    && dropoff.code >= 11
+    && SPIRITUAL_PAIR_PRICES[`${pickup.code}:11`] != null;
+}
+
 export function getRouteStageLegIssue(
   pickup: RoutePricingStage,
   dropoff: RoutePricingStage,
@@ -136,7 +146,9 @@ export function getRouteStageLegIssue(
   if (involvesSpiritualRoute(pickup, dropoff)) {
     const directKey = `${pickup.code}:${dropoff.code}`;
     if (SPIRITUAL_PAIR_PRICES[directKey] != null) return null;
+    if (isSpiritualContinuationToSharedRoute(pickup, dropoff)) return null;
     const reverseKey = `${dropoff.code}:${pickup.code}`;
+    if (isSpiritualContinuationToSharedRoute(dropoff, pickup)) return "reverse_direction";
     return SPIRITUAL_PAIR_PRICES[reverseKey] != null ? "reverse_direction" : "excess_mileage";
   }
   if (pickup.routeSection === "shared") {
@@ -204,6 +216,11 @@ export function resolveRouteStagePrice(
 
   if (involvesSpiritualRoute(pickup, dropoff)) {
     if (pickup.code === dropoff.code) return BASE_PRICE;
+    if (isSpiritualContinuationToSharedRoute(pickup, dropoff)) {
+      const toPadron = SPIRITUAL_PAIR_PRICES[`${pickup.code}:11`] ?? BASE_PRICE;
+      const afterPadron = dropoff.code === 11 ? 0 : getDirectPrice(11, dropoff.code);
+      return toPadron + afterPadron;
+    }
     return SPIRITUAL_PAIR_PRICES[`${pickup.code}:${dropoff.code}`] ?? BASE_PRICE;
   }
 

@@ -80,7 +80,19 @@ test("counts Pontevedra to Ribadumia and Vilanova as two services", () => {
   assert.equal(resolveRouteStagePrice(pontevedra, vilanova), 16);
 });
 
-test("marks unpriced Variante Espiritual legs as excess mileage", () => {
-  assert.equal(getRouteStageLegIssue(combarro, santiago), "excess_mileage");
+test("continues from the Variante Espiritual through Padron to Santiago", () => {
+  assert.equal(getRouteStageLegIssue(combarro, padron), null);
+  assert.equal(getRouteStageLegIssue(combarro, santiago), null);
+  assert.equal(getRouteStageLegIssue(armenteira, santiago), null);
+  assert.equal(getRouteStageLegIssue(ribadumia, santiago), null);
+  assert.equal(getRouteStageLegIssue(vilanova, santiago), null);
+  assert.equal(resolveRouteStagePrice(combarro, santiago), 38);
+  assert.equal(resolveRouteStagePrice(armenteira, santiago), 30);
+  assert.equal(resolveRouteStagePrice(ribadumia, santiago), 30);
+  assert.equal(resolveRouteStagePrice(vilanova, santiago), 22);
+});
+
+test("rejects reverse Variante Espiritual legs", () => {
   assert.equal(getRouteStageLegIssue(armenteira, pontevedra), "reverse_direction");
+  assert.equal(getRouteStageLegIssue(santiago, combarro), "reverse_direction");
 });
