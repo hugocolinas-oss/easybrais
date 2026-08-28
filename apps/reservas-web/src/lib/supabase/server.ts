@@ -13,7 +13,7 @@ export async function getServerSupabase() {
         );
       } catch {
         // setAll can fail in Server Components (read-only context).
-        // This is expected — session refresh will happen in middleware instead.
+        // Route Handlers and Server Actions can still persist refreshed cookies.
       }
     },
   });

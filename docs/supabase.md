@@ -99,10 +99,9 @@ if (result.error) {
 
 ## Middleware
 
-Ambas apps incluyen `src/middleware.ts` que:
-
-- **reservas-web**: Refresca la sesión en cada request (sin protección de rutas).
-- **gestion-web**: Refresca la sesión + redirige a `/login` si no hay usuario autenticado.
+Las apps no ejecutan comprobaciones de Supabase Auth desde `src/middleware.ts`.
+La validación se hace en Server Components, Server Actions y Route Handlers para
+evitar timeouts de Edge cuando Supabase Auth tarda en responder.
 
 ---
 
@@ -121,12 +120,12 @@ Esto genera tipos completos para todas las tablas, vistas y funciones.
 ## Flujo de auth completo
 
 ```
-Browser → Middleware (refresca cookies) → Server Component (lee sesión)
-   ↓                                           ↓
-Client Component ←── auth state ────── Supabase Auth
+Browser → Server Component / Route Handler → Supabase Auth
+   ↓                    ↓
+Client Component ←── auth state
 ```
 
-1. El **middleware** refresca tokens en cada request.
-2. Los **Server Components** leen la sesión vía `getServerSupabase()`.
+1. Los **Server Components** leen la sesión vía `getServerSupabase()`.
+2. Los **Server Actions** y **Route Handlers** pueden persistir cookies actualizadas.
 3. Los **Client Components** usan `getClientSupabase()` con cookies automáticas.
 4. Las rutas `/auth/callback` manejan OAuth y magic links.
