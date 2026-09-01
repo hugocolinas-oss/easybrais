@@ -101,7 +101,7 @@ export function PhoneInput({
           aria-label="Número de teléfono"
           type="tel"
           value={nationalNumber}
-          onChange={(e) => handleNumberChange(e.target.value)}
+          onInput={(e) => handleNumberChange(e.currentTarget.value)}
           placeholder={placeholder}
           disabled={disabled}
           maxLength={24}

@@ -548,6 +548,13 @@ export function BookingForm({ allAccommodations, onlinePaymentAvailable }: Props
                   if (nextCustomer.language !== autoLanguageRef.current) {
                     customerLanguageTouchedRef.current = true;
                   }
+                  setErrors((current) => {
+                    const next = { ...current };
+                    if (nextCustomer.fullName !== customer.fullName) delete next.fullName;
+                    if (nextCustomer.email !== customer.email) delete next.email;
+                    if (nextCustomer.phone !== customer.phone) delete next.phone;
+                    return next;
+                  });
                   setCustomer(nextCustomer);
                 }}
                 errors={errors}

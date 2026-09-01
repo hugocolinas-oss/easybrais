@@ -6,6 +6,8 @@
  *   npx supabase gen types typescript --project-id <id> > packages/types/src/database.ts
  */
 
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
 export type BookingType = "luggage_transfer" | "custom";
 export type BookingStatus = "draft" | "pending" | "pending_payment" | "payment_expired" | "confirmed" | "in_pickup" | "in_progress" | "in_transit" | "delivered" | "completed" | "cancelled" | "incident";
 export type PaymentStatus = "pending" | "paid" | "partial" | "refunded";
@@ -637,6 +639,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      create_booking_atomic: {
+        Args: { payload: Json };
+        Returns: string;
+      };
       consume_booking_rate_limit: {
         Args: {
           rate_key: string;

@@ -364,22 +364,39 @@ export async function createBooking(
     }
     if (!bookingCode) return fail("No se pudo generar un código de reserva. Inténtalo de nuevo.");
 
-    /* ── 3. Create booking ───────────────────────────────────────────── */
+    /* ── 3. Prepare booking and items ───────────────────────────────── */
 
     const firstDate = data.legs.reduce(
       (min, l) => (l.serviceDate < min ? l.serviceDate : min),
       data.legs[0]?.serviceDate ?? "",
     );
 
-    const { data: booking, error: bookErr } = await supabase
-      .from("bookings")
-      .insert({
+    const items = data.legs.map((leg) => {
+      const { pickupPrefix, dropoffPrefix, stagesCount, pickupStage, dropoffStage } = getLegPrefixes(leg.pickupAccommodationId, leg.dropoffAccommodationId);
+      const perBag = pickupStage && dropoffStage
+        ? resolveRouteStagePrice(pickupStage, dropoffStage)
+        : resolvePerBagPrice(pickupPrefix, dropoffPrefix, stagesCount);
+      return {
+        service_date: leg.serviceDate,
+        pickup_accommodation_id: leg.pickupAccommodationId,
+        dropoff_accommodation_id: leg.dropoffAccommodationId,
+        bags_count: leg.bagsCount,
+        overweight_bags_count: leg.overweightBagsCount,
+        unit_price: perBag,
+        line_total: leg.bagsCount * perBag,
+      };
+    });
+
+    /* ── 4. Create header, items and audit event atomically ─────────── */
+
+    const { data: bookingId, error: bookErr } = await supabase.rpc("create_booking_atomic", {
+      payload: {
         booking_code: bookingCode,
         customer_id: customer.id,
-        booking_type: "luggage_transfer" as const,
+        booking_type: "luggage_transfer",
         service_date: firstDate,
-        status: paymentMethod === "online" ? "pending_payment" as const : "confirmed" as const,
-        source_channel: submission.sourceChannel as never,
+        status: paymentMethod === "online" ? "pending_payment" : "confirmed",
+        source_channel: submission.sourceChannel,
         language: normalizedLanguage,
         notes_customer: data.customer.notes.trim() || null,
         notes_internal: tag,
@@ -388,66 +405,26 @@ export async function createBooking(
         extra_weight_amount: pricing.extraWeightAmount,
         total_amount: pricing.totalAmount,
         payment_method: paymentMethod === "cash" ? "cash" : "online_stripe",
-      })
-      .select("id")
-      .single();
-
-    if (bookErr || !booking) {
-      console.error("[createBooking] booking insert failed:", bookErr?.message);
-      return fail("Error al crear la reserva. Inténtalo de nuevo.");
-    }
-
-    /* ── 4. Create booking items ──────────────────────────────────── */
-
-    const items = data.legs.map((leg) => {
-      const { pickupPrefix, dropoffPrefix, stagesCount, pickupStage, dropoffStage } = getLegPrefixes(leg.pickupAccommodationId, leg.dropoffAccommodationId);
-      const perBag = pickupStage && dropoffStage
-        ? resolveRouteStagePrice(pickupStage, dropoffStage)
-        : resolvePerBagPrice(pickupPrefix, dropoffPrefix, stagesCount);
-      return {
-        booking_id: booking.id,
-        service_date: leg.serviceDate,
-        pickup_accommodation_id: leg.pickupAccommodationId,
-        dropoff_accommodation_id: leg.dropoffAccommodationId,
-        bags_count: leg.bagsCount,
-        overweight_bags_count: leg.overweightBagsCount,
-        unit_price: perBag,
-        line_total: leg.bagsCount * perBag,
-        operational_status: "pending" as const,
-      };
-    });
-
-    const { error: itemsErr } = await supabase.from("booking_items").insert(items);
-
-    if (itemsErr) {
-      console.error("[createBooking] items insert failed:", itemsErr.message);
-      await supabase.from("bookings").delete().eq("id", booking.id);
-      return fail("Error al guardar los tramos. Inténtalo de nuevo.");
-    }
-
-    /* ── 5. Log creation event ───────────────────────────────────── */
-
-    const { error: eventErr } = await supabase.from("booking_events").insert({
-      booking_id: booking.id,
-      event_type: "created" as const,
-      actor_type: "customer" as const,
-      payload_json: {
-        source: "web_form",
-        booking_type_form: data.bookingType,
-        legs_count: data.legs.length,
-        total_bags: pricing.totalBags,
-        subtotal: pricing.subtotalAmount,
-        discount: pricing.discountAmount,
-        extra_weight: pricing.extraWeightAmount,
-        total: pricing.totalAmount,
-        payment_method: paymentMethod === "online" ? "online_stripe" : "cash",
-        initial_status: paymentMethod === "online" ? "pending_payment" : "confirmed",
-        accommodation_policy_accepted: data.accommodationPolicyAccepted === true,
+        items,
+        event_payload: {
+          source: "web_form",
+          booking_type_form: data.bookingType,
+          legs_count: data.legs.length,
+          total_bags: pricing.totalBags,
+          subtotal: pricing.subtotalAmount,
+          discount: pricing.discountAmount,
+          extra_weight: pricing.extraWeightAmount,
+          total: pricing.totalAmount,
+          payment_method: paymentMethod === "online" ? "online_stripe" : "cash",
+          initial_status: paymentMethod === "online" ? "pending_payment" : "confirmed",
+          accommodation_policy_accepted: data.accommodationPolicyAccepted === true,
+        },
       },
     });
 
-    if (eventErr) {
-      console.error("[createBooking] event insert failed:", eventErr.message);
+    if (bookErr || !bookingId) {
+      console.error("[createBooking] atomic booking insert failed:", bookErr?.message);
+      return fail("Error al crear la reserva completa. No se ha guardado ningún cargo ni trayecto. Inténtalo de nuevo.");
     }
 
     /* ── 6. Determine payment flow ─────────────────────────────────── */
@@ -460,7 +437,7 @@ export async function createBooking(
     let customerEmailError: string | undefined;
     if (!wantsOnline) {
       try {
-        const emailOutcome = await sendReservationEmails(booking.id, supabase);
+        const emailOutcome = await sendReservationEmails(bookingId, supabase);
         customerEmailSent = emailOutcome.customer.sent;
         customerEmailError = emailOutcome.customer.error;
       } catch (error) {
@@ -477,7 +454,7 @@ export async function createBooking(
 
     return {
       ok: true,
-      bookingId: booking.id,
+      bookingId,
       bookingCode,
       customerName: data.customer.fullName.trim(),
       email,
